@@ -46,8 +46,8 @@ F2:
 #define DP(dp, op) (*(((opthread **)(dp))[op]))
 
 #ifndef EXTPA
-#define PARAMS bc_t *ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *bp, val_t *sp, void *dispatch, struct vm_fn *fns[]
-#define ARGS ip, a2sb, insn, a3a, bp, sp, dispatch, fns
+#define PARAMS bc_t *restrict ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *bp, void *restrict dispatch, struct vm_fn *restrict fns[]
+#define ARGS ip, a2sb, insn, a3a, bp, dispatch, fns
 #endif
 #define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
 #define NONTAILDISPATCH() DP(dispatch, op)(ARGS)
@@ -67,7 +67,7 @@ THREADED void vm_op_NOP(PARAMS) {
 }
 
 THREADED void vm_op_STOPii(PARAMS) {
-  (void) dispatch;  (void) ip; (void) sp;
+  (void) dispatch;  (void) ip;
   (void) a3a; (void) a2sb;
   (void) fns;
 
@@ -175,24 +175,20 @@ THREADED void vm_op_CLOSkxi(PARAMS) {
   DISPATCH(); 
 }
 
-THREADED void vm_op_APPLYpki(PARAMS) {
-  ssz_t dst = a3a;
-  ssz_t iclos = arg3B2sB(a2sb);
-  ssz_t nargs = arg3C2sB(a2sb);
+THREADED void vm_op_APPLYpi(PARAMS) {
+  ssz_t iclos = a3a;
+  ssz_t nargs = a2sb;
+
+  (void) nargs;
 
   struct closure *clos = val2ptr(bp[iclos]);    
   struct vm_fn *fn = val2ptr(clos->fp);
 
-  val_t *old_bp = bp;
-  bp = next_bp(sp);
-  sp += fn->framesz;
-
-  frame_link(bp) = ptr2val(old_bp);
-  frame_rv(bp) = ptr2val(old_bp + dst);
+  bp = next_bp(bp, iclos);
   frame_ra(bp) = ptr2val(ip);
 
-  for (ssz_t i = 0; i < nargs; i++)
-    bp[i] = old_bp[iclos + i];
+  // copy closure to the first slot as arg0
+  bp[0] = ptr2val(clos); 
 
   ip = fn->ops;
 
@@ -206,18 +202,12 @@ THREADED void vm_op_CALLpxi(PARAMS) {
   ssz_t fx = arg3B2sB(a2sb);
   ssz_t nargs = arg3C2sB(a2sb);
 
+  (void) nargs;
+
   struct vm_fn *fn = val2ptr(fns[fx]);
 
-  val_t *old_bp = bp;
-  bp = next_bp(sp);
-  sp += fn->framesz;
-
-  frame_link(bp) = ptr2val(old_bp);
-  frame_rv(bp) = ptr2val(old_bp + dst);
+  bp = next_bp(bp, dst);
   frame_ra(bp) = ptr2val(ip);
-
-  for (ssz_t i = 0; i < nargs; i++)
-    bp[i] = old_bp[dst + i];
 
   ip = fn->ops;
 
@@ -278,12 +268,14 @@ THREADED void vm_op_RETp(PARAMS) {
   (void) a2sb;
   ssz_t rv = a3a;
   
-  *(val_t*)val2ptr(frame_rv(bp)) = bp[rv];
-  
-  ip = val2ptr(frame_ra(bp));
-  
-  sp = prev_sp(bp);
-  bp = val2ptr(frame_link(bp)); 
+  frame_rv(bp) = bp[rv];
+
+  bc_t *ra = val2ptr(frame_ra(bp));
+  bc_t prev_insn = ra[-1];
+  ssz_t fo = arg3A(prev_insn);
+
+  bp = prev_bp(bp, fo);
+  ip = ra;
 
   FETCH_DECODE();
   
@@ -300,7 +292,7 @@ static opthread *dispatch[] = {
   vm_op_SUBlll,
   vm_op_CONSTli,
   vm_op_CLOSkxi,
-  vm_op_APPLYpki,
+  vm_op_APPLYpi,
   vm_op_CALLpxi,
   vm_op_OSETpip,
   vm_op_OGETppi,  
@@ -311,8 +303,7 @@ static opthread *dispatch[] = {
 
 int vm_exec(struct vm_state *state) {
   bc_t *ip = state->entry->ops;
-  val_t *bp = next_bp(state->stk);
-  val_t *sp = state->stk+state->entry->framesz;
+  val_t *bp = state->stk;
   bc_t insn = *ip++;
   op_t op = opcode(insn);
   uint8_t a3a = arg3A(insn);
@@ -327,50 +318,46 @@ int main() {
   struct vm_state vs;
 
   struct vm_fn *f1 = malloc(10000);
-  f1->framesz = 5; // 3 + fib + arg0 
   f1->ops[0] = make3ABC(CLOSkxi, 0, 1, 1);
   f1->ops[1] = make3ABC(OSETpip, 0, 2, 0);
-  f1->ops[2] = make2AB(CONSTli, 1, 40);
-  f1->ops[3] = make3ABC(APPLYpki, 0, 0, 2);
-  f1->ops[4] = make3ABC(STOPii, 0, 2, 0);
+  f1->ops[2] = make2AB(CONSTli, 3, 40);
+  f1->ops[3] = make2AB(APPLYpi, 0, 2);
+  f1->ops[4] = make3ABC(STOPii, 0, 1, 0);
 
   struct vm_fn *f2 = malloc(10000);
-  f2->framesz = 8; 
   f2->ops[0] = make2AB(CMPLTli, 1, 2);
   f2->ops[1] = make2B(JUMPNj, 3);
 
-  f2->ops[2] = make2AB(CONSTli, 2, 1);
-  f2->ops[3] = make2A(RETp, 2);
+  f2->ops[2] = make2AB(CONSTli, 0, 1);
+  f2->ops[3] = make2A(RETp, 0);
 
   f2->ops[4] = make3ABC(OGETppi, 2, 0, 2);
-  f2->ops[5] = make3ABC(SUBlli, 3, 1, 1);
-  f2->ops[6] = make3ABC(APPLYpki, 2, 2, 2);
+  f2->ops[5] = make3ABC(SUBlli, 5, 1, 1);
+  f2->ops[6] = make2AB(APPLYpi, 2, 2);
   f2->ops[7] = make3ABC(OGETppi, 3, 0, 2);
-  f2->ops[8] = make3ABC(SUBlli, 4, 1, 2);
-  f2->ops[9] = make3ABC(APPLYpki, 3, 3, 2);
-  f2->ops[10]= make3ABC(ADDlll, 1, 2, 3);
-  f2->ops[11]= make2A(RETp, 1);
+  f2->ops[8] = make3ABC(SUBlli, 6, 1, 2);
+  f2->ops[9] = make2AB(APPLYpi, 3, 2);
+  f2->ops[10]= make3ABC(ADDlll, 0, 2, 3);
+  f2->ops[11]= make2A(RETp, 0);
 
   struct vm_fn *f3 = malloc(10000);
-  f3->framesz = 4; // 3 + arg0 
-  f3->ops[0] = make2AB(CONSTli, 0, 40);
+  f3->ops[0] = make2AB(CONSTli, 2, 40);
   f3->ops[1] = make3ABC(CALLpxi, 0, 3, 1);
   f3->ops[2] = make3ABC(STOPii, 0, 1, 0);
 
   struct vm_fn *f4 = malloc(10000);
-  f4->framesz = 6; 
   f4->ops[0] = make2AB(CMPLTli, 0, 2);
   f4->ops[1] = make2B(JUMPNj, 3);
 
-  f4->ops[2] = make2AB(CONSTli, 2, 1);
-  f4->ops[3] = make2A(RETp, 2);
+  f4->ops[2] = make2AB(CONSTli, 0, 1);
+  f4->ops[3] = make2A(RETp, 0);
 
-  f4->ops[4] = make3ABC(SUBlli, 1, 0, 1);
+  f4->ops[4] = make3ABC(SUBlli, 3, 0, 1);
   f4->ops[5] = make3ABC(CALLpxi, 1, 3, 1);
-  f4->ops[6] = make3ABC(SUBlli, 2, 0, 2);
+  f4->ops[6] = make3ABC(SUBlli, 4, 0, 2);
   f4->ops[7] = make3ABC(CALLpxi, 2, 3, 1);
-  f4->ops[8]= make3ABC(ADDlll, 1, 1, 2);
-  f4->ops[9]= make2A(RETp, 1);
+  f4->ops[8]= make3ABC(ADDlll, 0, 1, 2);
+  f4->ops[9]= make2A(RETp, 0);
   struct vm_fn *fns[] = {f1, f2, f3, f4};
 
   vs.entry = f3;

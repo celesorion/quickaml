@@ -2,13 +2,13 @@
 CC := clang
 
 # Compiler flags
-CFLAGS := -Wall -Wextra -O3 -march=native -std=c2x # -fsanitize=address
+CFLAGS := -Wall -Wextra -O3 -march=native -g -std=c2x # -fsanitize=address
 
 # Directories
 SRC_DIR := src
 OBJ_DIR := obj
 BIN_DIR := bin
-INC_DIR := .
+INC_DIR := src
 
 # Source files
 SRCS := $(wildcard $(SRC_DIR)/*.c)

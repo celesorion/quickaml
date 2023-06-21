@@ -51,7 +51,7 @@ typedef enum vm_opcode {
 //
   CLOSkxi,
 //  WRAPkpi,
-  APPLYpki,
+  APPLYpi,
 //  APPLYTpki,
   CALLpxi,
 //  CALLTpxi,
@@ -104,11 +104,10 @@ struct vm_state {
   val_t *stklimit;
 };
 
-#define frame_link(bp) ((bp)[-3])
 #define frame_rv(bp) ((bp)[-2])
 #define frame_ra(bp) ((bp)[-1])
-#define next_bp(sp) ((sp)+3)
-#define prev_sp(bp) ((bp)-3)
+#define prev_bp(bp, fo) ((bp)-2-(fo))
+#define next_bp(bp, fo) ((bp)+2+(fo))
 
 struct object {
   obj_header hd;
