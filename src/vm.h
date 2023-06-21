@@ -62,7 +62,6 @@ typedef enum vm_opcode {
   OGETppi,  
 //
   JUMPj,
-  JUMPNj,
 //
 //  RET,
   RETp,
@@ -80,6 +79,7 @@ static_assert(sizeof(enum vm_opcode) <= sizeof(uint32_t));
 #define arg1sA(i) ((int32_t)(i)>>8)
 #define arg3B2sB(i) (((uint32_t)(i))&0xff)
 #define arg3C2sB(i) ((((uint32_t)(i))>>8)&0xff)
+
 #define make3ABC(op, a, b, c) (((bc_t)(op))|(((bc_t)(a))<<8)|(((bc_t)(b))<<16)|(((bc_t)(c))<<24))
 #define make2AB(op, a, b) (((bc_t)(op))|(((bc_t)(a))<<8)|(((bc_t)(b))<<16))
 #define make2A(op, a) make2AB(op, a, 0)

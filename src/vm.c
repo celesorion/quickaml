@@ -1,34 +1,4 @@
 #include "vm.h"
-/*
-let rec fib =
-  fun n ->
-   if n < 1 then 1
-   else fib (n - 1) + fib (n - 2)
-
- 
-F1:
-0001  CLOS    #0, F2, 0
-0002  OSET    #0，2, #0
-0003  CONST   #1, 10
-0004  APPLY   #0, #0, 2
-
-F2:
-0001  CMPLT   #1, 1
-0002  JUMPN   +3 => 0005
-
-0003  CONST   #2, 1
-0004  RET     #2
-
-0005  OGET    #2, #0, 1
-0006  SUB     #3, #1, 1
-0007  APPLY   #2, #2, 2
-0008  OGET    #3, #0, 1
-0009  SUB     #4, #1, 2
-0010  APPLY   #3, #3, 2 
-0011  ADD     #1, #2, #3
-0012  RET     #1
-
-*/
 
 // [RBX, RCX, RSI, RDI, RBP, R12, R13, R14, R8, R9, R15, RAX, RDX, R10, R11]
 // ('PARAMS="bc_t *ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *bp, val_t *sp, void *dispatch" ARGS="ip, a2sb, insn, a3a, bp, sp, dispatch"', 509)
@@ -46,7 +16,7 @@ F2:
 #define DP(dp, op) (*(((opthread **)(dp))[op]))
 
 #ifndef EXTPA
-#define PARAMS bc_t *restrict ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *bp, void *restrict dispatch, struct vm_fn *restrict fns[]
+#define PARAMS bc_t *restrict ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *restrict bp, void *restrict dispatch, struct vm_fn *restrict fns[]
 #define ARGS ip, a2sb, insn, a3a, bp, dispatch, fns
 #endif
 #define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
@@ -85,13 +55,10 @@ THREADED void vm_op_CMPLTli(PARAMS) {
   int32_t imm = a2sb; 
  
   bc_t next_insn = *ip;
-  op_t jop = opcode(next_insn);
 
   unsigned lt = (int64_t)bp[src] < imm;
-  unsigned neg = jop == JUMPNj;
-  unsigned jump = lt ^ neg;  
 
-  ip += jump ? arg2sB(next_insn) : 1;
+  ip += lt ? 1 : arg2sB(next_insn);
 
   FETCH_DECODE();
 
@@ -253,17 +220,6 @@ THREADED void vm_op_JUMPj(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_JUMPNj(PARAMS) {
-  (void) a3a;
-  int32_t target = a2sb;
-  
-  ip = add2ip(ip, target);
-
-  FETCH_DECODE();
-
-  DISPATCH();
-}
-
 THREADED void vm_op_RETp(PARAMS) {
   (void) a2sb;
   ssz_t rv = a3a;
@@ -297,7 +253,6 @@ static opthread *dispatch[] = {
   vm_op_OSETpip,
   vm_op_OGETppi,  
   vm_op_JUMPj,
-  vm_op_JUMPNj,
   vm_op_RETp,
 };
 
@@ -326,7 +281,7 @@ int main() {
 
   struct vm_fn *f2 = malloc(10000);
   f2->ops[0] = make2AB(CMPLTli, 1, 2);
-  f2->ops[1] = make2B(JUMPNj, 3);
+  f2->ops[1] = make2B(JUMPj, 3);
 
   f2->ops[2] = make2AB(CONSTli, 0, 1);
   f2->ops[3] = make2A(RETp, 0);
@@ -347,7 +302,7 @@ int main() {
 
   struct vm_fn *f4 = malloc(10000);
   f4->ops[0] = make2AB(CMPLTli, 0, 2);
-  f4->ops[1] = make2B(JUMPNj, 3);
+  f4->ops[1] = make2B(JUMPj, 3);
 
   f4->ops[2] = make2AB(CONSTli, 0, 1);
   f4->ops[3] = make2A(RETp, 0);

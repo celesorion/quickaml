@@ -2,13 +2,14 @@ import os
 from itertools import permutations
 import subprocess
 
-pas = [('bc_t *ip', 'ip'),
+pas = [('bc_t *restrict ip', 'ip'),
        ('bc_t insn', 'insn'),
-       ('val_t *bp', 'bp'),
+       ('val_t *restrict bp', 'bp'),
        ('int32_t a2sb', 'a2sb'),
        ('uint8_t a3a', 'a3a'),
-       ('val_t *sp', 'sp'),
-       ('void *dispatch', 'dispatch')]
+       #('val_t *sp', 'sp'),
+       ('void *restrict dispatch', 'dispatch'),
+       ('struct vm_fn *restrict fns[]', 'fns')]
 
 result = []
 
