@@ -1,48 +1,56 @@
 #include "vm.h"
 
-// [RBX, RCX, RSI, RDI, RBP, R12, R13, R14, R8, R9, R15, RAX, RDX, R10, R11]
-// ('PARAMS="bc_t *ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *bp, val_t *sp, void *dispatch" ARGS="ip, a2sb, insn, a3a, bp, sp, dispatch"', 509)
-
-
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
 
-#define THREADED [[gnu::noinline, clang::qkcc]] static
+#define THREADED [[gnu::noinline, clang::qkcc, gnu::aligned(64)]] static
 #define INLINE [[gnu::always_inline]] static
 #define MUSTTAIL [[clang::musttail]]
 #define DP(dp, op) (*(((opthread **)(dp))[op]))
 
 #ifndef EXTPA
-#define PARAMS bc_t *restrict ip, int32_t a2sb, bc_t insn, uint8_t a3a, val_t *restrict bp, void *restrict dispatch, struct vm_fn *restrict fns[]
-#define ARGS ip, a2sb, insn, a3a, bp, dispatch, fns
+#define PARAMS bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, val_t *restrict ctbl, void *restrict dispatch, struct function *restrict fns[]
+#define ARGS ip, a2sb, a3a, bp, ctbl, dispatch, fns
 #endif
 #define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
 #define NONTAILDISPATCH() DP(dispatch, op)(ARGS)
 #define FETCH_DECODE() \
-  insn = *ip++;           \
+  bc_t insn = *ip++;      \
   op_t op = opcode(insn); \
   a3a = arg3A(insn);      \
   a2sb = arg2sB(insn)
 
+#define OP_DEFINITION(name) THREADED void vm_op_##name(PARAMS)
+
 [[clang::qkcc]] typedef void opthread(PARAMS);
 
-THREADED void vm_op_NOP(PARAMS) {
+#define LT <
+#define LE <=
+#define GT >
+#define GE >=
+#define EQ ==
+#define NE !=
+#define ADD +
+#define SUB -
+#define MUL *
+#define DIV /
+#define REM %
+
+OP_DEFINITION(NOP) {
 
   FETCH_DECODE();
 
   DISPATCH();
 }
 
-THREADED void vm_op_STOPii(PARAMS) {
+OP_DEFINITION(STOPii) {
   (void) dispatch;  (void) ip;
-  (void) a3a; (void) a2sb;
-  (void) fns;
+  (void) fns; (void) ctbl;
 
-  ssz_t i1 = arg2A(insn);
-  ssz_t i2 = arg2B(insn);
+  ssz_t i1 = a3a;
+  ssz_t i2 = arg2B2sB(a2sb);
   
   for (ssz_t i = i1; i < i2; i++)
     printf("slot[%u] 0x%lx\n", i, bp[i]);  
@@ -50,70 +58,123 @@ THREADED void vm_op_STOPii(PARAMS) {
   return;
 }
 
-THREADED void vm_op_CMPLTli(PARAMS) {
-  ssz_t src = a3a;
-  int32_t imm = a2sb; 
- 
-  bc_t next_insn = *ip;
-
-  unsigned lt = (int64_t)bp[src] < imm;
-
-  ip += lt ? 1 : arg2sB(next_insn);
-
-  FETCH_DECODE();
-
-  DISPATCH();
+#define OP_CMPll_DEF(name, cmp) \
+OP_DEFINITION(name) {                     \
+  ssz_t o1 = a3a;                         \
+  ssz_t o2 = arg3B2sB(a2sb);              \
+                                          \
+  bc_t next_insn = *ip++;                 \
+                                          \
+  unsigned c =                            \
+    (int64_t)bp[o1] cmp (int64_t)bp[o2];  \
+                                          \
+  ip += c ? 0 : arg2sB(next_insn);        \
+                                          \
+  FETCH_DECODE();                         \
+                                          \
+  DISPATCH();                             \
 }
 
-THREADED void vm_op_ADDlli(PARAMS) {
-  ssz_t dst = a3a; 
-  ssz_t src1 = arg3B2sB(a2sb);
-  ssz_t imm = arg3C2sB(a2sb);
+OP_CMPll_DEF(CMPLTll, LT)
+OP_CMPll_DEF(CMPLEll, LE)
+OP_CMPll_DEF(CMPEQll, EQ)
+OP_CMPll_DEF(CMPNEll, NE)
 
-  bp[dst] = bp[src1] + imm;
+#undef OP_CMPll_DEF
 
-  FETCH_DECODE();
-  
-  DISPATCH();
+#define OP_CMPli_DEF(name, cmp) \
+OP_DEFINITION(name) {                     \
+  ssz_t o1 = a3a;                         \
+  int32_t imm = a2sb;                     \
+                                          \
+  bc_t next_insn = *ip++;                 \
+                                          \
+  unsigned c = (int64_t)bp[o1] cmp imm;   \
+                                          \
+  ip += c ? 0 : arg2sB(next_insn);        \
+                                          \
+  FETCH_DECODE();                         \
+                                          \
+  DISPATCH();                             \
 }
 
-THREADED void vm_op_SUBlli(PARAMS) {
-  ssz_t dst = a3a; 
-  ssz_t src1 = arg3B2sB(a2sb);
-  ssz_t imm = arg3C2sB(a2sb);
+OP_CMPli_DEF(CMPLTli, LT)
+OP_CMPli_DEF(CMPLEli, LE)
+OP_CMPli_DEF(CMPGTli, GT)
+OP_CMPli_DEF(CMPGEli, GE)
+OP_CMPli_DEF(CMPEQli, EQ)
+OP_CMPli_DEF(CMPNEli, NE)
 
-  bp[dst] = bp[src1] - imm;
+#undef OP_CMPli_DEF
 
-  FETCH_DECODE();
-
-  DISPATCH();
+#define OP_CMPlc_DEF(name, cmp) \
+OP_DEFINITION(name) {                     \
+  ssz_t o1 = a3a;                         \
+  int32_t cidx = a2sb;                    \
+                                          \
+  bc_t next_insn = *ip++;                 \
+                                          \
+  unsigned c = (int64_t)bp[o1]            \
+    cmp (int64_t)ctbl[cidx];              \
+                                          \
+  ip += c ? 0 : arg2sB(next_insn);        \
+                                          \
+  FETCH_DECODE();                         \
+                                          \
+  DISPATCH();                             \
 }
 
-THREADED void vm_op_ADDlll(PARAMS) {
-  ssz_t dst = a3a;
-  ssz_t src1 = arg3B2sB(a2sb);
-  ssz_t src2 = arg3C2sB(a2sb);
+OP_CMPlc_DEF(CMPLTlc, LT)
+OP_CMPlc_DEF(CMPLElc, LE)
+OP_CMPlc_DEF(CMPGTlc, GT)
+OP_CMPlc_DEF(CMPGElc, GE)
+OP_CMPlc_DEF(CMPEQlc, EQ)
+OP_CMPlc_DEF(CMPNElc, NE)
 
-  bp[dst] = bp[src1] + bp[src2];
 
-  FETCH_DECODE();
-
-  DISPATCH();
+#define OP_ARITHlli_DEF(name, arith) \
+OP_DEFINITION(name) {                     \
+  ssz_t dst = a3a;                        \
+  ssz_t src1 = arg3B2sB(a2sb);            \
+  ssz_t imm = arg3C2sB(a2sb);             \
+                                          \
+  bp[dst] = bp[src1] arith imm;           \
+                                          \
+  FETCH_DECODE();                         \
+                                          \
+  DISPATCH();                             \
 }
 
-THREADED void vm_op_SUBlll(PARAMS) {
-  ssz_t dst = a3a;
-  ssz_t src1 = arg3B2sB(a2sb);
-  ssz_t src2 = arg3C2sB(a2sb);
+OP_ARITHlli_DEF(ADDlli, ADD)
+OP_ARITHlli_DEF(SUBlli, SUB)
+OP_ARITHlli_DEF(MULlli, MUL)
+OP_ARITHlli_DEF(DIVlli, DIV)
+OP_ARITHlli_DEF(REMlli, REM)
 
-  bp[dst] = bp[src1] - bp[src2];
+#undef OP_ARITHlli_DEF
 
-  FETCH_DECODE();
-  
-  DISPATCH();
+#define OP_ARITHlll_DEF(name, arith) \
+OP_DEFINITION(name) {                     \
+  ssz_t dst = a3a;                        \
+  ssz_t src1 = arg3B2sB(a2sb);            \
+  ssz_t src2 = arg3C2sB(a2sb);            \
+                                          \
+  bp[dst] = bp[src1] arith bp[src2];      \
+                                          \
+  FETCH_DECODE();                         \
+                                          \
+  DISPATCH();                             \
 }
 
-THREADED void vm_op_CONSTli(PARAMS) {
+OP_ARITHlll_DEF(ADDlll, ADD)
+OP_ARITHlll_DEF(SUBlll, SUB)
+OP_ARITHlll_DEF(MULlll, MUL)
+OP_ARITHlll_DEF(DIVlll, DIV)
+OP_ARITHlll_DEF(REMlll, REM)
+
+#undef OP_ARITHlll_DEF
+
+OP_DEFINITION(CONSTli) {
   ssz_t dst = a3a;
   int32_t imm = a2sb;
   
@@ -124,7 +185,7 @@ THREADED void vm_op_CONSTli(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_CLOSkxi(PARAMS) {
+OP_DEFINITION(CLOSkxi) {
   ssz_t dst = a3a;
   ssz_t fx = arg3B2sB(a2sb);
   ssz_t imm = arg3C2sB(a2sb);
@@ -142,14 +203,14 @@ THREADED void vm_op_CLOSkxi(PARAMS) {
   DISPATCH(); 
 }
 
-THREADED void vm_op_APPLYpi(PARAMS) {
+OP_DEFINITION(APPLYpi) {
   ssz_t iclos = a3a;
   ssz_t nargs = a2sb;
 
   (void) nargs;
 
   struct closure *clos = val2ptr(bp[iclos]);    
-  struct vm_fn *fn = val2ptr(clos->fp);
+  struct function *fn = val2ptr(clos->fp);
 
   bp = next_bp(bp, iclos);
   frame_ra(bp) = ptr2val(ip);
@@ -164,14 +225,14 @@ THREADED void vm_op_APPLYpi(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_CALLpxi(PARAMS) {
+OP_DEFINITION(CALLpxi) {
   ssz_t dst = a3a;
   ssz_t fx = arg3B2sB(a2sb);
   ssz_t nargs = arg3C2sB(a2sb);
 
   (void) nargs;
 
-  struct vm_fn *fn = val2ptr(fns[fx]);
+  struct function *fn = val2ptr(fns[fx]);
 
   bp = next_bp(bp, dst);
   frame_ra(bp) = ptr2val(ip);
@@ -183,7 +244,7 @@ THREADED void vm_op_CALLpxi(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_OSETpip(PARAMS) {
+OP_DEFINITION(OSETpip) {
   ssz_t dst = a3a;
   ssz_t imm = arg3B2sB(a2sb);
   ssz_t src = arg3C2sB(a2sb);
@@ -196,7 +257,7 @@ THREADED void vm_op_OSETpip(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_OGETppi(PARAMS) {
+OP_DEFINITION(OGETppi) {
   ssz_t dst = a3a;
   ssz_t src = arg3B2sB(a2sb);
   ssz_t imm = arg3C2sB(a2sb);
@@ -209,7 +270,19 @@ THREADED void vm_op_OGETppi(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_JUMPj(PARAMS) {
+OP_DEFINITION(CLOSGETpi) {
+  ssz_t dst = a3a;
+  ssz_t imm = arg2B2sB(a2sb);
+
+  struct object *obj = val2ptr(bp[0]);
+  bp[dst] = obj->fields[imm];
+
+  FETCH_DECODE();
+
+  DISPATCH();
+}
+
+OP_DEFINITION(JUMPj) {
   (void) a3a;
   int32_t target = a2sb;
   
@@ -220,7 +293,7 @@ THREADED void vm_op_JUMPj(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_RETp(PARAMS) {
+OP_DEFINITION(RETp) {
   (void) a2sb;
   ssz_t rv = a3a;
   
@@ -239,49 +312,40 @@ THREADED void vm_op_RETp(PARAMS) {
 }
 
 static opthread *dispatch[] = {
-  vm_op_NOP, 
-  vm_op_STOPii,
-  vm_op_CMPLTli,
-  vm_op_ADDlli,
-  vm_op_SUBlli,
-  vm_op_ADDlll,
-  vm_op_SUBlll,
-  vm_op_CONSTli,
-  vm_op_CLOSkxi,
-  vm_op_APPLYpi,
-  vm_op_CALLpxi,
-  vm_op_OSETpip,
-  vm_op_OGETppi,  
-  vm_op_JUMPj,
-  vm_op_RETp,
+#define OPIMPLS(name) vm_op_##name,
+OPS(OPIMPLS)
+#undef OPIMPLS
 };
 
-int vm_exec(struct vm_state *state) {
+int vm_exec(struct state *state) {
   bc_t *ip = state->entry->ops;
   val_t *bp = state->stk;
   bc_t insn = *ip++;
   op_t op = opcode(insn);
   uint8_t a3a = arg3A(insn);
   int32_t a2sb = arg2sB(insn);
-  struct vm_fn **fns = state->fns;
+  val_t *ctbl = nullptr;
+  struct function **fns = state->fns;
 
   NONTAILDISPATCH();
   return 0;
 }
 
-int main() {
-  struct vm_state vs;
+#include "bc_parse.h"
 
-  struct vm_fn *f1 = malloc(10000);
+int main() {
+  struct state vs;
+
+  struct function *f1 = aligned_alloc(8, 10000);
   f1->ops[0] = make3ABC(CLOSkxi, 0, 1, 1);
   f1->ops[1] = make3ABC(OSETpip, 0, 2, 0);
   f1->ops[2] = make2AB(CONSTli, 3, 40);
   f1->ops[3] = make2AB(APPLYpi, 0, 2);
   f1->ops[4] = make3ABC(STOPii, 0, 1, 0);
 
-  struct vm_fn *f2 = malloc(10000);
+  struct function *f2 = aligned_alloc(8, 10000);
   f2->ops[0] = make2AB(CMPLTli, 1, 2);
-  f2->ops[1] = make2B(JUMPj, 3);
+  f2->ops[1] = make2B(JUMPj, 2);
 
   f2->ops[2] = make2AB(CONSTli, 0, 1);
   f2->ops[3] = make2A(RETp, 0);
@@ -295,14 +359,15 @@ int main() {
   f2->ops[10]= make3ABC(ADDlll, 0, 2, 3);
   f2->ops[11]= make2A(RETp, 0);
 
-  struct vm_fn *f3 = malloc(10000);
+
+  struct function *f3 = aligned_alloc(8, 10000);
   f3->ops[0] = make2AB(CONSTli, 2, 40);
   f3->ops[1] = make3ABC(CALLpxi, 0, 3, 1);
   f3->ops[2] = make3ABC(STOPii, 0, 1, 0);
 
-  struct vm_fn *f4 = malloc(10000);
+  struct function *f4 = aligned_alloc(8, 10000);
   f4->ops[0] = make2AB(CMPLTli, 0, 2);
-  f4->ops[1] = make2B(JUMPj, 3);
+  f4->ops[1] = make2B(JUMPj, 2);
 
   f4->ops[2] = make2AB(CONSTli, 0, 1);
   f4->ops[3] = make2A(RETp, 0);
@@ -313,11 +378,36 @@ int main() {
   f4->ops[7] = make3ABC(CALLpxi, 2, 3, 1);
   f4->ops[8]= make3ABC(ADDlll, 0, 1, 2);
   f4->ops[9]= make2A(RETp, 0);
-  struct vm_fn *fns[] = {f1, f2, f3, f4};
+
+  
+  struct function *f5 = aligned_alloc(8, 10000);
+  f5->ops[0] = make3ABC(CLOSkxi, 0, 5, 1);
+  f5->ops[1] = make3ABC(OSETpip, 0, 2, 0);
+  f5->ops[2] = make2AB(CONSTli, 3, 40);
+  f5->ops[3] = make2AB(APPLYpi, 0, 2);
+  f5->ops[4] = make3ABC(STOPii, 0, 1, 0);
+
+  struct function *f6 = aligned_alloc(8, 10000);
+  f6->ops[0] = make2AB(CMPLTli, 1, 2);
+  f6->ops[1] = make2B(JUMPj, 2);
+
+  f6->ops[2] = make2AB(CONSTli, 0, 1);
+  f6->ops[3] = make2A(RETp, 0);
+
+  f6->ops[4] = make2AB(CLOSGETpi, 2, 2);
+  f6->ops[5] = make3ABC(SUBlli, 5, 1, 1);
+  f6->ops[6] = make2AB(APPLYpi, 2, 2);
+  f6->ops[7] = make2AB(CLOSGETpi, 3, 2);
+  f6->ops[8] = make3ABC(SUBlli, 6, 1, 2);
+  f6->ops[9] = make2AB(APPLYpi, 3, 2);
+  f6->ops[10]= make3ABC(ADDlll, 0, 2, 3);
+  f6->ops[11]= make2A(RETp, 0);
+  
+  struct function *fns[] = { f1, f2, f3, f4, f5, f6 };
 
   vs.entry = f3;
   vs.fns = fns;
-  vs.stk = malloc(1000000);
+  vs.stk = aligned_alloc(8, 1000000);
 
   vm_exec(&vs);
 }

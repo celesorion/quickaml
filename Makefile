@@ -2,7 +2,7 @@
 CC := clang
 
 # Compiler flags
-CFLAGS := -Wall -Wextra -O3 -march=native -g -std=c2x # -fsanitize=address
+CFLAGS := -Wall -Wextra -O3 -fpie -g -std=c2x # -march=native # -fsanitize=address
 
 # Directories
 SRC_DIR := src
