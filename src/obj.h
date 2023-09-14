@@ -1,7 +1,9 @@
+#ifndef QK_OBJ_H
+#define QK_OBJ_H
+
 #include "def.h"
 
 struct function {
-  ssz_t framesz;
   bc_t *oplimit;
   bc_t ops[];
 };
@@ -26,4 +28,6 @@ struct closure {
 };
 
 #define closure_size(n) (sizeof(struct closure) + sizeof(val_t)*(n))
+
+#endif
 

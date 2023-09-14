@@ -1,25 +1,41 @@
+#ifndef QK_BC_H
+#define QK_BC_H
+
+enum {
+  N,
+  I,
+  J,
+  A,
+  F,
+  L,
+  C,
+  P,
+  X,
+  K, 
+};
+
 #define OPS(_) \
-  _(NOP) \
-  _(STOPii)  \
+  _(NOP,        "nop",  0, N, N, N) \
+  _(STOPii,     "stop.ii",   2, I, I, N) \
   \
-  _(CMPLTll) \
-  _(CMPLEll) \
-  _(CMPEQll) \
-  _(CMPNEll) \
+  _(CMPLTll,    "cmplt.ll",  2, L, L, N) \
+  _(CMPLEll,    "cmple.ll",  2, L, L, N) \
+  _(CMPEQll,    "cmpeq.ll",  2, L, L, N) \
+  _(CMPNEll,    "cmpne.ll",  2, L, L, N) \
   \
-  _(CMPLTli) \
-  _(CMPLEli) \
-  _(CMPGTli) \
-  _(CMPGEli) \
-  _(CMPEQli) \
-  _(CMPNEli) \
+  _(CMPLTli,    "cmplt.li",  2, L, I, N) \
+  _(CMPLEli,    "cmple.li",  2, L, I, N) \
+  _(CMPGTli,    "cmpgt.li",  2, L, I, N) \
+  _(CMPGEli,    "cmpge.li",  2, L, I, N) \
+  _(CMPEQli,    "cmpeq.li",  2, L, I, N) \
+  _(CMPNEli,    "cmpne.li",  2, L, I, N) \
   \
-  _(CMPLTlc) \
-  _(CMPLElc) \
-  _(CMPGTlc) \
-  _(CMPGElc) \
-  _(CMPEQlc) \
-  _(CMPNElc) \
+  _(CMPLTlc,    "cmplt.lc",  2, L, C, N) \
+  _(CMPLElc,    "cmple.lc",  2, L, C, N) \
+  _(CMPGTlc,    "cmpgt.lc",  2, L, C, N) \
+  _(CMPGElc,    "cmpge.lc",  2, L, C, N) \
+  _(CMPEQlc,    "cmpeq.lc",  2, L, C, N) \
+  _(CMPNElc,    "cmpne.lc",  2, L, C, N) \
 /*_(CMPipp) \
   _(MOVpp) \
   _(NEGi) \
@@ -31,46 +47,46 @@
   _(DIVllc) \
   _(REMllc) \
 */\
-  _(ADDlli) \
-  _(SUBlli) \
-  _(MULlli) \
-  _(DIVlli) \
-  _(REMlli) \
+  _(ADDlli,     "add.lli",  3, L, L, I) \
+  _(SUBlli,     "sub.lli",  3, L, L, I) \
+  _(MULlli,     "mul.lli",  3, L, L, I) \
+  _(DIVlli,     "div.lli",  3, L, L, I) \
+  _(REMlli,     "rem.lli",  3, L, L, I) \
   \
-  _(ADDlll) \
-  _(SUBlll) \
-  _(MULlll) \
-  _(DIVlll) \
-  _(REMlll) \
+  _(ADDlll,     "add.lll",  3, L, L, L) \
+  _(SUBlll,     "sub.lll",  3, L, L, L) \
+  _(MULlll,     "mul.lll",  3, L, L, L) \
+  _(DIVlll,     "div.lll",  3, L, L, L) \
+  _(REMlll,     "rem.lll",  3, L, L, L) \
 /*_(CONCATsss) \
   _(CONSTlc) \
 */\
-  _(CONSTli) \
+  _(CONSTli,    "const.li", 3, L, I, N) \
 /*_(CONSTsc) \
   _(CONSTpi) \
 */\
-  _(CLOSkxi) \
+  _(CLOSkxi,    "clos.kxi", 3, K, X, I) \
 /*_(WRAPkpi) \
 */\
-  _(APPLYpi) \
+  _(APPLYpi,    "apply.pi", 2, P, I, N) \
 /*_(APPLYTpki) \
 */\
-  _(CALLpxi) \
+  _(CALLpxi,    "call.pxi", 3, P, X, I) \
 /*_(CALLTpxi) \
   _(CCALLcpi) \
   _(ONEWpii) \
 */\
-  _(OSETpip) \
-  _(OGETppi) \
-  _(CLOSGETpi) \
-  _(JUMPj) \
+  _(OSETpip,    "oset.pip", 3, P, I, P) \
+  _(OGETppi,    "oget.ppi", 3, P, P, I) \
+  _(CLOSGETpi,  "closget.pi",  2, P, I, N) \
+  _(JUMPj,      "jump.j",   1, N, J, N) \
 /*_(RET) \
 */\
-  _(RETp)
+  _(RETp,       "ret.p",    1, P, N, N)
   
 
 typedef enum opcode {
-#define OPLIST(name) name,
+#define OPLIST(op, name, n, a1, a2, a3) op,
 OPS(OPLIST)
 #undef OPLIST
   LIMIT
@@ -95,3 +111,4 @@ static_assert(LIMIT <= 256);
 #define make2A(op, a) make2AB(op, a, 0)
 #define make2B(op, b) make2AB(op, 0, b)
 
+#endif

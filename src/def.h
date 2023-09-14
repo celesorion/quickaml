@@ -1,3 +1,6 @@
+#ifndef QK_DEF_H
+#define QK_DEF_H
+
 #include <stdint.h>
 
 typedef uint64_t val_t;
@@ -12,3 +15,4 @@ typedef uint64_t obj_header;
 #define ptr2val(p) ((val_t)(void *)(p))
 #define val2ptr(v) ((void *)(v))
 
+#endif

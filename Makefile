@@ -4,6 +4,9 @@ CC := clang
 # Compiler flags
 CFLAGS := -Wall -Wextra -O3 -fpie -g -std=c2x # -march=native # -fsanitize=address
 
+# Compiler flags for debugging
+CFLAGS_DBG := -Wall -Wextra -O0 -fpie -g -std=c2x
+
 # Directories
 SRC_DIR := src
 OBJ_DIR := obj
@@ -16,17 +19,25 @@ SRCS := $(wildcard $(SRC_DIR)/*.c)
 # Object files
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 
+OBJS_DBG := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.dbg.o,$(SRCS))
+
 # Header files
 INCS := $(wildcard $(INC_DIR)/*.h)
 
 # Binary name
 TARGET := $(BIN_DIR)/quickaml
 
+TARGET_DBG := $(TARGET).dbg
+
 # Phony targets (non-file targets)
-.PHONY: all clean
+.PHONY: all run debug clean
 
 # Default target
 all: $(TARGET)
+
+# Rule to run the program
+run: $(TARGET)
+	$(TARGET)
 
 # Rule to create the binary
 $(TARGET): $(OBJS)
@@ -37,6 +48,16 @@ $(TARGET): $(OBJS)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+debug: $(TARGET_DBG)
+
+$(TARGET_DBG): $(OBJS_DBG)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS_DBG) $^ -o $@
+
+$(OBJ_DIR)/%.dbg.o: $(SRC_DIR)/%.c $(INCS)
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS_DBG) -c $< -o $@
 
 # Clean target
 clean:

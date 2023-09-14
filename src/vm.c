@@ -312,7 +312,7 @@ OP_DEFINITION(RETp) {
 }
 
 static opthread *dispatch[] = {
-#define OPIMPLS(name) vm_op_##name,
+#define OPIMPLS(op, name, n, a1, a2, a3) vm_op_##op,
 OPS(OPIMPLS)
 #undef OPIMPLS
 };
@@ -334,7 +334,13 @@ int vm_exec(struct state *state) {
 #include "bc_parse.h"
 
 int main() {
-  struct state vs;
+  struct state st;
+
+  FILE *fp = fopen("demo.qbt", "rb");
+
+  bc_parse(fp, &st);
+
+  return 0;
 
   struct function *f1 = aligned_alloc(8, 10000);
   f1->ops[0] = make3ABC(CLOSkxi, 0, 1, 1);
@@ -405,10 +411,10 @@ int main() {
   
   struct function *fns[] = { f1, f2, f3, f4, f5, f6 };
 
-  vs.entry = f3;
-  vs.fns = fns;
-  vs.stk = aligned_alloc(8, 1000000);
+  st.entry = f3;
+  st.fns = fns;
+  st.stk = aligned_alloc(8, 1000000);
 
-  vm_exec(&vs);
+  vm_exec(&st);
 }
 

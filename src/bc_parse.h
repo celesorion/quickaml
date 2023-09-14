@@ -1,4 +1,8 @@
+#include "bc.h"
+#include "obj.h"
 
-int bc_parse(FILE *fp);
+#include <stdio.h>
+
+int bc_parse(FILE *fp, struct state *st);
 
 
