@@ -1,0 +1,9 @@
+[submodule "simde"]
+	path = src/simde
+	url = https://github.com/simd-everywhere/simde-no-tests
+[submodule "utest"]
+	path = src/utest
+	url = https://github.com/sheredom/utest.h
+[submodule "komihash"]
+	path = src/komihash
+	url = https://github.com/avaneev/komihash

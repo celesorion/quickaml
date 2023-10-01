@@ -2,10 +2,10 @@
 CC := clang
 
 # Compiler flags
-CFLAGS := -Wall -Wextra -O3 -fpie -g -std=c2x # -march=native # -fsanitize=address
+CFLAGS := -Wall -Wextra -O3 -fpie -g -std=c2x # -march=native 
 
 # Compiler flags for debugging
-CFLAGS_DBG := -Wall -Wextra -O0 -fpie -g -std=c2x
+CFLAGS_DBG := -Wall -Wextra -O0 -fpie -ggdb3 -std=c2x -DDEBUG -fsanitize=address
 
 # Directories
 SRC_DIR := src
@@ -30,7 +30,7 @@ TARGET := $(BIN_DIR)/quickaml
 TARGET_DBG := $(TARGET).dbg
 
 # Phony targets (non-file targets)
-.PHONY: all run debug clean
+.PHONY: all run debug rundbg clean
 
 # Default target
 all: $(TARGET)
@@ -50,6 +50,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 debug: $(TARGET_DBG)
+
+rundbg: $(TARGET_DBG)
+	$(TARGET_DBG)
 
 $(TARGET_DBG): $(OBJS_DBG)
 	@mkdir -p $(BIN_DIR)

@@ -333,7 +333,16 @@ int vm_exec(struct state *state) {
 
 #include "bc_parse.h"
 
-int main() {
+#ifdef DEBUG
+#include "utest/utest.h"
+UTEST_STATE();
+#endif
+
+int main(int argc, const char *const argv[]) {
+#ifdef DEBUG
+  return utest_main(argc, argv);
+#endif
+
   struct state st;
 
   FILE *fp = fopen("demo.qbt", "rb");
@@ -364,7 +373,6 @@ int main() {
   f2->ops[9] = make2AB(APPLYpi, 3, 2);
   f2->ops[10]= make3ABC(ADDlll, 0, 2, 3);
   f2->ops[11]= make2A(RETp, 0);
-
 
   struct function *f3 = aligned_alloc(8, 10000);
   f3->ops[0] = make2AB(CONSTli, 2, 40);

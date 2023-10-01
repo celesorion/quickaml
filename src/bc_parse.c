@@ -1,4 +1,5 @@
 #include "bc_parse.h"
+#include "hashtbl.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -15,19 +16,39 @@ struct fill_status {
   bool eof;
 };
 
+struct label {
+  char name[SYMLEN];
+  int pos;
+};
+
+#define LABEL_EQ(x, y) (strcmp(((struct label *)(x))->name, ((struct label *)(y))->name)==0)
+#define LABEL_HASH(x)  (hashtbl_default_hash(((struct label *)(x))->name, strlen(((struct label *)(x))->name)))
+
+#define LABEL_NAME_EQ(x, y) (strcmp((x), ((struct label *)(y))->name)==0)
+#define LABEL_NAME_HASH(x)  (hashtbl_default_hash((x), strlen((x))))
+
+HASHSET_NEW_KIND(lblset, struct label, 8, DEFAULT_ALLOC, DEFAULT_COPY, DEFAULT_DEL, LABEL_EQ, DEFAULT_FREE, DEFAULT_GET, LABEL_HASH, DEFAULT_INIT, DEFAULT_MOVE)
+HASHTBL_NEW_LOOKUP_KIND_WITH_DEFAULTS(lblset, char, name, LABEL_NAME_EQ, LABEL_NAME_HASH)
+
 struct fn_info {
-  int lblcnt;
+  struct lblset *labels;
   int bccnt;
   char name[SYMLEN];
-  int *lblpos; 
 };
+
+#define FUNC_EQ(x, y) (strcmp(((struct fn_info *)(x))->name, ((struct fn_info *)(y))->name)==0)
+#define FUNC_HASH(x)  (hashtbl_default_hash(((struct fn_info *)(x))->name, strlen(((struct fn_info *)(x))->name)))
+
+#define FUNC_NAME_EQ(x, y) (strcmp((x), ((struct fn_info *)(y))->name)==0)
+#define FUNC_NAME_HASH(x)  (hashtbl_default_hash((x), strlen((x))))
+
+HASHSET_NEW_KIND(fnset, struct fn_info, 8, DEFAULT_ALLOC, DEFAULT_COPY, DEFAULT_DEL, FUNC_EQ, DEFAULT_FREE, DEFAULT_GET, FUNC_HASH, DEFAULT_INIT, DEFAULT_MOVE)
+HASHTBL_NEW_LOOKUP_KIND_WITH_DEFAULTS(fnset, char, name, FUNC_NAME_EQ, FUNC_NAME_HASH)
 
 struct scan_info {
   int cbase;
   int ccnt;
-  int fncnt;
-  struct fn_info *fni;
-  struct function **fns;
+  struct fnset *fns;
 };
 
 enum {
@@ -50,6 +71,22 @@ struct bc_info {
   unsigned n;
   struct operand_info operand[3];
 };
+
+struct bc_desc {
+  const char *name;
+  op_t op;
+  unsigned n;
+  unsigned a[3];
+};
+
+#define BC_EQ(x, y) (strcmp(((struct bc_desc *)(x))->name, ((struct bc_desc *)(y))->name)==0)
+#define BC_HASH(x)  (hashtbl_default_hash(((struct bc_desc *)(x))->name, strlen(((struct bc_desc *)(x))->name)))
+
+#define BC_NAME_EQ(x, y) (strcmp((x), ((struct bc_desc *)(y))->name)==0)
+#define BC_NAME_HASH(x)  (hashtbl_default_hash((x), strlen((x))))
+
+HASHSET_NEW_KIND(bcset, struct bc_desc, 8, DEFAULT_ALLOC, DEFAULT_COPY, DEFAULT_DEL, BC_EQ, DEFAULT_FREE, DEFAULT_GET, BC_HASH, DEFAULT_INIT, DEFAULT_MOVE)
+HASHTBL_NEW_LOOKUP_KIND_WITH_DEFAULTS(bcset, char, name, BC_NAME_EQ, BC_NAME_HASH)
 
 enum read_status {
   S_OK,
@@ -190,6 +227,35 @@ static int read_symbol(FILE *restrict fp, char **restrict p, char *restrict id, 
   return S_OK;
 }
 
+static int read_symbol_until(FILE *restrict fp, char **restrict p, char *restrict id, int limit, char c) {
+  bool f = true;
+  bool eof = false;
+  char *q = *p;
+  
+  for (int i = 0; i < limit - 1; ++i) {
+    int r = fill_check(fp, &q);
+    if (r == S_EOF) {
+      f = false;
+      eof = true;
+      id[i] = 0;
+      break;
+    } else if (r == S_ERROR)
+      return r;
+    if (*q == c || *q == '\n' || is_empty(*q)) {
+      f = false;
+      id[i] = 0;
+      break;
+    }
+    id[i] = *q++;
+  }
+
+  if (f) return S_LIMIT;
+
+  *p = q;
+  if (eof) return S_EOF;
+  return S_OK;
+}
+
 static int read_line(FILE *restrict fp, char **restrict p, char *restrict buf, int limit) {
   bool f = true;
   bool eof = false;
@@ -256,7 +322,7 @@ static int read_integer(FILE *restrict fp, char **restrict p, int *n) {
   return S_OK;
 }
 
-static int read_label(FILE *restrict fp, char **restrict p, int *n) {
+static int read_label(FILE *restrict fp, char **restrict p, char *restrict id, int limit) {
   char *q = *p;
   if (*q != '-')
     return S_NOTALBL;
@@ -273,7 +339,7 @@ static int read_label(FILE *restrict fp, char **restrict p, int *n) {
 
   *p = q;
 
-  r = read_integer(fp, p, n);
+  r = read_symbol_until(fp, p, id, limit, ':');
   if (!is_status_ok(r)) return S_NOTALBL;
 
   return S_OK;
@@ -321,185 +387,29 @@ static bool has_operand(char **restrict p) {
   }
 }
 
-static int get_operand(char **restrict p, struct bc_info *restrict bci, int n) {
-  skip_space_in_line(p);
-  char *q = *p;
+static struct bcset *bctbl;
 
-  switch (*q) {
-  case '%': {
-    q++;
+static void init_bc_table() {
+  if (bctbl == nullptr) {
+    bctbl = bcset_new(64);
 
-    int x = (int)strtol(q, &q, 10);;
-    if (x < 0) return S_NOTAOPR;
-    if (q == NULL) return S_NOTAOPR;
+#define OPINIT(op_, name_, n_, a1_, a2_, a3_)   \
+    bcset_insert(&bctbl, &(struct bc_desc){     \
+        .name = name_,                          \
+        .op = op_,                              \
+        .n = n_,                                \
+        .a = {a1_, a2_, a3_},                   \
+    });
 
-    bci->operand[n] = (struct operand_info) { .kind = OPR_SLOT, .slot = x }; 
-    break;
+    OPS(OPINIT)
+
   }
-
-  case '-': {
-    if (q[1] == '>') {
-      q += 2;
-      int x = (int)strtol(q, &q, 10);
-      if (q == NULL) return S_NOTAOPR;
-
-      bci->operand[n] = (struct operand_info) { .kind = OPR_LABEL, .label = x };
-      break;
-    }
-
-    [[fallthrough]];
-  }
-  case '+':
-  case '0' ... '9': {
-    int x = (int)strtol(q, &q, 10);
-    if (q == NULL) return S_NOTAOPR;
-
-    bci->operand[n] = (struct operand_info) { .kind = OPR_IMM, .imm = x };
-    break;
-  }
-
-  default: {
-    if (is_alpha(*q)) {
-      bool f = true;
-      for (unsigned i = 0; i < sizeof(bci->operand[n].name) - 1; i++) {
-        if (is_empty(*q)) {
-          f = false;
-          bci->operand[n].name[i] = 0;
-          break;
-        }
-        bci->operand[n].name[i] = *q++;
-      }
-      
-      if (f) return S_LIMIT;
-      break;
-    }
-
-    return S_NOTAOPR;
-  }
-  }
-
-  *p = q;
-  return S_OK;
-}
-
-const char *bc_lookup[] = {
-#define OPLOOKUP(op, name, n, a1, a2, a3) name,
-  OPS(OPLOOKUP)
-};
-
-unsigned bc_info[][5] = {
-#define OPINFO(op, name, n, a1, a2, a3) { n, a1, a2, a3, op },
-  OPS(OPINFO)
-};
-
-static int check_operand_compatible(struct operand_info *opi, int kind) {
-  switch (kind) {
-    case N: return S_OK;
-    case I: {
-      if ((opi->kind == OPR_IMM && INT8_MIN <= opi->imm && opi->imm <= INT8_MAX)
-          || opi->kind == OPR_LABEL)
-        return S_OK;
-      return S_XARG;
-    }
-    case J: {
-      if ((opi->kind == OPR_IMM && INT16_MIN <= opi->imm && opi->imm <= INT16_MAX)
-          || opi->kind == OPR_LABEL)
-        return S_OK;
-      return S_XARG;
-    }
-    case A: {
-      if ((opi->kind == OPR_IMM && (~0x7fffff) <= opi->imm && opi->imm <= 0x7fffff)
-          || opi->kind == OPR_LABEL)
-        return S_OK;
-      return S_XARG;
-    }
-    case F:
-    case L:
-      if (opi->kind == OPR_SLOT && opi->slot >= 0 && opi->slot <= 255)
-        return S_OK;
-      return S_XARG;
-    case C:
-      return S_ERROR;
-    case P:
-      if (opi->kind == OPR_SLOT && opi->slot >= 0 && opi->slot <= 255)
-        return S_OK;
-      return S_XARG;
-    case X:
-      if (opi->kind == OPR_NAME)
-        return S_OK;
-      return S_XARG;
-    case K: 
-      if (opi->kind == OPR_SLOT && opi->slot >= 0 && opi->slot <= 255)
-        return S_OK;
-      return S_XARG;
-    default:
-      return S_ERROR;
-  }
-}
-
-static int encode_bc(struct bc_info *bci, bc_t *bc) {
-  bool found = false;
-  for (unsigned i = 0; i < sizeof(bc_lookup)/sizeof(*bc_lookup); i++) {
-    bool f = strcmp(bc_lookup[i], bci->operator) == 0;
-    if (f) {
-      if (bci->n != bc_info[i][0])
-        return S_XNUM;
-       
-    }
-  }
-  if (!found) return S_NOTFOUND;
-}
-
-static int read_bytecode(FILE *restrict fp, char **restrict p, bc_t *restrict bc) {
-  char line[LINELEN] = {};
-
-  int r = read_line(fp, p, line, sizeof(line));
-  if (!is_status_ok(r)) return S_NOTABC;
-
-  char *q = line;
-  struct bc_info bci = {};
-  
-  r = get_operator(&q, &bci);
-  if (!is_status_ok(r)) return S_NOTABC;
-
-  int x = 0;
-  if (has_operand(&q)) {
-    r = get_operand(&q, &bci, 0);
-    if (!is_status_good(r)) return S_NOTABC;
-
-    x += 1;
-    if (has_operand(&q)) {
-      r = get_operand(&q, &bci, 1);
-      if (!is_status_good(r)) return S_NOTABC;
-
-      x += 1;
-      if (has_operand(&q)) {
-        r = get_operand(&q, &bci, 2);
-        if (!is_status_good(r)) return S_NOTABC;
-        
-        x += 1;
-      }
-    }
-  }
- 
-  bci.n = x;
-
-  printf("bc: %s %d ", bci.operator, bci.n);
-  for (int i = 0; i < x; ++i) {
-    struct operand_info *info = bci.operand + i;
-    printf("[kind: %d, label: %d, slot: %d, imm: %d, name: %s] ",
-        info->kind, info->label, info->slot, info->imm, info->name);
-  }
-  printf("\n");
-
-  return S_OK;
 }
 
 static bool bc_scan1(FILE *restrict fp, struct scan_info *restrict info) {
   info->ccnt = 0;
   info->cbase = 0;
-  info->fncnt = 0;
-  info->fni = NULL;
+  info->fns = fnset_new(0);
 
   struct fill_status fs;
   fs = fillbuf(fp);
@@ -508,6 +418,9 @@ static bool bc_scan1(FILE *restrict fp, struct scan_info *restrict info) {
   if (!fs.p) return true;
 
   char *p = fs.p;
+  bool in_fn = false;
+  struct fn_info *curfn;
+  unsigned bcid = 0;
 
   for (;;) {
     int x = skip_space(fp, &p);
@@ -527,11 +440,53 @@ static bool bc_scan1(FILE *restrict fp, struct scan_info *restrict info) {
       } else if (strcmp(id, "cbase") == 0) {
         info->cbase = info->ccnt;
       } else if (strcmp(id, "fn") == 0) {
-        info->fncnt += 1;
-      }      
+        if (in_fn) return true;
+        in_fn = true;
+
+        x = skip_space(fp, &p);
+        if (x != S_OK) return true;
+
+        struct fn_info fi = { .bccnt = 0 };
+        r = read_symbol(fp, &p, fi.name, sizeof(fi.name));
+        if (!is_status_good(r)) return true;
+        
+        struct fnset_insert ins = fnset_insert(&info->fns, &fi);
+        if (!ins.inserted) return true;
+        curfn = fnset_iter_get(&ins.iter);
+        curfn->labels = lblset_new(0);
+
+      } else if (strcmp(id, "endfn") == 0) {
+        if (!in_fn) return true;
+        curfn->bccnt = bcid;
+        bcid = 0;
+        in_fn = false;
+        curfn = nullptr;
+      }
+      
       break;
     }
+    case '-': {
+      struct label lbl = { 0 };
+      int r = read_label(fp, &p, lbl.name, sizeof(lbl.name));
+      if (!is_status_good(r)) return true;
+
+      if (!in_fn) return true;
+      
+      lbl.pos = bcid;
+      
+      struct lblset_insert ins = lblset_insert(&curfn->labels, &lbl);
+      if (!ins.inserted) return true;
+
+      break;
+    }
+    case '#':
+    case '\n':
+      break;
+    
     default:
+      if (in_fn) {
+        bcid += 1;
+      }
     }
 
     skip_line(fp, &p);
@@ -541,9 +496,6 @@ static bool bc_scan1(FILE *restrict fp, struct scan_info *restrict info) {
 }
 
 static bool bc_scan2(FILE *restrict fp, struct scan_info *restrict info) {
-  if (info->fni == NULL)
-    return true; 
-
   struct fill_status fs;
   fs = fillbuf(fp);
 
@@ -551,82 +503,8 @@ static bool bc_scan2(FILE *restrict fp, struct scan_info *restrict info) {
   if (!fs.p) return true;
 
   char *p = fs.p;
-  int fid = 0;
   bool in_fn = false;
-
-  for (;;) {
-    int x = skip_space(fp, &p);
-    if (x == S_EOF) break;
-    if (!is_status_ok(x)) return true;
-
-    char id[BUFLEN];
-    switch (*p) {
-    case '.': {
-      p++;
-
-      int r = read_symbol(fp, &p, id, sizeof(id));
-      if (!is_status_good(r)) return true;
-
-      if (strcmp(id, "fn") == 0) {
-        if (in_fn) return true;
-        fid += 1;
-        in_fn = true;
-
-        x = skip_space(fp, &p);
-        if (x != S_OK) return true;
-
-        r = read_symbol(fp, &p, info->fni[fid-1].name,
-              sizeof(info->fni[fid-1].name));
-        if (!is_status_good(r)) return true;
-
-      } else if (strcmp(id, "endfn") == 0) {
-        if (!in_fn) return true;
-        in_fn = false;
-      }
-      
-      break;
-    }
-    case '-': {
-      int lbl = 0;
-      int r = read_label(fp, &p, &lbl);
-      if (!is_status_good(r)) return true;
-
-      if (!in_fn) return true;
-
-      if (lbl <= 0) return true;
-      int old = info->fni[fid-1].lblcnt;
-
-      info->fni[fid-1].lblcnt = old > lbl ? old : lbl;
-      
-      break;
-    }
-    case '#':
-    case '\n':
-      break;
-    
-    default:
-      if (in_fn)
-        info->fni[fid-1].bccnt += 1;
-    }
-    skip_line(fp, &p);
-  }
-
-  return false;
-}
-
-static bool bc_scan3(FILE *restrict fp, struct scan_info *restrict info, struct state* st) {
-  if (info->fni == NULL)
-    return true;
-
-  struct fill_status fs;
-  fs = fillbuf(fp);
-
-  if (fs.eof) return false;
-  if (!fs.p) return true;
-
-  char *p = fs.p;
-  int fid = 0;
-  bool in_fn = false;
+  struct fn_info *curfn;
   unsigned bcid = 0;
 
   for (;;) {
@@ -644,44 +522,37 @@ static bool bc_scan3(FILE *restrict fp, struct scan_info *restrict info, struct 
 
       if (strcmp(id, "fn") == 0) {
         if (in_fn) return true;
-        fid += 1;
         in_fn = true;
+
+        x = skip_space(fp, &p);
+        if (x != S_OK) return true;
+
+        char fname[SYMLEN];
+        r = read_symbol(fp, &p, fname, sizeof(fname));
+        if (!is_status_good(r)) return true;
+        
+        struct fnset_iterator it = fnset_find_by_name(&info->fns, fname);
+        curfn = fnset_iter_get(&it);
       } else if (strcmp(id, "endfn") == 0) {
         if (!in_fn) return true;
-        in_fn = false;
         bcid = 0;
+        in_fn = false;
+        curfn = nullptr;
       }
-      break;
-    }
-    case '-': {
-      int lbl = 0;
-      int r = read_label(fp, &p, &lbl);
-      if (!is_status_good(r)) return true;
-
-      if (!in_fn) return true;
-
-      if (lbl <= 0) return true;
-      
-      info->fni[fid-1].lblpos[lbl-1] = bcid;
       
       break;
     }
-
+    case '-':
     case '#':
     case '\n':
       break;
-
+    
     default:
       if (in_fn) {
-        int f = fid;
-        int b = bcid;
-
-        int r = read_bytecode(fp, &p, nullptr);
-        if (!is_status_good(r)) return true;
-
         bcid += 1;
       }
     }
+
     skip_line(fp, &p);
   }
 
@@ -698,52 +569,22 @@ int bc_parse(FILE *fp, struct state *st) {
   }
   rewind(fp);
   
-  si.fni = malloc(sizeof(struct fn_info) * si.fncnt);
-  if (!si.fni) {
-    printf("malloc failed\n");
-    return 1;
-  }
+  size_t fncnt = fnset_size(si.fns);
+  printf("ccnt: %u, cbase: %u, fncnt: %lu\n", si.ccnt, si.cbase, fncnt);
+  struct fn_info *fn;
+  for (struct fnset_iterator it = fnset_iter(si.fns);
+      (fn = fnset_iter_get(&it));
+      fnset_iter_next(&it)) {
+    size_t lblcnt = lblset_size(fn->labels);
+    printf("lblcnt, bccnt, name - %zu, %d, %s\n", lblcnt, fn->bccnt, fn->name);
 
-  failed = bc_scan2(fp, &si);
-  if (failed) {
-    printf("scan2 failed\n");
-    return 1;
-  }
-  rewind(fp);
-
-  for (int i = 0; i < si.fncnt; ++i) {
-    size_t len = sizeof(*si.fni[i].lblpos) * si.fni[i].lblcnt;
-
-    si.fni[i].lblpos = malloc(len);
-    if (!si.fni[i].lblpos) {
-      printf("malloc failed\n");
-      return 1;
+    struct label *lbl;
+    for (struct lblset_iterator it2 = lblset_iter(fn->labels);
+        (lbl = lblset_iter_get(&it2));
+        lblset_iter_next(&it2)) {
+        printf(" lbl %s at %d\n", lbl->name, lbl->pos);
     }
-
-    si.fns = malloc(sizeof(struct function *) * si.fncnt);
-    if (!si.fns) {
-      printf("malloc failed\n");
-      return 1;
-    }
-
-    si.fns[i] = malloc(si.fni[i].bccnt * sizeof(bc_t) + sizeof(struct function));
-
-  }
-
-  failed = bc_scan3(fp, &si, st);
-  if (failed) {
-    printf("scan3 failed\n");
-    return 1;
   }
   
-  printf("ccnt: %u, cbase: %u, fncnt: %u\n", si.ccnt, si.cbase, si.fncnt);
-  for (int i = 0; i < si.fncnt; ++i) {
-    printf("lblcnt, bccnt, name of %d - %u, %u, %s\n", i, si.fni[i].lblcnt, si.fni[i].bccnt, si.fni[i].name);
-    for (int j = 0; j < si.fni[i].lblcnt; ++j) {
-      int pos = si.fni[i].lblpos[j];
-      if (pos != -1)
-        printf(" lbl %d at %d\n", j+1, pos);
-    }
-  } 
   return 0;
 }
