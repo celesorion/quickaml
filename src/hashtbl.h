@@ -681,7 +681,6 @@ static inline struct insert HASHTBL_INTERNAL_META(hashtbl_insert, NAME_)(struct 
     void *slot = HASHTBL_INTERNAL_META(hashtbl_pre_insert, NAME_)(*ptbl, res.index);                                                                   \
     COPY_(slot, val);                                                                                                                                  \
   }                                                                                                                                                    \
-                                                                                                                                                       \
   return (struct insert){HASHTBL_INTERNAL_META(hashtbl_const_iter_at, NAME_)(*ptbl, res.index), res.inserted};                                         \
 }
 

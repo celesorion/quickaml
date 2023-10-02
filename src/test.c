@@ -7,12 +7,47 @@
 
 UTEST(dynstr, dynstr) {
   dynstr_t s1 = dynstr_from_cstr("dynstr");
-  EXPECT_EQ(6u, dynstr_length(s1));
+  EXPECT_EQ(6u, dynstr_size(s1));
   EXPECT_EQ(6u, dynstr_capacity(s1));
   EXPECT_EQ(0u, dynstr_available(s1));
   EXPECT_EQ(DYNSTR_6, dynstr_type(s1));
 
+  dynstr_t s2 = dynstr_from_cstr(" is good");
+  EXPECT_EQ(8u, dynstr_size(s2));
+  EXPECT_EQ(8u, dynstr_capacity(s2));
+  EXPECT_EQ(0u, dynstr_available(s2));
+  EXPECT_EQ(DYNSTR_6, dynstr_type(s2));
+
+  const size_t N = 100;
+  s2 = dynstr_reserve(s2, N);
+  EXPECT_EQ(8u, dynstr_size(s2));
+  EXPECT_EQ(100u, dynstr_capacity(s2));
+  EXPECT_EQ(92u, dynstr_available(s2));
+  EXPECT_EQ(DYNSTR_32, dynstr_type(s2));
+
+  s1 = dynstr_concat(s1, s2);
+  EXPECT_EQ(14u, dynstr_size(s1));
+  EXPECT_EQ(21u, dynstr_capacity(s1));
+  EXPECT_EQ(7u, dynstr_available(s1));
+  EXPECT_EQ(DYNSTR_32, dynstr_type(s2));
+
+  s2 = dynstr_concat_cstr(s2, " and nice");
+  EXPECT_EQ(17u, dynstr_size(s2));
+  EXPECT_EQ(100u, dynstr_capacity(s2));
+  EXPECT_EQ(83u, dynstr_available(s2));
+  EXPECT_EQ(DYNSTR_32, dynstr_type(s2));
+
+  dynstr_t s3 = dynstr_from_cstr(" is good and nice");
+  dynstr_t s4 = dynstr_concat(dynstr_new_empty(), s3);
+  EXPECT_EQ(0, dynstr_compare(s2, s3));
+  EXPECT_TRUE(dynstr_eq(s2, s3));
+  EXPECT_EQ(0, dynstr_compare(s3, s4));
+  EXPECT_TRUE(dynstr_eq(s3, s4));
+
   dynstr_free(s1);
+  dynstr_free(s2);
+  dynstr_free(s3);
+  dynstr_free(s4);
 }
 
 UTEST(hashtbl, normcap) {

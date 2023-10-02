@@ -340,89 +340,19 @@ UTEST_STATE();
 
 int main(int argc, const char *const argv[]) {
 #ifdef DEBUG
-  return utest_main(argc, argv);
+  // return utest_main(argc, argv);
 #endif
 
   struct state st;
 
-  FILE *fp = fopen("demo.qbt", "rb");
-
-  bc_parse(fp, &st);
-
-  return 0;
-
-  struct function *f1 = aligned_alloc(8, 10000);
-  f1->ops[0] = make3ABC(CLOSkxi, 0, 1, 1);
-  f1->ops[1] = make3ABC(OSETpip, 0, 2, 0);
-  f1->ops[2] = make2AB(CONSTli, 3, 40);
-  f1->ops[3] = make2AB(APPLYpi, 0, 2);
-  f1->ops[4] = make3ABC(STOPii, 0, 1, 0);
-
-  struct function *f2 = aligned_alloc(8, 10000);
-  f2->ops[0] = make2AB(CMPLTli, 1, 2);
-  f2->ops[1] = make2B(JUMPj, 2);
-
-  f2->ops[2] = make2AB(CONSTli, 0, 1);
-  f2->ops[3] = make2A(RETp, 0);
-
-  f2->ops[4] = make3ABC(OGETppi, 2, 0, 2);
-  f2->ops[5] = make3ABC(SUBlli, 5, 1, 1);
-  f2->ops[6] = make2AB(APPLYpi, 2, 2);
-  f2->ops[7] = make3ABC(OGETppi, 3, 0, 2);
-  f2->ops[8] = make3ABC(SUBlli, 6, 1, 2);
-  f2->ops[9] = make2AB(APPLYpi, 3, 2);
-  f2->ops[10]= make3ABC(ADDlll, 0, 2, 3);
-  f2->ops[11]= make2A(RETp, 0);
-
-  struct function *f3 = aligned_alloc(8, 10000);
-  f3->ops[0] = make2AB(CONSTli, 2, 40);
-  f3->ops[1] = make3ABC(CALLpxi, 0, 3, 1);
-  f3->ops[2] = make3ABC(STOPii, 0, 1, 0);
-
-  struct function *f4 = aligned_alloc(8, 10000);
-  f4->ops[0] = make2AB(CMPLTli, 0, 2);
-  f4->ops[1] = make2B(JUMPj, 2);
-
-  f4->ops[2] = make2AB(CONSTli, 0, 1);
-  f4->ops[3] = make2A(RETp, 0);
-
-  f4->ops[4] = make3ABC(SUBlli, 3, 0, 1);
-  f4->ops[5] = make3ABC(CALLpxi, 1, 3, 1);
-  f4->ops[6] = make3ABC(SUBlli, 4, 0, 2);
-  f4->ops[7] = make3ABC(CALLpxi, 2, 3, 1);
-  f4->ops[8]= make3ABC(ADDlll, 0, 1, 2);
-  f4->ops[9]= make2A(RETp, 0);
-
+  if (argc <= 1)
+    return 1;
   
-  struct function *f5 = aligned_alloc(8, 10000);
-  f5->ops[0] = make3ABC(CLOSkxi, 0, 5, 1);
-  f5->ops[1] = make3ABC(OSETpip, 0, 2, 0);
-  f5->ops[2] = make2AB(CONSTli, 3, 40);
-  f5->ops[3] = make2AB(APPLYpi, 0, 2);
-  f5->ops[4] = make3ABC(STOPii, 0, 1, 0);
+  FILE *fp = fopen(argv[1], "rb");
 
-  struct function *f6 = aligned_alloc(8, 10000);
-  f6->ops[0] = make2AB(CMPLTli, 1, 2);
-  f6->ops[1] = make2B(JUMPj, 2);
+  int r = bc_parse(fp, &st);
+  if (r != S_OK) return r;
 
-  f6->ops[2] = make2AB(CONSTli, 0, 1);
-  f6->ops[3] = make2A(RETp, 0);
-
-  f6->ops[4] = make2AB(CLOSGETpi, 2, 2);
-  f6->ops[5] = make3ABC(SUBlli, 5, 1, 1);
-  f6->ops[6] = make2AB(APPLYpi, 2, 2);
-  f6->ops[7] = make2AB(CLOSGETpi, 3, 2);
-  f6->ops[8] = make3ABC(SUBlli, 6, 1, 2);
-  f6->ops[9] = make2AB(APPLYpi, 3, 2);
-  f6->ops[10]= make3ABC(ADDlll, 0, 2, 3);
-  f6->ops[11]= make2A(RETp, 0);
-  
-  struct function *fns[] = { f1, f2, f3, f4, f5, f6 };
-
-  st.entry = f3;
-  st.fns = fns;
-  st.stk = aligned_alloc(8, 1000000);
-
-  vm_exec(&st);
+  return vm_exec(&st);
 }
 

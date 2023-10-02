@@ -16,7 +16,7 @@ enum {
 
 #define OPS(_) \
   _(NOP,        "nop",  0, N, N, N) \
-  _(STOPii,     "stop.ii",   2, I, I, N) \
+  _(STOPii,     "stop.ll",   2, I, I, N) \
   \
   _(CMPLTll,    "cmplt.ll",  2, L, L, N) \
   _(CMPLEll,    "cmple.ll",  2, L, L, N) \
@@ -106,8 +106,15 @@ static_assert(LIMIT <= 256);
 #define arg3C2sB(i) ((((uint32_t)(i))>>8)&0xff)
 #define arg2B2sB(i) (((uint32_t)(i))&0xffff)
 
-#define make3ABC(op, a, b, c) (((bc_t)(op))|(((bc_t)(a))<<8)|(((bc_t)(b))<<16)|(((bc_t)(c))<<24))
-#define make2AB(op, a, b) (((bc_t)(op))|(((bc_t)(a))<<8)|(((bc_t)(b))<<16))
+#define mkOP(x_)  (((bc_t)(x_))&0xff)
+#define mk3A(x_)  ((((bc_t)(x_))&0xff)<<8)
+#define mk3B(x_)  ((((bc_t)(x_))&0xff)<<16)
+#define mk3C(x_)  ((((bc_t)(x_))&0xff)<<24)
+#define mk2A(x_)  ((((bc_t)(x_))&0xff)<<8)
+#define mk2B(x_)  ((((bc_t)(x_))&0xffff)<<16)
+
+#define make3ABC(op, a, b, c) (mkOP(op) | mk3A(a) | mk3B(b) | mk3C(c)) 
+#define make2AB(op, a, b) (mkOP(op) | mk2A(a) | mk2B(b))
 #define make2A(op, a) make2AB(op, a, 0)
 #define make2B(op, b) make2AB(op, 0, b)
 
