@@ -8,19 +8,28 @@
 #define THREADED [[gnu::noinline, clang::qkcc, gnu::aligned(64)]] static
 #define INLINE [[gnu::always_inline]] static
 #define MUSTTAIL [[clang::musttail]]
-#define DP(dp, op) (*(((opthread **)(dp))[op]))
+#define DP(dp, op) (*(((opthread *const *)(dp))[op]))
 
 #ifndef EXTPA
-#define PARAMS bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, val_t *restrict ctbl, void *restrict dispatch, struct function *restrict fns[]
+#define PARAMS bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, val_t *restrict ctbl, const void *restrict dispatch, struct function *restrict fns[]
 #define ARGS ip, a2sb, a3a, bp, ctbl, dispatch, fns
 #endif
 #define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
 #define NONTAILDISPATCH() DP(dispatch, op)(ARGS)
+
 #define FETCH_DECODE() \
   bc_t insn = *ip++;      \
   op_t op = opcode(insn); \
   a3a = arg3A(insn);      \
   a2sb = arg2sB(insn)
+
+#define COND_NEXT_IP_CMOV(c) \
+  ip += c ? 0 : arg2sB(next_insn)
+
+#define COND_NEXT_IP_BR(c) \
+  if (!c) ip += arg2sB(next_insn)
+
+#define COND_NEXT_IP COND_NEXT_IP_BR
 
 #define OP_DEFINITION(name) THREADED void vm_op_##name(PARAMS)
 
@@ -68,7 +77,7 @@ OP_DEFINITION(name) {                     \
   unsigned c =                            \
     (int64_t)bp[o1] cmp (int64_t)bp[o2];  \
                                           \
-  ip += c ? 0 : arg2sB(next_insn);        \
+  COND_NEXT_IP(c);                        \
                                           \
   FETCH_DECODE();                         \
                                           \
@@ -91,7 +100,7 @@ OP_DEFINITION(name) {                     \
                                           \
   unsigned c = (int64_t)bp[o1] cmp imm;   \
                                           \
-  ip += c ? 0 : arg2sB(next_insn);        \
+  COND_NEXT_IP(c);                        \
                                           \
   FETCH_DECODE();                         \
                                           \
@@ -117,7 +126,7 @@ OP_DEFINITION(name) {                     \
   unsigned c = (int64_t)bp[o1]            \
     cmp (int64_t)ctbl[cidx];              \
                                           \
-  ip += c ? 0 : arg2sB(next_insn);        \
+  COND_NEXT_IP(c);                        \
                                           \
   FETCH_DECODE();                         \
                                           \
@@ -226,18 +235,18 @@ OP_DEFINITION(APPLYpi) {
 }
 
 OP_DEFINITION(CALLpxi) {
-  ssz_t dst = a3a;
   ssz_t fx = arg3B2sB(a2sb);
+  ssz_t dst = a3a;
   ssz_t nargs = arg3C2sB(a2sb);
 
   (void) nargs;
-
   struct function *fn = val2ptr(fns[fx]);
 
-  bp = next_bp(bp, dst);
-  frame_ra(bp) = ptr2val(ip);
-
+  bc_t *oldip = ip;
   ip = fn->ops;
+
+  bp = next_bp(bp, dst);
+  frame_ra(bp) = ptr2val(oldip);
 
   FETCH_DECODE();
 
@@ -311,7 +320,7 @@ OP_DEFINITION(RETp) {
   DISPATCH();
 }
 
-static opthread *dispatch[] = {
+static opthread *const dispatch[] = {
 #define OPIMPLS(op, name, n, a1, a2, a3) vm_op_##op,
 OPS(OPIMPLS)
 #undef OPIMPLS
