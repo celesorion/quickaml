@@ -2,6 +2,7 @@
 #define QK_DYNSTR_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 enum {
   DYNSTR_6,

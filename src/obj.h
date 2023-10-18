@@ -16,6 +16,8 @@ struct state {
   struct function *entry;
   struct function **fns;
   size_t numfn;
+  const char *msg;
+  val_t *ctbl;
   val_t *stk;
   val_t *stklimit;
 };

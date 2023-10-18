@@ -213,7 +213,7 @@ static inline void hashtbl_group_convert_special_to_empty_and_full_to_deleted(
   group_t msbs = simde_mm_set1_epi8((char)-128);
   group_t x126 = simde_mm_set1_epi8(126);
   group_t res = simde_mm_or_si128(simde_mm_shuffle_epi8(x126, *gp), msbs);
-  _mm_storeu_si128((group_t *)dst, res);
+  simde_mm_storeu_si128((group_t *)dst, res);
 }
 
 #define probe_seq(x, y) ((struct probe_seq){.mask = y, .offset = x & y})

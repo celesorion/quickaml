@@ -52,12 +52,14 @@ enum {
   _(MULlli,     "mul.lli",  3, L, L, I) \
   _(DIVlli,     "div.lli",  3, L, L, I) \
   _(REMlli,     "rem.lli",  3, L, L, I) \
+  _(DIRlli,     "dir.lli",  3, L, L, I) \
   \
   _(ADDlll,     "add.lll",  3, L, L, L) \
   _(SUBlll,     "sub.lll",  3, L, L, L) \
   _(MULlll,     "mul.lll",  3, L, L, L) \
   _(DIVlll,     "div.lll",  3, L, L, L) \
   _(REMlll,     "rem.lll",  3, L, L, L) \
+  _(DIRlll,     "dir.lll",  3, L, L, L) \
 /*_(CONCATsss) \
   _(CONSTlc) \
 */\

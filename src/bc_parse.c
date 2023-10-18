@@ -190,8 +190,8 @@ int bc_scan(FILE *fp, dynstr_t *pds, struct state *st) {
 
         n = n > 0 ? n : 1024;
         st->stk = aligned_alloc(sizeof(val_t), sizeof(val_t) * (size_t)n); 
-      }
-      
+        st->stklimit = st->stk + n;
+      } 
       break;
     }
     case '#':

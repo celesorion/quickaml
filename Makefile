@@ -2,9 +2,11 @@
 CC := clang
 
 # Compiler flags
-CFLAGS := -Wall -Wextra -O3 -fpie -std=c2x # -march=native 
+CFLAGS := -Wall -Wextra -O3 -flto -std=c2x
+LDFLAGS := -fuse-ld=mold -s
 
-CFLAGS_RELDBG := -Wall -Wextra -O3 -fpie -ggdb3 -std=c2x # -march=native 
+CFLAGS_RELDBG := -Wall -Wextra -O3 -flto -ggdb3 -std=c2x
+LDFLAGS := -fuse-ld=mold
 
 # Compiler flags for debugging
 CFLAGS_DBG := -Wall -Wextra -O0 -fpie -ggdb3 -std=c2x -DDEBUG -fsanitize=address
@@ -48,7 +50,7 @@ run: $(TARGET)
 # Rule to create the binary
 $(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
 # Rule to compile source files into object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCS)
