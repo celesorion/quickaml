@@ -1,88 +1,45 @@
+#include "bc.h"
+#include "obj.h"
 #include "vm.h"
 
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <stddef.h>
 
-#define THREADED [[gnu::noinline, clang::qkcc, gnu::aligned(64)]] static
-#define INLINE [[gnu::always_inline]] static
-#define MUSTTAIL [[clang::musttail]]
-#define DP(dp, op) (*(((opthread *const *)(dp))[op]))
+static opthread *const dispatch[];
 
-#ifndef EXTPA
-#define PARAMS bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, struct state *restrict state, const void *restrict dispatch, struct function *restrict fns[]
-#define ARGS ip, a2sb, a3a, bp, state, dispatch, fns
-#endif
-#define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
-#define NONTAILDISPATCH() DP(dispatch, op)(ARGS)
+[[gnu::noinline]]
+int vm_entry(struct state *state) {
+  bc_t *ip = state->entry->ops;
+  val_t *bp = state->stk;
+  bc_t insn = *ip++;
+  op_t op = opcode(insn);
+  uint8_t a3a = arg3A(insn);
+  int32_t a2sb = arg2sB(insn);
+  struct function **fns = state->fns;
 
-#define FETCH_DECODE()    \
-  bc_t insn = *ip++;      \
-  op_t op = opcode(insn); \
-  a3a = arg3A(insn);      \
-  a2sb = arg2sB(insn)
-
-#define COND_NEXT_IP_CMOV(c)     \
-  do {                           \
-    ip += c ? 0                  \
-            : arg2sB(next_insn); \
-  } while (0)
-
-#define COND_NEXT_IP_BR(c)     \
-  do {                         \
-    if (likely(!c))            \
-      ip += arg2sB(next_insn); \
-  } while (0)
-
-#define COND_NEXT_IP COND_NEXT_IP_BR
-
-#define OP_DEFINITION(name) THREADED void vm_op_##name(PARAMS)
-
-[[clang::qkcc]] typedef void opthread(PARAMS);
-
-#define PCALL_AARCH64(o_, f_, ...)                   \
-do {                                                 \
-  unsigned long lrfp[2];                             \
-  __asm__ volatile("stp x29, x30, %0" : "=m"(lrfp)); \
-  o_ = f_(__VA_ARGS__);                              \
-  __asm__ volatile("ldp x29, x30, %0" : "=m"(lrfp)); \
-} while (0)
-
-#define PCALL_X86_64(o_, f_, ...)                    \
-do {                                                 \
-  o_ = f_(__VA_ARGS__);                              \
-} while (0)
-
-#if defined(__x86_64__) || defined(_M_X64)
-#define PCALL PCALL_X86_64
-#elif defined(__aarch64__) || defined(_M_ARM64)
-#define PCALL PCALL_AARCH64
-#endif
-
-#define LT <
-#define LE <=
-#define GT >
-#define GE >=
-#define EQ ==
-#define NE !=
-#define ADD +
-#define SUB -
-#define MUL *
-#define DIV /
-#define REM %
+  NONTAILDISPATCH();
+  return 0;
+}
 
 THREADED
 void panic(PARAMS) {
   (void) dispatch; (void) ip;
   (void) fns; (void) a2sb; (void) a3a;
   (void) bp;
-  fprintf(stderr, "panic: %s\n", state->msg);
-  exit(255);
+  [[maybe_unused]] int r;
+  PCALL(r, fprintf, stderr, "panic: %s\n", state->msg);
+  PCALL_VOID(exit, 255);
 }
 
-[[gnu::always_inline]]
-static int sgn(val_t x) {
+THREADED
+void stackoverflow(PARAMS) {
+  state->msg = "stack overflow";
+  MUSTTAIL return panic(ARGS); 
+}
+
+INLINE
+int sgn(val_t x) {
   return (x > (val_t)0) - (x < (val_t)0);
 }
 
@@ -387,8 +344,7 @@ OP_DEFINITION(APPLYpi) {
 
   bp = next_bp(bp, iclos);
   if (unlikely(bp >= state->stklimit)) {
-    state->msg = "stack overflow";
-    MUSTTAIL return panic(ARGS);
+    MUSTTAIL return stackoverflow(ARGS);
   }
 
   frame_ra(bp) = ptr2val(oldip);
@@ -416,8 +372,7 @@ OP_DEFINITION(CALLpxi) {
 
   bp = next_bp(bp, dst);
   if (unlikely(bp >= state->stklimit)) {
-    state->msg = "stack overflow";
-    MUSTTAIL return panic(ARGS);
+    MUSTTAIL return stackoverflow(ARGS);
   }
 
   frame_ra(bp) = ptr2val(oldip);
@@ -499,43 +454,4 @@ static opthread *const dispatch[] = {
 OPS(OPIMPLS)
 #undef OPIMPLS
 };
-
-int vm_exec(struct state *state) {
-  bc_t *ip = state->entry->ops;
-  val_t *bp = state->stk;
-  bc_t insn = *ip++;
-  op_t op = opcode(insn);
-  uint8_t a3a = arg3A(insn);
-  int32_t a2sb = arg2sB(insn);
-  state->ctbl = nullptr;
-  struct function **fns = state->fns;
-
-  NONTAILDISPATCH();
-  return 0;
-}
-
-#include "bc_parse.h"
-
-#ifdef DEBUG
-#include "utest/utest.h"
-UTEST_STATE();
-#endif
-
-int main(int argc, const char *const argv[]) {
-#ifdef DEBUG
-  // return utest_main(argc, argv);
-#endif
-
-  struct state st;
-
-  if (argc <= 1)
-    return 1;
-  
-  FILE *fp = fopen(argv[1], "rb");
-
-  int r = bc_parse(fp, &st);
-  if (r != S_OK) return r;
-
-  return vm_exec(&st);
-}
 
