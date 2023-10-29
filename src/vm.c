@@ -14,11 +14,11 @@ static opthread *const dispatch[];
 int vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
   val_t *bp = state->stk;
-  bc_t insn = *ip++;
-  op_t op = opcode(insn);
-  uint8_t a3a = arg3A(insn);
-  int32_t a2sb = arg2sB(insn);
   struct function **fns = state->fns;
+  
+  [[maybe_unused]] uint8_t a3a, a3b, a3c;
+  [[maybe_unused]] int32_t a2sb;
+  FETCH_DECODE();
 
   NONTAILDISPATCH();
   return 0;
@@ -26,9 +26,6 @@ int vm_entry(struct state *state) {
 
 THREADED
 void panic(PARAMS) {
-  (void) dispatch; (void) ip;
-  (void) fns; (void) a2sb; (void) a3a;
-  (void) bp;
   [[maybe_unused]] int r;
   PCALL(r, fprintf, stderr, "panic: %s\n", state->msg);
   PCALL_VOID(exit, 255);
@@ -53,11 +50,8 @@ OP_DEFINITION(NOP) {
 }
 
 OP_DEFINITION(STOPii) {
-  (void) dispatch;  (void) ip;
-  (void) fns; (void) state;
-
-  ssz_t i1 = a3a;
-  ssz_t i2 = arg2B2sB(a2sb);
+  ssz_t i1 = ARG2A;
+  ssz_t i2 = ARG2B;
   
   for (ssz_t i = i1; i < i2; i++) {
     [[maybe_unused]] int r;
@@ -69,15 +63,15 @@ OP_DEFINITION(STOPii) {
 
 #define OP_CMPll_DEF(name, cmp) \
 OP_DEFINITION(name) {                     \
-  ssz_t o1 = a3a;                         \
-  ssz_t o2 = arg3B2sB(a2sb);              \
+  ssz_t o1 = ARG3A;                       \
+  ssz_t o2 = ARG3B;                       \
                                           \
-  bc_t next_insn = *ip++;                 \
+  COND_NEXT_INSN(next_insn);              \
                                           \
   unsigned c =                            \
     (int64_t)bp[o1] cmp (int64_t)bp[o2];  \
                                           \
-  COND_NEXT_IP(c);                        \
+  COND_NEXT_IP(c, next_insn);             \
                                           \
   FETCH_DECODE();                         \
                                           \
@@ -93,14 +87,14 @@ OP_CMPll_DEF(CMPNEll, NE)
 
 #define OP_CMPli_DEF(name, cmp) \
 OP_DEFINITION(name) {                     \
-  ssz_t o1 = a3a;                         \
-  int32_t imm = a2sb;                     \
+  ssz_t o1 = ARG2A;                       \
+  int32_t imm = ARG2sB;                   \
                                           \
-  bc_t next_insn = *ip++;                 \
+  COND_NEXT_INSN(next_insn);              \
                                           \
   unsigned c = (int64_t)bp[o1] cmp imm;   \
                                           \
-  COND_NEXT_IP(c);                        \
+  COND_NEXT_IP(c, next_insn);             \
                                           \
   FETCH_DECODE();                         \
                                           \
@@ -118,16 +112,16 @@ OP_CMPli_DEF(CMPNEli, NE)
 
 #define OP_CMPlc_DEF(name, cmp) \
 OP_DEFINITION(name) {                     \
-  ssz_t o1 = a3a;                         \
-  int32_t cidx = a2sb;                    \
+  ssz_t o1 = ARG2A;                       \
+  int32_t cidx = ARG2sB;                  \
                                           \
   val_t *ctbl = state->ctbl;              \
-  bc_t next_insn = *ip++;                 \
+  COND_NEXT_INSN(next_insn);              \
                                           \
   unsigned c = (int64_t)bp[o1]            \
     cmp (int64_t)ctbl[cidx];              \
                                           \
-  COND_NEXT_IP(c);                        \
+  COND_NEXT_IP(c, next_insn);             \
                                           \
   FETCH_DECODE();                         \
                                           \
@@ -142,11 +136,11 @@ OP_CMPlc_DEF(CMPEQlc, EQ)
 OP_CMPlc_DEF(CMPNElc, NE)
 
 
-#define OP_ARITHlli_DEF(name, arith) \
+#define OP_ARITHlli_DEF(name, arith)      \
 OP_DEFINITION(name) {                     \
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t imm = arg3C2sB(a2sb);             \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t imm = ARG3Z;                      \
                                           \
   bp[dst] = bp[src1] arith imm;           \
                                           \
@@ -162,9 +156,9 @@ OP_ARITHlli_DEF(MULlli, MUL)
 #undef OP_ARITHlli_DEF
 
 OP_DEFINITION(DIVlli) {
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t imm = arg3C2sB(a2sb);             \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t imm = ARG3Z;                      \
                                           \
   val_t D  = bp[src1];                    \
   val_t d  = imm;                         \
@@ -182,9 +176,9 @@ OP_DEFINITION(DIVlli) {
 }
 
 OP_DEFINITION(REMlli) {
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t imm = arg3C2sB(a2sb);             \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t imm = ARG3Z;                      \
                                           \
   val_t D  = bp[src1];                    \
   val_t d  = imm;                         \
@@ -201,9 +195,9 @@ OP_DEFINITION(REMlli) {
 }
 
 OP_DEFINITION(DIRlli) {
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t imm = arg3C2sB(a2sb);             \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t imm = ARG3Z;                      \
                                           \
   val_t D  = bp[src1];                    \
   val_t d  = imm;                         \
@@ -224,9 +218,9 @@ OP_DEFINITION(DIRlli) {
 
 #define OP_ARITHlll_DEF(name, arith) \
 OP_DEFINITION(name) {                     \
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t src2 = arg3C2sB(a2sb);            \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t src2 = ARG3Z;                     \
                                           \
   bp[dst] = bp[src1] arith bp[src2];      \
                                           \
@@ -242,9 +236,9 @@ OP_ARITHlll_DEF(MULlll, MUL)
 #undef OP_ARITHlll_DEF
 
 OP_DEFINITION(DIVlll) {
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t src2 = arg3C2sB(a2sb);            \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t src2 = ARG3Z;                     \
                                           \
   val_t D  = bp[src1];                    \
   val_t d  = bp[src2];                    \
@@ -262,9 +256,9 @@ OP_DEFINITION(DIVlll) {
 }
 
 OP_DEFINITION(REMlll) {
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t src2 = arg3C2sB(a2sb);            \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t src2 = ARG3Z;                     \
                                           \
   val_t D  = bp[src1];                    \
   val_t d  = bp[src2];                    \
@@ -281,9 +275,9 @@ OP_DEFINITION(REMlll) {
 }
 
 OP_DEFINITION(DIRlll) {
-  ssz_t dst = a3a;                        \
-  ssz_t src1 = arg3B2sB(a2sb);            \
-  ssz_t src2 = arg3C2sB(a2sb);            \
+  ssz_t dst = ARG3X;                      \
+  ssz_t src1 = ARG3Y;                     \
+  ssz_t src2 = ARG3Z;                     \
                                           \
   val_t D  = bp[src1];                    \
   val_t d  = bp[src2];                    \
@@ -303,8 +297,8 @@ OP_DEFINITION(DIRlll) {
 }
 
 OP_DEFINITION(CONSTli) {
-  ssz_t dst = a3a;
-  int32_t imm = a2sb;
+  ssz_t dst = ARG2A;
+  int32_t imm = ARG2sB;
   
   bp[dst] = (uint64_t)imm;
 
@@ -314,9 +308,9 @@ OP_DEFINITION(CONSTli) {
 }
 
 OP_DEFINITION(CLOSkxi) {
-  ssz_t dst = a3a;
-  ssz_t fx = arg3B2sB(a2sb);
-  ssz_t imm = arg3C2sB(a2sb);
+  ssz_t dst = ARG3A;
+  ssz_t fx = ARG3B;
+  ssz_t imm = ARG3C;
  
   size_t n = closure_size(imm);
   struct closure *clos;
@@ -333,8 +327,8 @@ OP_DEFINITION(CLOSkxi) {
 }
 
 OP_DEFINITION(APPLYpi) {
-  ssz_t iclos = a3a;
-  ssz_t nargs = a2sb;
+  ssz_t iclos = ARG2A;
+  ssz_t nargs = ARG2sB;
 
   (void) nargs;
 
@@ -362,9 +356,9 @@ OP_DEFINITION(APPLYpi) {
 }
 
 OP_DEFINITION(CALLpxi) {
-  ssz_t fx = arg3B2sB(a2sb);
-  ssz_t dst = a3a;
-  ssz_t nargs = arg3C2sB(a2sb);
+  ssz_t dst = ARG3A;
+  ssz_t fx = ARG3B;
+  ssz_t nargs = ARG3C;
 
   (void) nargs;
   struct function *fn = val2ptr(fns[fx]);
@@ -385,9 +379,9 @@ OP_DEFINITION(CALLpxi) {
 }
 
 OP_DEFINITION(OSETpip) {
-  ssz_t dst = a3a;
-  ssz_t imm = arg3B2sB(a2sb);
-  ssz_t src = arg3C2sB(a2sb);
+  ssz_t dst = ARG3A;
+  ssz_t imm = ARG3B;
+  ssz_t src = ARG3C;
 
   struct object *obj = val2ptr(bp[dst]);
   obj->fields[imm] = bp[src];
@@ -398,9 +392,9 @@ OP_DEFINITION(OSETpip) {
 }
 
 OP_DEFINITION(OGETppi) {
-  ssz_t dst = a3a;
-  ssz_t src = arg3B2sB(a2sb);
-  ssz_t imm = arg3C2sB(a2sb);
+  ssz_t dst = ARG3A;
+  ssz_t src = ARG3B;
+  ssz_t imm = ARG3C;
 
   struct object *obj = val2ptr(bp[src]);
   bp[dst] = obj->fields[imm];
@@ -411,8 +405,8 @@ OP_DEFINITION(OGETppi) {
 }
 
 OP_DEFINITION(CLOSGETpi) {
-  ssz_t dst = a3a;
-  ssz_t imm = arg2B2sB(a2sb);
+  ssz_t dst = ARG2A;
+  ssz_t imm = ARG2sB;
 
   struct object *obj = val2ptr(bp[0]);
   bp[dst] = obj->fields[imm];
@@ -423,8 +417,7 @@ OP_DEFINITION(CLOSGETpi) {
 }
 
 OP_DEFINITION(JUMPj) {
-  (void) a3a;
-  int32_t target = a2sb;
+  int32_t target = ARG2sB;
   
   ip = add2ip(ip, target);
 
@@ -434,14 +427,13 @@ OP_DEFINITION(JUMPj) {
 }
 
 OP_DEFINITION(RETp) {
-  (void) a2sb;
-  ssz_t rv = a3a;
+  ssz_t rv = ARG3A;
   
   frame_rv(bp) = bp[rv];
 
   bc_t *ra = val2ptr(frame_ra(bp));
-  bc_t prev_insn = ra[-1];
-  ssz_t fo = arg3A(prev_insn);
+
+  GET_FO(fo);
 
   bp = prev_bp(bp, fo);
   ip = ra;

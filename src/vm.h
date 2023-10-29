@@ -13,10 +13,25 @@
 #define MUSTTAIL [[clang::musttail]]
 #define DP(dp, op) (*(((opthread *const *)(dp))[op]))
 
-#define PARAMS_IMPL_1 bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, struct state *restrict state, const void *restrict dispatch, struct function *restrict fns[]
+#define PARAMS_IMPL_1                             \
+  [[maybe_unused]] bc_t *restrict ip,             \
+  [[maybe_unused]] int32_t a2sb,                  \
+  [[maybe_unused]] uint8_t a3a,                   \
+  [[maybe_unused]] val_t *restrict bp,            \
+  [[maybe_unused]] struct state *restrict state,  \
+  [[maybe_unused]] const void *restrict dispatch, \
+  [[maybe_unused]] struct function *restrict fns[]
+
 #define ARGS_IMPL_1 ip, a2sb, a3a, bp, state, dispatch, fns
 
-#define PARAMS_IMPL_2 bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, struct state *restrict state, const void *restrict dispatch, struct function *restrict fns[]
+#define PARAMS_IMPL_2                             \
+  [[maybe_unused]] bc_t *restrict ip,             \
+  [[maybe_unused]] int32_t a2sb,                  \
+  [[maybe_unused]] uint8_t a3a,                   \
+  [[maybe_unused]] val_t *restrict bp,            \
+  [[maybe_unused]] struct state *restrict state,  \
+  [[maybe_unused]] const void *restrict dispatch, \
+  [[maybe_unused]] struct function *restrict fns[]
 #define ARGS_IMPL_2 ip, a2sb, a3a, bp, state, dispatch, fns
 
 #define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
@@ -26,38 +41,69 @@
   bc_t insn = *ip++;                 \
   op_t op = opcode(insn);            \
   a3a = arg3A(insn);                 \
-  a2sb = arg2sB(insn);               \
+  a2sb = arg2sB(insn)
 
 #define FETCH_DECODE_IMPL_2()        \
   bc_t *insnp = ip++;                \
   op_t op = opcodeP(insnp);          \
   a3a = arg3AP(insnp);               \
-  a2sb = arg2sBP(insnp);             \
+  a2sb = arg2sBP(insnp)
 
-#define COND_NEXT_IP_CMOV(c)     \
-  do {                           \
-    ip += c ? 0                  \
-            : arg2sB(next_insn); \
+#define COND_NEXT_IP_CMOV(c, i)      \
+  do {                               \
+    ip += c ? 0                      \
+            : JUMP_OFFSET(i);        \
   } while (0)
 
-#define COND_NEXT_IP_BR(c)     \
-  do {                         \
-    if (likely(!c))            \
-      ip += arg2sB(next_insn); \
+#define COND_NEXT_IP_BR(c, i)        \
+  do {                               \
+    if (likely(!c))                  \
+      ip += JUMP_OFFSET(i);          \
   } while (0)
 
 #define COND_NEXT_IP COND_NEXT_IP_BR
 
 #define OP_DEFINITION(name) THREADED void vm_op_##name(PARAMS)
 
+#define DECODE_USING_LOADS
 #ifndef DECODE_USING_LOADS
 #define PARAMS PARAMS_IMPL_1
 #define ARGS ARGS_IMPL_1
 #define FETCH_DECODE FETCH_DECODE_IMPL_1
+#define COND_NEXT_INSN(x) bc_t x = *ip++
+#define ARG3A a3a
+#define ARG3B arg3B2sB(a2sb) 
+#define ARG3C arg3C2sB(a2sb)
+#define ARG3X ARG3B
+#define ARG3Y ARG3A 
+#define ARG3Z ARG3C 
+#define ARG2A a3a
+#define ARG2sB a2sb
+#define ARG2B arg2B2sB(a2sb)
+#define JUMP_OFFSET(x) arg2sB(x)
+#define GET_FO(fo)              \
+  bc_t prev_insn = ra[-1];      \
+  ssz_t fo = arg3A(prev_insn)
+
 #else
 #define PARAMS PARAMS_IMPL_2
 #define ARGS ARGS_IMPL_2
 #define FETCH_DECODE FETCH_DECODE_IMPL_2
+#define COND_NEXT_INSN(x) bc_t *x = ip++
+#define ARG3A a3a
+#define ARG3B arg3B2sB(a2sb) 
+#define ARG3C arg3C2sB(a2sb)
+#define ARG3X ARG3B
+#define ARG3Y ARG3A 
+#define ARG3Z ARG3C 
+#define ARG2A a3a
+#define ARG2sB a2sb
+#define ARG2B arg2B2sB(a2sb)
+#define JUMP_OFFSET(x) arg2sBP(x)
+#define GET_FO(fo)              \
+  bc_t *prev_insnp = ra - 1;    \
+  ssz_t fo = arg3AP(prev_insnp)
+
 #endif
 
 [[clang::qkcc]] typedef void opthread(PARAMS);

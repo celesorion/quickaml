@@ -5,7 +5,7 @@ CC := clang
 CFLAGS := -Wall -Wextra -O3 -flto -std=c2x
 LDFLAGS := -fuse-ld=lld -s
 
-CFLAGS_RELDBG := -Wall -Wextra -O3 -flto -ggdb3 -std=c2x
+CFLAGS_RELDBG := -Wall -Wextra -O3 -ggdb3 -std=c2x
 LDFLAGS_RELDBG := -fuse-ld=lld
 
 # Compiler flags for debugging

@@ -238,11 +238,11 @@ int bc_scan(FILE *fp, dynstr_t *pds, struct state *st) {
           r = read_integer(&p, &n);
           if (r != S_OK) return S_NOT_AN_OPERAND;
 
-          if (strcmp(id, "a") == 0) {
+          if (strcmp(id, "a") == 0 || strcmp(id, "y") == 0) {
             bcinfo.ABC.A = (uint8_t)n;
-          } else if (strcmp(id, "b") == 0) {
+          } else if (strcmp(id, "b") == 0 || strcmp(id, "x") == 0) {
             bcinfo.ABC.B = (uint8_t)n;
-          } else if (strcmp(id, "c") == 0) {
+          } else if (strcmp(id, "c") == 0 || strcmp(id, "z") == 0) {
             bcinfo.ABC.C = (uint8_t)n;
           } else if (strcmp(id, "sb") == 0) {
             bcinfo.AsB.sB = (int16_t)n;
