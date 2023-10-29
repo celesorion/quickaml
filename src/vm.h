@@ -1,4 +1,5 @@
 #include "obj.h"
+#include "def.h"
 
 #include <stdint.h>
 
@@ -9,20 +10,29 @@
 #define add2ip(ip, off) ((bc_t *)((unsigned char*)(ip) + (ptrdiff_t)off))  
 
 #define THREADED [[gnu::noinline, clang::qkcc, gnu::aligned(64)]] static
-#define INLINE [[gnu::always_inline]] static
 #define MUSTTAIL [[clang::musttail]]
 #define DP(dp, op) (*(((opthread *const *)(dp))[op]))
 
-#define PARAMS bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, struct state *restrict state, const void *restrict dispatch, struct function *restrict fns[]
-#define ARGS ip, a2sb, a3a, bp, state, dispatch, fns
+#define PARAMS_IMPL_1 bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, struct state *restrict state, const void *restrict dispatch, struct function *restrict fns[]
+#define ARGS_IMPL_1 ip, a2sb, a3a, bp, state, dispatch, fns
+
+#define PARAMS_IMPL_2 bc_t *restrict ip, int32_t a2sb, uint8_t a3a, val_t *restrict bp, struct state *restrict state, const void *restrict dispatch, struct function *restrict fns[]
+#define ARGS_IMPL_2 ip, a2sb, a3a, bp, state, dispatch, fns
+
 #define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
 #define NONTAILDISPATCH() DP(dispatch, op)(ARGS)
 
-#define FETCH_DECODE()    \
-  bc_t insn = *ip++;      \
-  op_t op = opcode(insn); \
-  a3a = arg3A(insn);      \
-  a2sb = arg2sB(insn)
+#define FETCH_DECODE_IMPL_1()        \
+  bc_t insn = *ip++;                 \
+  op_t op = opcode(insn);            \
+  a3a = arg3A(insn);                 \
+  a2sb = arg2sB(insn);               \
+
+#define FETCH_DECODE_IMPL_2()        \
+  bc_t *insnp = ip++;                \
+  op_t op = opcodeP(insnp);          \
+  a3a = arg3AP(insnp);               \
+  a2sb = arg2sBP(insnp);             \
 
 #define COND_NEXT_IP_CMOV(c)     \
   do {                           \
@@ -39,6 +49,16 @@
 #define COND_NEXT_IP COND_NEXT_IP_BR
 
 #define OP_DEFINITION(name) THREADED void vm_op_##name(PARAMS)
+
+#ifndef DECODE_USING_LOADS
+#define PARAMS PARAMS_IMPL_1
+#define ARGS ARGS_IMPL_1
+#define FETCH_DECODE FETCH_DECODE_IMPL_1
+#else
+#define PARAMS PARAMS_IMPL_2
+#define ARGS ARGS_IMPL_2
+#define FETCH_DECODE FETCH_DECODE_IMPL_2
+#endif
 
 [[clang::qkcc]] typedef void opthread(PARAMS);
 

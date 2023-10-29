@@ -15,4 +15,5 @@ typedef uint64_t obj_header;
 #define ptr2val(p) ((val_t)(void *)(p))
 #define val2ptr(v) ((void *)(v))
 
+#define INLINE [[gnu::always_inline]] static
 #endif

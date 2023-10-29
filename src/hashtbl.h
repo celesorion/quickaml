@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <threads.h>
 
 #include "simde/x86/ssse3.h"
 #include "hash.h"

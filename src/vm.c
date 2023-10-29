@@ -1,10 +1,12 @@
 #include "bc.h"
 #include "obj.h"
 #include "vm.h"
+#include "alloc.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <inttypes.h>
 
 static opthread *const dispatch[];
 
@@ -59,7 +61,7 @@ OP_DEFINITION(STOPii) {
   
   for (ssz_t i = i1; i < i2; i++) {
     [[maybe_unused]] int r;
-    PCALL(r, printf, "slot[%u] 0x%lx\n", i, bp[i]);
+    PCALL(r, printf, ("slot[%u] 0x%" PRIx64 "\n"), i, bp[i]);
   }
 
   return;
@@ -318,7 +320,7 @@ OP_DEFINITION(CLOSkxi) {
  
   size_t n = closure_size(imm);
   struct closure *clos;
-  PCALL(clos, malloc, n);
+  PCALL(clos, immix_malloc, n);
   
   clos->fp = ptr2val(fns[fx]);
   clos->args = ptr2val(nullptr);

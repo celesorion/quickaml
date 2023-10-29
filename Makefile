@@ -3,10 +3,10 @@ CC := clang
 
 # Compiler flags
 CFLAGS := -Wall -Wextra -O3 -flto -std=c2x
-LDFLAGS := -fuse-ld=mold -s
+LDFLAGS := -fuse-ld=lld -s
 
 CFLAGS_RELDBG := -Wall -Wextra -O3 -flto -ggdb3 -std=c2x
-LDFLAGS := -fuse-ld=mold
+LDFLAGS_RELDBG := -fuse-ld=lld
 
 # Compiler flags for debugging
 CFLAGS_DBG := -Wall -Wextra -O0 -fpie -ggdb3 -std=c2x -DDEBUG -fsanitize=address
@@ -64,7 +64,7 @@ runreldbg: $(TARGET_RELDBG)
 
 $(TARGET_RELDBG): $(OBJS_RELDBG)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS_RELDBG) $^ -o $@
+	$(CC) $(CFLAGS_RELDBG) $(LDFLAGS_RELDBG) $^ -o $@
 
 $(OBJ_DIR)/%.reldbg.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)

@@ -108,6 +108,15 @@ static_assert(LIMIT <= 256);
 #define arg3C2sB(i) ((((uint32_t)(i))>>8)&0xff)
 #define arg2B2sB(i) (((uint32_t)(i))&0xffff)
 
+#define opcodeP(ip) (((uint8_t*)(ip))[0])
+#define arg3AP(ip)  (((uint8_t*)(ip))[1])
+#define arg3BP(ip)  (((uint8_t*)(ip))[2])
+#define arg3CP(ip)  (((uint8_t*)(ip))[3])
+#define arg2AP(ip)  arg3AP(ip)
+#define arg2BP(ip)  (((uint16_t*)(ip))[1])
+#define arg2sBP(ip) (((int16_t*)(ip))[1])
+#define arg1sAP(ip) ((int32_t)(*(ip))>>8)
+
 #define mkOP(x_)  (((bc_t)(x_))&0xff)
 #define mk3A(x_)  ((((bc_t)(x_))&0xff)<<8)
 #define mk3B(x_)  ((((bc_t)(x_))&0xff)<<16)

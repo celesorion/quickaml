@@ -1,5 +1,6 @@
 #include "vm.h"
 #include "obj.h"
+#include "alloc.h"
 
 int exec(struct state *state) {
   return vm_entry(state);
@@ -16,6 +17,8 @@ int main(int argc, const char *const argv[]) {
 #ifdef DEBUG
   // return utest_main(argc, argv);
 #endif
+
+  immix_init();
 
   struct state st;
 
