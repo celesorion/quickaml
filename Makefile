@@ -1,15 +1,18 @@
 # Compiler
 CC := clang
 
-# Compiler flags
-CFLAGS := -Wall -Wextra -O3 -flto -std=c2x
-LDFLAGS := -fuse-ld=lld -s
+# Default CFLAGS
+CFLAGS := -DJUMP_MODE=0 -DDECODE_MODE=1
 
-CFLAGS_RELDBG := -Wall -Wextra -O3 -ggdb3 -std=c2x
-LDFLAGS_RELDBG := -fuse-ld=lld
+# Compiler flags
+_CFLAGS := -Wall -Wextra -O3 -flto -std=c2x
+_LDFLAGS := 
+
+_CFLAGS_RELDBG := -Wall -Wextra -O3 -ggdb3 -std=c2x
+_LDFLAGS_RELDBG :=
 
 # Compiler flags for debugging
-CFLAGS_DBG := -Wall -Wextra -O0 -fpie -ggdb3 -std=c2x -DDEBUG -fsanitize=address
+_CFLAGS_DBG := -Wall -Wextra -O0 -fpie -ggdb3 -std=c2x -DDEBUG -fsanitize=address
 
 # Directories
 SRC_DIR := src
@@ -50,12 +53,12 @@ run: $(TARGET)
 # Rule to create the binary
 $(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(CC) $(_CFLAGS) $(CFLAGS) $(_LDFLAGS) $(LDFLAGS) $^ -o $@
 
 # Rule to compile source files into object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(_CFLAGS) $(CFLAGS) -c $< -o $@
 
 reldbg: $(TARGET_RELDBG)
 
@@ -64,11 +67,11 @@ runreldbg: $(TARGET_RELDBG)
 
 $(TARGET_RELDBG): $(OBJS_RELDBG)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS_RELDBG) $(LDFLAGS_RELDBG) $^ -o $@
+	$(CC) $(_CFLAGS_RELDBG) $(CFLAGS) $(_LDFLAGS_RELDBG) $(LDFLAGS) $^ -o $@
 
 $(OBJ_DIR)/%.reldbg.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS_RELDBG) -c $< -o $@
+	$(CC) $(_CFLAGS_RELDBG) $(CFLAGS) -c $< -o $@
 
 debug: $(TARGET_DBG)
 
@@ -77,11 +80,11 @@ rundbg: $(TARGET_DBG)
 
 $(TARGET_DBG): $(OBJS_DBG)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS_DBG) $^ -o $@
+	$(CC) $(_CFLAGS_DBG) $(CLFAGS) $(LDFLAGS) $^ -o $@
 
 $(OBJ_DIR)/%.dbg.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS_DBG) -c $< -o $@
+	$(CC) $(_CFLAGS_DBG) $(CFLAGS) -c $< -o $@
 
 # Clean target
 clean:

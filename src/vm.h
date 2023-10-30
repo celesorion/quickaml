@@ -61,12 +61,15 @@
       ip += JUMP_OFFSET(i);          \
   } while (0)
 
+#if !defined(JUMP_MODE) || defined(JUMP_MODE) && JUMP_MODE == 0
 #define COND_NEXT_IP COND_NEXT_IP_BR
+#elif defined(JUMP_MODE) && JUMP_MODE == 1
+#define COND_NEXT_IP COND_NEXT_IP_CMOV
+#endif
 
 #define OP_DEFINITION(name) THREADED void vm_op_##name(PARAMS)
 
-#define DECODE_USING_LOADS
-#ifndef DECODE_USING_LOADS
+#if !defined(DECODE_MODE) || defined(DECODE_MODE) && DECODE_MODE == 0
 #define PARAMS PARAMS_IMPL_1
 #define ARGS ARGS_IMPL_1
 #define FETCH_DECODE FETCH_DECODE_IMPL_1
@@ -85,7 +88,7 @@
   bc_t prev_insn = ra[-1];      \
   ssz_t fo = arg3A(prev_insn)
 
-#else
+#elif defined(DECODE_MODE) && DECODE_MODE == 1
 #define PARAMS PARAMS_IMPL_2
 #define ARGS ARGS_IMPL_2
 #define FETCH_DECODE FETCH_DECODE_IMPL_2

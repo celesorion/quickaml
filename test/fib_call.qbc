@@ -1,0 +1,21 @@
+.numfn 2 
+.entry 0
+.stack 65536
+.fn 3
+  const.li    a:2  sb:40
+  call.pxi    a:0  b:1  c:1
+  stop.ll     a:0  b:1  c:0
+.endfn
+.fn 10
+  cmplt.li    a:0  sb:2
+  jump.j      sb:2
+  const.li    a:0  sb:1
+  ret.p       a:0
+  sub.lli     x:3  y:0  z:1 
+  call.pxi    a:1  b:1  c:1
+  sub.lli     x:4  y:0  z:2
+  call.pxi    a:2  b:1  c:1
+  add.lll     x:0  y:1  z:2
+  ret.p       a:0
+.endfn
+
