@@ -41,16 +41,15 @@ _vm_entry:                              ; @vm_entry
 	ldr	x3, [x0, #40]
 	ldp	x8, x6, [x0]
 	add	x0, x8, #12
-	ldr	w8, [x8, #8]
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	ldrb	w9, [x8, #8]
+	ldrb	w2, [x8, #9]
+	ldrsh	w1, [x8, #10]
 Lloh0:
 	adrp	x5, _dispatch@PAGE
 Lloh1:
 	add	x5, x5, _dispatch@PAGEOFF
-	ldr	x9, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
-	blr	x9
+	ldr	x8, [x5, x9, lsl #3]
+	blr	x8
 	mov	w0, #0                          ; =0x0
 	ldp	x29, x30, [sp, #144]            ; 16-byte Folded Reload
 	ldp	x20, x19, [sp, #128]            ; 16-byte Folded Reload
@@ -70,11 +69,12 @@ Lloh1:
 _vm_op_NOP:                             ; @vm_op_NOP
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -116,22 +116,21 @@ LBB2_3:                                 ; %for.cond.cleanup
 _vm_op_CMPLTll:                         ; @vm_op_CMPLTll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	and	w9, w1, #0xff
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x3, w9, uxtw #3]
 	cmp	x10, x9
 	b.lt	LBB3_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB3_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -139,22 +138,21 @@ LBB3_2:                                 ; %do.end
 _vm_op_CMPLEll:                         ; @vm_op_CMPLEll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	and	w9, w1, #0xff
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x3, w9, uxtw #3]
 	cmp	x10, x9
 	b.le	LBB4_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB4_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -162,22 +160,21 @@ LBB4_2:                                 ; %do.end
 _vm_op_CMPEQll:                         ; @vm_op_CMPEQll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	and	w9, w1, #0xff
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x3, w9, uxtw #3]
 	cmp	x10, x9
 	b.eq	LBB5_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB5_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -185,22 +182,21 @@ LBB5_2:                                 ; %do.end
 _vm_op_CMPNEll:                         ; @vm_op_CMPNEll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	and	w9, w1, #0xff
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x3, w9, uxtw #3]
 	cmp	x10, x9
 	b.ne	LBB6_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB6_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -208,20 +204,19 @@ LBB6_2:                                 ; %do.end
 _vm_op_CMPLTli:                         ; @vm_op_CMPLTli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x9, [x3, w2, uxtw #3]
 	cmp	x9, w1, sxtw
 	b.lt	LBB7_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB7_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -229,20 +224,19 @@ LBB7_2:                                 ; %do.end
 _vm_op_CMPLEli:                         ; @vm_op_CMPLEli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x9, [x3, w2, uxtw #3]
 	cmp	x9, w1, sxtw
 	b.le	LBB8_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB8_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -250,20 +244,19 @@ LBB8_2:                                 ; %do.end
 _vm_op_CMPGTli:                         ; @vm_op_CMPGTli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x9, [x3, w2, uxtw #3]
 	cmp	x9, w1, sxtw
 	b.gt	LBB9_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB9_2:                                 ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -271,20 +264,19 @@ LBB9_2:                                 ; %do.end
 _vm_op_CMPGEli:                         ; @vm_op_CMPGEli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x9, [x3, w2, uxtw #3]
 	cmp	x9, w1, sxtw
 	b.ge	LBB10_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB10_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -292,20 +284,19 @@ LBB10_2:                                ; %do.end
 _vm_op_CMPEQli:                         ; @vm_op_CMPEQli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x9, [x3, w2, uxtw #3]
 	cmp	x9, w1, sxtw
 	b.eq	LBB11_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB11_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -313,20 +304,19 @@ LBB11_2:                                ; %do.end
 _vm_op_CMPNEli:                         ; @vm_op_CMPNEli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x9, [x3, w2, uxtw #3]
 	cmp	x9, w1, sxtw
 	b.ne	LBB12_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB12_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -334,22 +324,21 @@ LBB12_2:                                ; %do.end
 _vm_op_CMPLTlc:                         ; @vm_op_CMPLTlc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	ldr	x9, [x4, #32]
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x9, w1, sxtw #3]
 	cmp	x10, x9
 	b.lt	LBB13_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB13_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -357,22 +346,21 @@ LBB13_2:                                ; %do.end
 _vm_op_CMPLElc:                         ; @vm_op_CMPLElc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	ldr	x9, [x4, #32]
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x9, w1, sxtw #3]
 	cmp	x10, x9
 	b.le	LBB14_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB14_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -380,22 +368,21 @@ LBB14_2:                                ; %do.end
 _vm_op_CMPGTlc:                         ; @vm_op_CMPGTlc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	ldr	x9, [x4, #32]
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x9, w1, sxtw #3]
 	cmp	x10, x9
 	b.gt	LBB15_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB15_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -403,22 +390,21 @@ LBB15_2:                                ; %do.end
 _vm_op_CMPGElc:                         ; @vm_op_CMPGElc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	ldr	x9, [x4, #32]
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x9, w1, sxtw #3]
 	cmp	x10, x9
 	b.ge	LBB16_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB16_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -426,22 +412,21 @@ LBB16_2:                                ; %do.end
 _vm_op_CMPEQlc:                         ; @vm_op_CMPEQlc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	ldr	x9, [x4, #32]
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x9, w1, sxtw #3]
 	cmp	x10, x9
 	b.eq	LBB17_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB17_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -449,22 +434,21 @@ LBB17_2:                                ; %do.end
 _vm_op_CMPNElc:                         ; @vm_op_CMPNElc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
 	ldr	x9, [x4, #32]
-	add	x0, x0, #4
+	add	x8, x0, #4
 	ldr	x10, [x3, w2, uxtw #3]
 	ldr	x9, [x9, w1, sxtw #3]
 	cmp	x10, x9
 	b.ne	LBB18_2
 ; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
+	ldrsh	x9, [x0, #2]
+	add	x8, x8, x9, lsl #2
 LBB18_2:                                ; %do.end
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -473,15 +457,16 @@ _vm_op_ADDlli:                          ; @vm_op_ADDlli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
 	and	w8, w1, #0xff
-	ldr	x9, [x3, w2, uxtw #3]
-	ubfx	w10, w1, #8, #8
-	add	x9, x9, x10
+	ubfx	w9, w1, #8, #8
+	ldr	x10, [x3, w2, uxtw #3]
+	add	x9, x10, x9
 	str	x9, [x3, w8, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -490,15 +475,16 @@ _vm_op_SUBlli:                          ; @vm_op_SUBlli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
 	and	w8, w1, #0xff
-	ldr	x9, [x3, w2, uxtw #3]
-	ubfx	w10, w1, #8, #8
-	sub	x9, x9, x10
+	ubfx	w9, w1, #8, #8
+	ldr	x10, [x3, w2, uxtw #3]
+	sub	x9, x10, x9
 	str	x9, [x3, w8, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -507,15 +493,16 @@ _vm_op_MULlli:                          ; @vm_op_MULlli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
 	and	w8, w1, #0xff
-	ldr	x9, [x3, w2, uxtw #3]
-	ubfx	w10, w1, #8, #8
-	mul	x9, x9, x10
+	ubfx	w9, w1, #8, #8
+	ldr	x10, [x3, w2, uxtw #3]
+	mul	x9, x10, x9
 	str	x9, [x3, w8, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -523,16 +510,17 @@ _vm_op_MULlli:                          ; @vm_op_MULlli
 _vm_op_DIVlli:                          ; @vm_op_DIVlli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ubfx	w8, w1, #8, #8
-	ldr	x9, [x3, w2, uxtw #3]
-	udiv	x8, x9, x8
+	ldr	x8, [x3, w2, uxtw #3]
+	ubfx	w9, w1, #8, #8
+	udiv	x8, x8, x9
 	and	w9, w1, #0xff
 	str	x8, [x3, w9, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -540,21 +528,22 @@ _vm_op_DIVlli:                          ; @vm_op_DIVlli
 _vm_op_REMlli:                          ; @vm_op_REMlli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ldr	x8, [x3, w2, uxtw #3]
-	ubfx	w9, w1, #8, #8
-	udiv	x10, x8, x9
-	msub	x8, x10, x9, x8
-	cmp	x8, #0
-	ccmp	w9, #0, #0, eq
-	csel	x9, x9, xzr, eq
-	add	x8, x9, x8
+	ubfx	w8, w1, #8, #8
+	ldr	x9, [x3, w2, uxtw #3]
+	udiv	x10, x9, x8
+	msub	x9, x10, x8, x9
+	cmp	x9, #0
+	ccmp	w8, #0, #0, eq
+	csel	x8, x8, xzr, eq
+	add	x8, x8, x9
 	and	w9, w1, #0xff
 	str	x8, [x3, w9, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -565,16 +554,17 @@ _vm_op_DIRlli:                          ; @vm_op_DIRlli
 	ubfx	w8, w1, #8, #8
 	ldr	x9, [x3, w2, uxtw #3]
 	udiv	x10, x9, x8
-	and	w11, w1, #0xff
-	str	x10, [x3, w11, uxtw #3]
 	msub	x8, x10, x8, x9
-	add	w9, w11, #1
+	and	w9, w1, #0xff
+	str	x10, [x3, w9, uxtw #3]
+	add	w9, w9, #1
 	str	x8, [x3, w9, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -582,17 +572,18 @@ _vm_op_DIRlli:                          ; @vm_op_DIRlli
 _vm_op_ADDlll:                          ; @vm_op_ADDlll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ubfx	w8, w1, #8, #8
-	ldr	x9, [x3, w2, uxtw #3]
-	ldr	x8, [x3, w8, uxtw #3]
-	and	w10, w1, #0xff
-	add	x8, x8, x9
-	str	x8, [x3, w10, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	and	w8, w1, #0xff
+	ubfx	w9, w1, #8, #8
+	ldr	x10, [x3, w2, uxtw #3]
+	ldr	x9, [x3, w9, uxtw #3]
+	add	x9, x9, x10
+	str	x9, [x3, w8, uxtw #3]
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -600,17 +591,18 @@ _vm_op_ADDlll:                          ; @vm_op_ADDlll
 _vm_op_SUBlll:                          ; @vm_op_SUBlll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ubfx	w8, w1, #8, #8
-	ldr	x9, [x3, w2, uxtw #3]
-	ldr	x8, [x3, w8, uxtw #3]
-	and	w10, w1, #0xff
-	sub	x8, x9, x8
-	str	x8, [x3, w10, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	and	w8, w1, #0xff
+	ubfx	w9, w1, #8, #8
+	ldr	x10, [x3, w2, uxtw #3]
+	ldr	x9, [x3, w9, uxtw #3]
+	sub	x9, x10, x9
+	str	x9, [x3, w8, uxtw #3]
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -618,17 +610,18 @@ _vm_op_SUBlll:                          ; @vm_op_SUBlll
 _vm_op_MULlll:                          ; @vm_op_MULlll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ubfx	w8, w1, #8, #8
-	ldr	x9, [x3, w2, uxtw #3]
-	ldr	x8, [x3, w8, uxtw #3]
-	and	w10, w1, #0xff
-	mul	x8, x8, x9
-	str	x8, [x3, w10, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	and	w8, w1, #0xff
+	ubfx	w9, w1, #8, #8
+	ldr	x10, [x3, w2, uxtw #3]
+	ldr	x9, [x3, w9, uxtw #3]
+	mul	x9, x9, x10
+	str	x9, [x3, w8, uxtw #3]
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -642,11 +635,12 @@ _vm_op_DIVlll:                          ; @vm_op_DIVlll
 	udiv	x8, x9, x8
 	and	w9, w1, #0xff
 	str	x8, [x3, w9, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -661,11 +655,12 @@ _vm_op_REMlll:                          ; @vm_op_REMlll
 	msub	x8, x10, x8, x9
 	and	w9, w1, #0xff
 	str	x8, [x3, w9, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -673,20 +668,21 @@ _vm_op_REMlll:                          ; @vm_op_REMlll
 _vm_op_DIRlll:                          ; @vm_op_DIRlll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	ubfx	w8, w1, #8, #8
-	ldr	x9, [x3, w2, uxtw #3]
-	ldr	x8, [x3, w8, uxtw #3]
-	udiv	x10, x9, x8
-	and	w11, w1, #0xff
-	str	x10, [x3, w11, uxtw #3]
-	msub	x8, x10, x8, x9
-	add	w9, w11, #1
+	ldr	x8, [x3, w2, uxtw #3]
+	ubfx	w9, w1, #8, #8
+	ldr	x9, [x3, w9, uxtw #3]
+	udiv	x10, x8, x9
+	msub	x8, x10, x9, x8
+	and	w9, w1, #0xff
+	str	x10, [x3, w9, uxtw #3]
+	add	w9, w9, #1
 	str	x8, [x3, w9, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -697,11 +693,12 @@ _vm_op_CONSTli:                         ; @vm_op_CONSTli
                                         ; kill: def $w1 killed $w1 def $x1
 	sxtw	x8, w1
 	str	x8, [x3, w2, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -729,12 +726,11 @@ _vm_op_CLOSkxi:                         ; @vm_op_CLOSkxi
 	ldr	x8, [x19, w25, uxtw #3]
 	stp	x8, xzr, [x0, #8]
 	str	x0, [x22, w23, uxtw #3]
-	ldr	w8, [x24], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
-	ldr	x7, [x20, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
-	mov	x0, x24
+	add	x0, x24, #4
+	ldrb	w8, [x24]
+	ldrb	w2, [x24, #1]
+	ldrsh	w1, [x24, #2]
+	ldr	x7, [x20, x8, lsl #3]
 	mov	x3, x22
 	mov	x4, x21
 	mov	x5, x20
@@ -755,11 +751,10 @@ _vm_op_APPLYpi:                         ; @vm_op_APPLYpi
 ; %bb.1:                                ; %if.end
 	stp	x0, x9, [x3, #-8]
 	add	x0, x8, #12
-	ldr	w8, [x8, #8]
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	ldrb	w9, [x8, #8]
+	ldrb	w2, [x8, #9]
+	ldrsh	w1, [x8, #10]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 LBB33_2:                                ; %if.then
 	add	x0, x8, #8
@@ -780,11 +775,10 @@ _vm_op_CALLpxi:                         ; @vm_op_CALLpxi
 ; %bb.1:                                ; %if.end
 	stur	x0, [x3, #-8]
 	add	x0, x8, #12
-	ldr	w8, [x8, #8]
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	ldrb	w9, [x8, #8]
+	ldrb	w2, [x8, #9]
+	ldrsh	w1, [x8, #10]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 LBB34_2:                                ; %if.then
 	add	x0, x8, #8
@@ -796,16 +790,17 @@ _vm_op_OSETpip:                         ; @vm_op_OSETpip
 	.cfi_startproc
 ; %bb.0:                                ; %entry
 	and	w8, w1, #0xff
-	ubfx	w9, w1, #8, #8
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x3, w9, uxtw #3]
-	add	x8, x10, w8, uxtw #3
-	str	x9, [x8, #8]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	ldr	x9, [x3, w2, uxtw #3]
+	ubfx	w10, w1, #8, #8
+	ldr	x10, [x3, w10, uxtw #3]
+	add	x8, x9, w8, uxtw #3
+	str	x10, [x8, #8]
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -814,16 +809,17 @@ _vm_op_OGETppi:                         ; @vm_op_OGETppi
 	.cfi_startproc
 ; %bb.0:                                ; %entry
 	and	w8, w1, #0xff
-	ubfx	w9, w1, #8, #8
 	ldr	x8, [x3, w8, uxtw #3]
+	ubfx	w9, w1, #8, #8
 	add	x8, x8, w9, uxtw #3
 	ldr	x8, [x8, #8]
 	str	x8, [x3, w2, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -835,11 +831,12 @@ _vm_op_CLOSGETpi:                       ; @vm_op_CLOSGETpi
 	add	x8, x8, w1, uxtw #3
 	ldr	x8, [x8, #8]
 	str	x8, [x3, w2, uxtw #3]
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, #4
+	ldrb	w9, [x0]
+	ldrb	w2, [x0, #1]
+	ldrsh	w1, [x0, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
+	mov	x0, x8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -847,12 +844,12 @@ _vm_op_CLOSGETpi:                       ; @vm_op_CLOSGETpi
 _vm_op_JUMPj:                           ; @vm_op_JUMPj
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	add	x0, x0, w1, sxtw
-	ldr	w8, [x0], #4
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	add	x8, x0, w1, sxtw
+	add	x0, x8, #4
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function
@@ -866,11 +863,10 @@ _vm_op_RETp:                            ; @vm_op_RETp
 	ldurb	w9, [x8, #-3]
 	sub	x3, x3, x9, lsl #3
 	add	x0, x8, #4
-	ldr	w8, [x8]
-	and	x9, x8, #0xff
-	asr	w1, w8, #16
+	ldrb	w9, [x8]
+	ldrb	w2, [x8, #1]
+	ldrsh	w1, [x8, #2]
 	ldr	x7, [x5, x9, lsl #3]
-	ubfx	w2, w8, #8, #8
 	br	x7
 	.cfi_endproc
                                         ; -- End function

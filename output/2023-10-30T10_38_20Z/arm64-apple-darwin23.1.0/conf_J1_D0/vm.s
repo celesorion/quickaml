@@ -116,18 +116,15 @@ LBB2_3:                                 ; %for.cond.cleanup
 _vm_op_CMPLTll:                         ; @vm_op_CMPLTll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	and	w9, w1, #0xff
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x3, w9, uxtw #3]
-	cmp	x10, x9
-	b.lt	LBB3_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB3_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	and	w8, w1, #0xff
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x3, w8, uxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, xzr, x10, lt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -139,18 +136,15 @@ LBB3_2:                                 ; %do.end
 _vm_op_CMPLEll:                         ; @vm_op_CMPLEll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	and	w9, w1, #0xff
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x3, w9, uxtw #3]
-	cmp	x10, x9
-	b.le	LBB4_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB4_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	and	w8, w1, #0xff
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x3, w8, uxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, x10, xzr, gt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -162,18 +156,15 @@ LBB4_2:                                 ; %do.end
 _vm_op_CMPEQll:                         ; @vm_op_CMPEQll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	and	w9, w1, #0xff
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x3, w9, uxtw #3]
-	cmp	x10, x9
-	b.eq	LBB5_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB5_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	and	w8, w1, #0xff
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x3, w8, uxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, xzr, x10, eq
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -185,18 +176,15 @@ LBB5_2:                                 ; %do.end
 _vm_op_CMPNEll:                         ; @vm_op_CMPNEll
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	and	w9, w1, #0xff
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x3, w9, uxtw #3]
-	cmp	x10, x9
-	b.ne	LBB6_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB6_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	and	w8, w1, #0xff
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x3, w8, uxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, x10, xzr, eq
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -208,16 +196,13 @@ LBB6_2:                                 ; %do.end
 _vm_op_CMPLTli:                         ; @vm_op_CMPLTli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
-	ldr	x9, [x3, w2, uxtw #3]
-	cmp	x9, w1, sxtw
-	b.lt	LBB7_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB7_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x3, w2, uxtw #3]
+	ldrsh	x9, [x0, #2]
+	cmp	x8, w1, sxtw
+	csel	x8, xzr, x9, lt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -229,16 +214,13 @@ LBB7_2:                                 ; %do.end
 _vm_op_CMPLEli:                         ; @vm_op_CMPLEli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
-	ldr	x9, [x3, w2, uxtw #3]
-	cmp	x9, w1, sxtw
-	b.le	LBB8_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB8_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x3, w2, uxtw #3]
+	ldrsh	x9, [x0, #2]
+	cmp	x8, w1, sxtw
+	csel	x8, x9, xzr, gt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -250,16 +232,13 @@ LBB8_2:                                 ; %do.end
 _vm_op_CMPGTli:                         ; @vm_op_CMPGTli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
-	ldr	x9, [x3, w2, uxtw #3]
-	cmp	x9, w1, sxtw
-	b.gt	LBB9_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB9_2:                                 ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x3, w2, uxtw #3]
+	ldrsh	x9, [x0, #2]
+	cmp	x8, w1, sxtw
+	csel	x8, xzr, x9, gt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -271,16 +250,13 @@ LBB9_2:                                 ; %do.end
 _vm_op_CMPGEli:                         ; @vm_op_CMPGEli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
-	ldr	x9, [x3, w2, uxtw #3]
-	cmp	x9, w1, sxtw
-	b.ge	LBB10_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB10_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x3, w2, uxtw #3]
+	ldrsh	x9, [x0, #2]
+	cmp	x8, w1, sxtw
+	csel	x8, x9, xzr, lt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -292,16 +268,13 @@ LBB10_2:                                ; %do.end
 _vm_op_CMPEQli:                         ; @vm_op_CMPEQli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
-	ldr	x9, [x3, w2, uxtw #3]
-	cmp	x9, w1, sxtw
-	b.eq	LBB11_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB11_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x3, w2, uxtw #3]
+	ldrsh	x9, [x0, #2]
+	cmp	x8, w1, sxtw
+	csel	x8, xzr, x9, eq
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -313,16 +286,13 @@ LBB11_2:                                ; %do.end
 _vm_op_CMPNEli:                         ; @vm_op_CMPNEli
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	add	x0, x0, #4
-	ldr	x9, [x3, w2, uxtw #3]
-	cmp	x9, w1, sxtw
-	b.ne	LBB12_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB12_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x3, w2, uxtw #3]
+	ldrsh	x9, [x0, #2]
+	cmp	x8, w1, sxtw
+	csel	x8, x9, xzr, eq
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -334,18 +304,15 @@ LBB12_2:                                ; %do.end
 _vm_op_CMPLTlc:                         ; @vm_op_CMPLTlc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	ldr	x9, [x4, #32]
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x9, w1, sxtw #3]
-	cmp	x10, x9
-	b.lt	LBB13_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB13_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x4, #32]
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x8, w1, sxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, xzr, x10, lt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -357,18 +324,15 @@ LBB13_2:                                ; %do.end
 _vm_op_CMPLElc:                         ; @vm_op_CMPLElc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	ldr	x9, [x4, #32]
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x9, w1, sxtw #3]
-	cmp	x10, x9
-	b.le	LBB14_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB14_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x4, #32]
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x8, w1, sxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, x10, xzr, gt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -380,18 +344,15 @@ LBB14_2:                                ; %do.end
 _vm_op_CMPGTlc:                         ; @vm_op_CMPGTlc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	ldr	x9, [x4, #32]
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x9, w1, sxtw #3]
-	cmp	x10, x9
-	b.gt	LBB15_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB15_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x4, #32]
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x8, w1, sxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, xzr, x10, gt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -403,18 +364,15 @@ LBB15_2:                                ; %do.end
 _vm_op_CMPGElc:                         ; @vm_op_CMPGElc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	ldr	x9, [x4, #32]
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x9, w1, sxtw #3]
-	cmp	x10, x9
-	b.ge	LBB16_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB16_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x4, #32]
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x8, w1, sxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, x10, xzr, lt
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -426,18 +384,15 @@ LBB16_2:                                ; %do.end
 _vm_op_CMPEQlc:                         ; @vm_op_CMPEQlc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	ldr	x9, [x4, #32]
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x9, w1, sxtw #3]
-	cmp	x10, x9
-	b.eq	LBB17_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB17_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x4, #32]
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x8, w1, sxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, xzr, x10, eq
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]
@@ -449,18 +404,15 @@ LBB17_2:                                ; %do.end
 _vm_op_CMPNElc:                         ; @vm_op_CMPNElc
 	.cfi_startproc
 ; %bb.0:                                ; %entry
-	mov	x8, x0
-	ldr	x9, [x4, #32]
-	add	x0, x0, #4
-	ldr	x10, [x3, w2, uxtw #3]
-	ldr	x9, [x9, w1, sxtw #3]
-	cmp	x10, x9
-	b.ne	LBB18_2
-; %bb.1:                                ; %if.then
-	ldrsh	x8, [x8, #2]
-	add	x0, x0, x8, lsl #2
-LBB18_2:                                ; %do.end
-	ldr	w8, [x0], #4
+	ldr	x8, [x4, #32]
+	ldr	x9, [x3, w2, uxtw #3]
+	ldr	x8, [x8, w1, sxtw #3]
+	ldrsh	x10, [x0, #2]
+	cmp	x9, x8
+	csel	x8, x10, xzr, eq
+	add	x8, x0, x8, lsl #2
+	add	x0, x8, #8
+	ldr	w8, [x8, #4]
 	and	x9, x8, #0xff
 	asr	w1, w8, #16
 	ldr	x7, [x5, x9, lsl #3]

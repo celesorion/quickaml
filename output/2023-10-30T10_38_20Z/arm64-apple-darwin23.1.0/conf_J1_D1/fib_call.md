@@ -1,3 +1,3 @@
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
-| `bin/quickaml test/fib_call.qbc` | 2.553 ± 0.002 | 2.549 | 2.556 | 1.00 |
+| `bin/quickaml test/fib_call.qbc` | 1.827 ± 0.008 | 1.814 | 1.840 | 1.00 |
