@@ -10,7 +10,7 @@
 .endfn
 .fn 12
   cmplt.li    a:1  sb:2
-  jump.j      sb:2
+  jump.j      sb:8
   const.li    a:0  sb:1
   ret.p       a:0
   oget.ppi    a:2  b:0  c:2

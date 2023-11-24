@@ -51,14 +51,18 @@
 
 #define COND_NEXT_IP_CMOV(c, i)      \
   do {                               \
-    ip += c ? 0                      \
-            : JUMP_OFFSET(i);        \
+    char *p = (char *)ip;            \
+    p += c                           \
+       ? 0                           \
+       : JUMP_OFFSET(i);             \
+    ip = (bc_t *)p;                  \
   } while (0)
 
 #define COND_NEXT_IP_BR(c, i)        \
   do {                               \
     if (likely(!c))                  \
-      ip += JUMP_OFFSET(i);          \
+      ip = add2ip(ip,                \
+          JUMP_OFFSET(i));           \
   } while (0)
 
 #if !defined(JUMP_MODE) || defined(JUMP_MODE) && JUMP_MODE == 0
