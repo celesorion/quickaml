@@ -13,7 +13,9 @@ static opthread *const dispatch[];
 [[gnu::noinline]]
 int vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
-  val_t *bp = state->stk;
+  val_t *bp = next_bp(state->stk, 3);
+  frame_ra(bp) = 0;
+  frame_desc(bp) = (val_t)state->entry->desc;
   struct function **fns = state->fns;
   
   [[maybe_unused]] uint8_t a3a, a3b, a3c;
@@ -314,7 +316,7 @@ OP_DEFINITION(CLOSkxi) {
  
   size_t n = closure_size(imm);
   struct closure *clos;
-  PCALL(clos, immix_malloc, n);
+  PCALL(clos, simple_malloc, n, &frame_desc(bp));
   
   clos->fp = ptr2val(fns[fx]);
   clos->args = ptr2val(nullptr);

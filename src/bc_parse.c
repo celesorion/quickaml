@@ -1,6 +1,8 @@
 #include "bc_parse.h"
-#include "hashtbl.h"
+#include "bc.h"
 #include "dynstr.h"
+#include "hashtbl.h"
+#include "ptrdesc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -158,7 +160,20 @@ int bc_scan(FILE *fp, dynstr_t *pds, struct state *st) {
         in_fn = false;
         fid += 1;
         curfn = nullptr;
-      
+      } else if (strcmp(id, "ptrdesc") == 0) {
+        if (!in_fn) return S_UNPAIRED;
+
+        skip_space(&p);
+
+        struct ptrdesc *desc = malloc(sizeof(struct ptrdesc));
+
+        for (unsigned i = 0; i < 4; i++) {
+          r = read_integer(&p, &n);
+          if (r != S_OK) return r;
+          desc->ptrmap[i] = n;
+        }
+
+        curfn->desc = desc;
       } else if (strcmp(id, "numfn") == 0) {
         skip_space(&p);
         

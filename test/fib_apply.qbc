@@ -2,22 +2,24 @@
 .entry 0
 .stack 65536
 .fn 5
+.ptrdesc 0 0 0 0
   clos.kxi    a:0   b:1   c:1
   oset.pip    a:0   b:2   c:0
-  const.li    a:3   sb:40
+  const.li    a:4   sb:40
   apply.pi    a:0   sb:2
   stop.ll     a:0   b:1
 .endfn
 .fn 12
+.ptrdesc 0 0 0 0
   cmplt.li    a:1  sb:2
   jump.j      sb:8
   const.li    a:0  sb:1
   ret.p       a:0
   oget.ppi    a:2  b:0  c:2
-  sub.lli     x:5  y:1  z:1 
+  sub.lli     x:6  y:1  z:1 
   apply.pi    a:2  sb:2
   oget.ppi    a:3  b:0  c:2
-  sub.lli     x:6  y:1  z:2
+  sub.lli     x:7  y:1  z:2
   apply.pi    a:3  sb:2
   add.lll     x:0  y:2  z:3
   ret.p       a:0

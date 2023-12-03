@@ -1,7 +1,6 @@
 #ifndef QK_BC_PARSE_H
 #define QK_BC_PARSE_H
 
-#include "bc.h"
 #include "obj.h"
 
 #include <stdio.h>

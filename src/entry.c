@@ -18,9 +18,9 @@ int main(int argc, const char *const argv[]) {
   // return utest_main(argc, argv);
 #endif
 
-  immix_init();
-
   struct state st;
+
+  heap_init(&global_heap, (struct runtime_args){ .align = 8, .base_size = 1024 * 1024 });
 
   if (argc <= 1)
     return 1;

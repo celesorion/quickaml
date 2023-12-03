@@ -2,15 +2,19 @@
 #define QK_OBJ_H
 
 #include "def.h"
+#include "ptrdesc.h"
 
 #include <stddef.h>
 
+struct ptrdesc;
+
 struct function {
+  struct ptrdesc *desc;
   bc_t *oplimit;
   bc_t ops[];
 };
 
-#define function_size(n_) (sizeof(struct function) + (n_)*sizeof(bc_t)) 
+#define function_size(n) (sizeof(struct function) + (n)*sizeof(bc_t)) 
 
 struct state {
   struct function *entry;
@@ -34,6 +38,8 @@ struct closure {
   val_t env[];  
 };
 
+#define object_length(hd) ((hd) & 0xffffffff)
+#define object_size(hd) (sizeof(struct object) + sizeof(val_t) * object_length(hd))
 #define closure_size(n) (sizeof(struct closure) + sizeof(val_t)*(n))
 
 #endif

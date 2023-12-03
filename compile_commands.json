@@ -1,0 +1,97 @@
+[
+  {
+    "arguments": [
+      "/opt/llvm/bin/clang",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-ggdb3",
+      "-std=c2x",
+      "-DJUMP_MODE=0",
+      "-DDECODE_MODE=1",
+      "-c",
+      "-o",
+      "obj/alloc.reldbg.o",
+      "src/alloc.c"
+    ],
+    "directory": "/Users/waterlens/Projects/quickaml",
+    "file": "/Users/waterlens/Projects/quickaml/src/alloc.c",
+    "output": "/Users/waterlens/Projects/quickaml/obj/alloc.reldbg.o"
+  },
+  {
+    "arguments": [
+      "/opt/llvm/bin/clang",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-ggdb3",
+      "-std=c2x",
+      "-DJUMP_MODE=0",
+      "-DDECODE_MODE=1",
+      "-c",
+      "-o",
+      "obj/bc_parse.reldbg.o",
+      "src/bc_parse.c"
+    ],
+    "directory": "/Users/waterlens/Projects/quickaml",
+    "file": "/Users/waterlens/Projects/quickaml/src/bc_parse.c",
+    "output": "/Users/waterlens/Projects/quickaml/obj/bc_parse.reldbg.o"
+  },
+  {
+    "arguments": [
+      "/opt/llvm/bin/clang",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-ggdb3",
+      "-std=c2x",
+      "-DJUMP_MODE=0",
+      "-DDECODE_MODE=1",
+      "-c",
+      "-o",
+      "obj/entry.reldbg.o",
+      "src/entry.c"
+    ],
+    "directory": "/Users/waterlens/Projects/quickaml",
+    "file": "/Users/waterlens/Projects/quickaml/src/entry.c",
+    "output": "/Users/waterlens/Projects/quickaml/obj/entry.reldbg.o"
+  },
+  {
+    "arguments": [
+      "/opt/llvm/bin/clang",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-ggdb3",
+      "-std=c2x",
+      "-DJUMP_MODE=0",
+      "-DDECODE_MODE=1",
+      "-c",
+      "-o",
+      "obj/test.reldbg.o",
+      "src/test.c"
+    ],
+    "directory": "/Users/waterlens/Projects/quickaml",
+    "file": "/Users/waterlens/Projects/quickaml/src/test.c",
+    "output": "/Users/waterlens/Projects/quickaml/obj/test.reldbg.o"
+  },
+  {
+    "arguments": [
+      "/opt/llvm/bin/clang",
+      "-Wall",
+      "-Wextra",
+      "-O3",
+      "-ggdb3",
+      "-std=c2x",
+      "-DJUMP_MODE=0",
+      "-DDECODE_MODE=1",
+      "-c",
+      "-o",
+      "obj/vm.reldbg.o",
+      "src/vm.c"
+    ],
+    "directory": "/Users/waterlens/Projects/quickaml",
+    "file": "/Users/waterlens/Projects/quickaml/src/vm.c",
+    "output": "/Users/waterlens/Projects/quickaml/obj/vm.reldbg.o"
+  }
+]

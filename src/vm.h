@@ -3,10 +3,11 @@
 
 #include <stdint.h>
 
-#define frame_rv(bp) ((bp)[-2])
-#define frame_ra(bp) ((bp)[-1])
-#define prev_bp(bp, fo) ((bp)-2-(fo))
-#define next_bp(bp, fo) ((bp)+2+(fo))
+#define frame_rv(bp)    ((bp)[-3])
+#define frame_desc(bp)  ((bp)[-2])
+#define frame_ra(bp)    ((bp)[-1])
+#define prev_bp(bp, fo) ((bp)-3-(fo))
+#define next_bp(bp, fo) ((bp)+3+(fo))
 #define add2ip(ip, off) ((bc_t *)((unsigned char*)(ip) + (ptrdiff_t)off))  
 
 #define THREADED [[gnu::noinline, clang::qkcc, gnu::aligned(64)]] static

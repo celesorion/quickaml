@@ -45,3 +45,8 @@
 out/
 bin/
 
+.cache/
+.vscode/
+dummy/
+
+.DS_Store

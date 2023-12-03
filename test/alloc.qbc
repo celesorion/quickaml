@@ -1,0 +1,9 @@
+.numfn 1
+.entry 0
+.stack 65536
+.fn 3
+.ptrdesc 1 0 0 0
+  clos.kxi    a:0   b:0   c:1
+  oset.pip    a:0   b:2   c:0
+  jump.j      sb:-12
+.endfn
