@@ -1,23 +1,26 @@
 .numfn 2 
 .entry 0
 .stack 65536
-.fn 3
-.ptrdesc 0 0 0 0
-  const.li    a:3  sb:40
-  call.pxi    a:0  b:1  c:1
-  stop.ll     a:0  b:1  c:0
+.fn 7
+.frame 0 0 0 0
+  lzi16       a:2  sb:40
+  call        a:0  b:1  c:1
+  lzi32       a:1  b:0x09
+  exta        a:0x6d sb:0xde8d
+  trap        t:assert-eq  b:0  c:1
+  trap        t:halt
 .endfn
-.fn 10
-.ptrdesc 0 0 0 0
-  cmplt.li    a:0  sb:2
-  jump.j      sb:8
-  const.li    a:0  sb:1
-  ret.p       a:0
-  sub.lli     x:4  y:0  z:1 
-  call.pxi    a:1  b:1  c:1
-  sub.lli     x:5  y:0  z:2
-  call.pxi    a:2  b:1  c:1
-  add.lll     x:0  y:1  z:2
-  ret.p       a:0
+.fn 11
+.frame 0 0 0 0
+  cltui16     a:0  sb:2
+  jmp         sb:2
+  lzi16       a:0  sb:1
+  ret         a:0
+  sub64i      x:3  y:0  z:1 
+  call        a:1  b:1
+  sub64i      x:4  y:0  z:2
+  call        a:2  b:1
+  add64       x:0  y:1  z:2
+  ret         a:0
 .endfn
 

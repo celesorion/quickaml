@@ -1,8 +1,9 @@
 #include "vm.h"
-#include "obj.h"
+#include "state.h"
 #include "alloc.h"
+#include "descspace.h"
 
-int exec(struct state *state) {
+status_t exec(struct state *state) {
   return vm_entry(state);
 }
 
@@ -18,18 +19,29 @@ int main(int argc, const char *const argv[]) {
   // return utest_main(argc, argv);
 #endif
 
+  if (argc <= 1)
+    return exit_with_status(S_INSUFFICIENT_ARGS);
+
+  char *tls = getenv("QUICKAML_TRACE_LEVEL");
+  trace_level_t tl = tls ? strtoul(tls, nullptr, 10) : TRACE_ALL;
+
+  struct runtime_args rargs = { .align = 8, .base_size = 1024 * 1024, .descspace_size = 4 * 4 * 4096, .trace_level = tl};
+  struct descspace dspace;
   struct state st;
 
-  heap_init(&global_heap, (struct runtime_args){ .align = 8, .base_size = 1024 * 1024 });
+  trace(&st, TRACE_0, "trace level is set to %u", rargs.trace_level);
 
-  if (argc <= 1)
-    return 1;
-  
+  if (!descspace_init(&dspace, &rargs)) return S_DESCSPACE_INIT_FAILED;
+  if (!heap_init(&global_heap, &rargs)) return S_HEAP_INIT_FAILED;
+  if (!state_init(&st, &dspace, &global_heap, &rargs)) return S_STATE_INIT_FAILED;
+
   FILE *fp = fopen(argv[1], "rb");
 
-  int r = bc_parse(fp, &st);
-  if (r != S_OK) return r;
+  status_t r = bc_parse(fp, &st);
+  if (r != S_OK) return exit_with_status(r);
 
-  return exec(&st);
+  fclose(fp);
+
+  return  exit_with_status(exec(&st));
 }
 

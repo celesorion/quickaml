@@ -1,29 +1,33 @@
-#include "bc.h"
-#include "obj.h"
 #include "vm.h"
 #include "alloc.h"
+#include "bc.h"
+#include "object.h"
+#include "state.h"
+#include "trap.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stddef.h>
 #include <inttypes.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static opthread *const dispatch[];
 
+INLINE
+int sgn(val_t x) { return (x > (val_t)0) - (x < (val_t)0); }
+
 [[gnu::noinline]]
-int vm_entry(struct state *state) {
+status_t vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
-  val_t *bp = next_bp(state->stk, 3);
+  val_t *bp = next_bp(state->stk, 2);
+  frame_rv(bp) = ptr2val(state->entry);
   frame_ra(bp) = 0;
-  frame_desc(bp) = (val_t)state->entry->desc;
   struct function **fns = state->fns;
-  
+
   [[maybe_unused]] uint8_t a3a, a3b, a3c;
-  [[maybe_unused]] int32_t a2sb;
-  FETCH_DECODE();
+  [[maybe_unused]] uint16_t a2b;
 
   NONTAILDISPATCH();
-  return 0;
+  return S_OK;
 }
 
 THREADED
@@ -36,305 +40,176 @@ void panic(PARAMS) {
 THREADED
 void stackoverflow(PARAMS) {
   state->msg = "stack overflow";
-  MUSTTAIL return panic(ARGS); 
+  MUSTTAIL return panic(ARGS);
 }
 
-INLINE
-int sgn(val_t x) {
-  return (x > (val_t)0) - (x < (val_t)0);
+THREADED
+void unimplemented(PARAMS) {
+  state->msg = "unimplemented";
+  MUSTTAIL return panic(ARGS);
 }
 
-OP_DEFINITION(NOP) {
-
-  FETCH_DECODE();
-
-  DISPATCH();
+THREADED
+void undefined(PARAMS) {
+  state->msg = "invalid bytecode";
+  MUSTTAIL return panic(ARGS);
 }
 
-OP_DEFINITION(STOPii) {
-  ssz_t i1 = ARG2A;
-  ssz_t i2 = ARG2B;
-  
-  for (ssz_t i = i1; i < i2; i++) {
-    [[maybe_unused]] int r;
-    PCALL(r, printf, ("slot[%u] 0x%" PRIx64 "\n"), i, bp[i]);
+THREADED
+void invalidlayout(PARAMS) {
+  state->msg = "invalid layout";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
+void assertionfailed(PARAMS) {
+  state->msg = "assertion failed";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
+void invalidtrap(PARAMS) {
+  state->msg = "invalid trap id";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
+void unusedexta(PARAMS) {
+  state->msg = "unused extra arguments";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
+void diverge(PARAMS) {
+  for (;;)
+    ;
+}
+
+THREADED
+void halt(PARAMS) { return; }
+
+OP_DEFINITION(TRAP) {
+  ssz_t tid = ARG3A;
+  switch (tid) {
+  case T_UNDEFINED:
+    MUSTTAIL return undefined(ARGS);
+  case T_DIVERGE:
+    MUSTTAIL return diverge(ARGS);
+  case T_HALT:
+    MUSTTAIL return halt(ARGS);
+  case T_UNUSEDEXTA:
+    MUSTTAIL return unusedexta(ARGS);
+  case T_PRINTREGS:
+  case T_PRINTREGSX: {
+    ssz_t i1 = ARG3B;
+    ssz_t i2 = ARG3C;
+
+    for (ssz_t i = i1; i < i2; i++) {
+      [[maybe_unused]] int r;
+      PCALL(r, fprintf, stderr,
+            tid == T_PRINTREGSX ? ("[%u] 0x%" PRIx64 "\n")
+                                : ("[%u] %" PRIu64 "\n"),
+            i, bp[i]);
+    }
+    break;
+  }
+  case T_ASSERT_EQ: {
+    ssz_t i1 = ARG3B;
+    ssz_t i2 = ARG3C;
+
+    if (bp[i1] != bp[i2]) {
+      [[maybe_unused]] int r;
+      PCALL(r, fprintf, stderr, "0x%" PRIx64 " != 0x%" PRIx64 "\n", bp[i1],
+            bp[i2]);
+      MUSTTAIL return assertionfailed(ARGS);
+    }
+    break;
+  }
+  case T_PRINTOBJ: {
+    ssz_t o = ARG3B;
+    struct object *obj = val2ptr(bp[o]);
+    PCALL_VOID(object_print, state, obj);
+    break;
+  }
+  case T_HEAPSTAT: {
+    PCALL_VOID(heap_stat_print, state->heap);
+    break;
+  }
+  default:
+    MUSTTAIL return invalidtrap(ARGS);
   }
 
-  return;
+  DISPATCH();
 }
 
-#define OP_CMPll_DEF(name, cmp) \
-OP_DEFINITION(name) {                     \
-  ssz_t o1 = ARG3A;                       \
-  ssz_t o2 = ARG3B;                       \
-                                          \
-  COND_NEXT_INSN(next_insn);              \
-                                          \
-  unsigned c =                            \
-    (int64_t)bp[o1] cmp (int64_t)bp[o2];  \
-                                          \
-  COND_NEXT_IP(c, next_insn);             \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
+OP_DEFINITION(NOP) { DISPATCH(); }
 
-OP_CMPll_DEF(CMPLTll, LT)
-OP_CMPll_DEF(CMPLEll, LE)
-OP_CMPll_DEF(CMPEQll, EQ)
-OP_CMPll_DEF(CMPNEll, NE)
-
-#undef OP_CMPll_DEF
-
-#define OP_CMPli_DEF(name, cmp) \
-OP_DEFINITION(name) {                     \
-  ssz_t o1 = ARG2A;                       \
-  int32_t imm = ARG2sB;                   \
-                                          \
-  COND_NEXT_INSN(next_insn);              \
-                                          \
-  unsigned c = (int64_t)bp[o1] cmp imm;   \
-                                          \
-  COND_NEXT_IP(c, next_insn);             \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_CMPli_DEF(CMPLTli, LT)
-OP_CMPli_DEF(CMPLEli, LE)
-OP_CMPli_DEF(CMPGTli, GT)
-OP_CMPli_DEF(CMPGEli, GE)
-OP_CMPli_DEF(CMPEQli, EQ)
-OP_CMPli_DEF(CMPNEli, NE)
-
-#undef OP_CMPli_DEF
-
-#define OP_CMPlc_DEF(name, cmp) \
-OP_DEFINITION(name) {                     \
-  ssz_t o1 = ARG2A;                       \
-  int32_t cidx = ARG2sB;                  \
-                                          \
-  val_t *ctbl = state->ctbl;              \
-  COND_NEXT_INSN(next_insn);              \
-                                          \
-  unsigned c = (int64_t)bp[o1]            \
-    cmp (int64_t)ctbl[cidx];              \
-                                          \
-  COND_NEXT_IP(c, next_insn);             \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_CMPlc_DEF(CMPLTlc, LT)
-OP_CMPlc_DEF(CMPLElc, LE)
-OP_CMPlc_DEF(CMPGTlc, GT)
-OP_CMPlc_DEF(CMPGElc, GE)
-OP_CMPlc_DEF(CMPEQlc, EQ)
-OP_CMPlc_DEF(CMPNElc, NE)
-
-
-#define OP_ARITHlli_DEF(name, arith)      \
-OP_DEFINITION(name) {                     \
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t imm = ARG3Z;                      \
-                                          \
-  bp[dst] = bp[src1] arith imm;           \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_ARITHlli_DEF(ADDlli, ADD)
-OP_ARITHlli_DEF(SUBlli, SUB)
-OP_ARITHlli_DEF(MULlli, MUL)
-
-#undef OP_ARITHlli_DEF
-
-OP_DEFINITION(DIVlli) {
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t imm = ARG3Z;                      \
-                                          \
-  val_t D  = bp[src1];                    \
-  val_t d  = imm;                         \
-  val_t q  = D / d;                       \
-  val_t r  = D % d;                       \
-  if (sgn(d) + sgn(r) == 0) {             \
-    q -= 1;                               \
-  }                                       \
-                                          \
-  bp[dst] = q;                            \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_DEFINITION(REMlli) {
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t imm = ARG3Z;                      \
-                                          \
-  val_t D  = bp[src1];                    \
-  val_t d  = imm;                         \
-  val_t r  = D % d;                       \
-  if (sgn(d) + sgn(r) == 0) {             \
-    r += d;                               \
-  }                                       \
-                                          \
-  bp[dst] = r;                            \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_DEFINITION(DIRlli) {
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t imm = ARG3Z;                      \
-                                          \
-  val_t D  = bp[src1];                    \
-  val_t d  = imm;                         \
-  val_t q  = D / d;                       \
-  val_t r  = D % d;                       \
-  if (sgn(d) + sgn(r) == 0) {             \
-    r += d;                               \
-    q -= 1;                               \
-  }                                       \
-                                          \
-  bp[dst] = q;                            \
-  bp[dst+1] = r;                          \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-#define OP_ARITHlll_DEF(name, arith) \
-OP_DEFINITION(name) {                     \
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t src2 = ARG3Z;                     \
-                                          \
-  bp[dst] = bp[src1] arith bp[src2];      \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_ARITHlll_DEF(ADDlll, ADD)
-OP_ARITHlll_DEF(SUBlll, SUB)
-OP_ARITHlll_DEF(MULlll, MUL)
-
-#undef OP_ARITHlll_DEF
-
-OP_DEFINITION(DIVlll) {
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t src2 = ARG3Z;                     \
-                                          \
-  val_t D  = bp[src1];                    \
-  val_t d  = bp[src2];                    \
-  val_t q  = D / d;                       \
-  val_t r  = D % d;                       \
-  if (sgn(d) + sgn(r) == 0) {             \
-    q -= 1;                               \
-  }                                       \
-                                          \
-  bp[dst] = q;                            \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_DEFINITION(REMlll) {
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t src2 = ARG3Z;                     \
-                                          \
-  val_t D  = bp[src1];                    \
-  val_t d  = bp[src2];                    \
-  val_t r  = D % d;                       \
-  if (sgn(d) + sgn(r) == 0) {             \
-    r += d;                               \
-  }                                       \
-                                          \
-  bp[dst] = r;                            \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_DEFINITION(DIRlll) {
-  ssz_t dst = ARG3X;                      \
-  ssz_t src1 = ARG3Y;                     \
-  ssz_t src2 = ARG3Z;                     \
-                                          \
-  val_t D  = bp[src1];                    \
-  val_t d  = bp[src2];                    \
-  val_t q  = D / d;                       \
-  val_t r  = D % d;                       \
-  if (sgn(d) + sgn(r) == 0) {             \
-    r += d;                               \
-    q -= 1;                               \
-  }                                       \
-                                          \
-  bp[dst] = q;                            \
-  bp[dst+1] = r;                          \
-                                          \
-  FETCH_DECODE();                         \
-                                          \
-  DISPATCH();                             \
-}
-
-OP_DEFINITION(CONSTli) {
+OP_DEFINITION(MOV) {
   ssz_t dst = ARG2A;
-  int32_t imm = ARG2sB;
-  
-  bp[dst] = (uint64_t)imm;
+  ssz_t src = ARG2B;
 
-  FETCH_DECODE();
+  bp[dst] = bp[src];
 
   DISPATCH();
 }
 
-OP_DEFINITION(CLOSkxi) {
-  ssz_t dst = ARG3A;
-  ssz_t fx = ARG3B;
-  ssz_t imm = ARG3C;
- 
-  size_t n = closure_size(imm);
-  struct closure *clos;
-  PCALL(clos, simple_malloc, n, &frame_desc(bp));
-  
-  clos->fp = ptr2val(fns[fx]);
-  clos->args = ptr2val(nullptr);
+OP_DEFINITION(EXTA) { MUSTTAIL return unusedexta(ARGS); }
 
-  bp[dst] = ptr2val(clos);
+OP_DEFINITION(LSI16) {
+  ssz_t dst = ARG2A;
 
-  FETCH_DECODE();
+  bp[dst] = sign_extend(ARG2B, 16, 64);
 
-  DISPATCH(); 
+  DISPATCH();
 }
 
-OP_DEFINITION(APPLYpi) {
+OP_DEFINITION(LZI16) {
+  ssz_t dst = ARG2A;
+
+  bp[dst] = zero_extend(ARG2B, 16, 64);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LSI32) {
+  ssz_t dst = ARG2A;
+
+  NEXT_INSN(exta);
+
+  uint32_t low24 = EXTRA_ARGU(exta);
+  uint32_t high8 = ARG2B << 24;
+
+  bp[dst] = sign_extend(low24 | high8, 32, 64);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LZI32) {
+  ssz_t dst = ARG2A;
+
+  NEXT_INSN(exta);
+
+  uint32_t low24 = EXTRA_ARGU(exta);
+  uint32_t high8 = ARG2B << 24;
+
+  bp[dst] = zero_extend(low24 | high8, 32, 64);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LC) {
+  ssz_t dst = ARG2A;
+  val_t imm = ARG2B;
+
+  bp[dst] = state->ctbl[imm];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(APP) {
   ssz_t iclos = ARG2A;
-  ssz_t nargs = ARG2sB;
 
-  (void) nargs;
-
-  struct closure *clos = val2ptr(bp[iclos]);    
+  struct closure *clos = val2ptr(bp[iclos]);
   struct function *fn = val2ptr(clos->fp);
 
   bc_t *oldip = ip;
@@ -345,24 +220,19 @@ OP_DEFINITION(APPLYpi) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
+  frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
 
   // copy closure to the first slot as arg 0
-  bp[0] = ptr2val(clos); 
-
-  ip = fn->ops;
-
-  FETCH_DECODE();
+  bp[0] = ptr2val(clos);
 
   DISPATCH();
 }
 
-OP_DEFINITION(CALLpxi) {
+OP_DEFINITION(CALL) {
   ssz_t dst = ARG3A;
   ssz_t fx = ARG3B;
-  ssz_t nargs = ARG3C;
 
-  (void) nargs;
   struct function *fn = val2ptr(fns[fx]);
 
   bc_t *oldip = ip;
@@ -373,64 +243,55 @@ OP_DEFINITION(CALLpxi) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
+  frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
 
-  FETCH_DECODE();
-
   DISPATCH();
 }
 
-OP_DEFINITION(OSETpip) {
-  ssz_t dst = ARG3A;
-  ssz_t imm = ARG3B;
-  ssz_t src = ARG3C;
+OP_DEFINITION(JMP) {
+  joff_t target = val2off(sign_extend(ARG2B, 16, 64));
 
-  struct object *obj = val2ptr(bp[dst]);
-  obj->fields[imm] = bp[src];
-
-  FETCH_DECODE();
-
-  DISPATCH();
-}
-
-OP_DEFINITION(OGETppi) {
-  ssz_t dst = ARG3A;
-  ssz_t src = ARG3B;
-  ssz_t imm = ARG3C;
-
-  struct object *obj = val2ptr(bp[src]);
-  bp[dst] = obj->fields[imm];
-
-  FETCH_DECODE();
-
-  DISPATCH();
-}
-
-OP_DEFINITION(CLOSGETpi) {
-  ssz_t dst = ARG2A;
-  ssz_t imm = ARG2sB;
-
-  struct object *obj = val2ptr(bp[0]);
-  bp[dst] = obj->fields[imm];
-
-  FETCH_DECODE();
-
-  DISPATCH();
-}
-
-OP_DEFINITION(JUMPj) {
-  int32_t target = ARG2sB;
-  
   ip = add2ip(ip, target);
 
-  FETCH_DECODE();
+  DISPATCH();
+}
+
+OP_DEFINITION(JR) {
+  val_t src = ARG2A;
+  joff_t target = val2off(bp[src]);
+
+  ip = add2ip(ip, target);
 
   DISPATCH();
 }
 
-OP_DEFINITION(RETp) {
-  ssz_t rv = ARG3A;
-  
+OP_DEFINITION(DISP) {
+  ssz_t dispatched = ARG2A;
+  int32_t base = sign_extend(ARG2B, 16, 32);
+
+  ssz_t entry = bp[dispatched] + base;
+  ip = add2ip(ip, entry);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(RETU) {
+  frame_rv(bp) = 0;
+
+  bc_t *ra = val2ptr(frame_ra(bp));
+
+  GET_FO(fo);
+
+  bp = prev_bp(bp, fo);
+  ip = ra;
+
+  DISPATCH();
+}
+
+OP_DEFINITION(RET) {
+  ssz_t rv = ARG2A;
+
   frame_rv(bp) = bp[rv];
 
   bc_t *ra = val2ptr(frame_ra(bp));
@@ -440,14 +301,701 @@ OP_DEFINITION(RETp) {
   bp = prev_bp(bp, fo);
   ip = ra;
 
-  FETCH_DECODE();
-  
   DISPATCH();
 }
 
+OP_DEFINITION(RETN) {
+  ssz_t rv = ARG2A;
+  ssz_t nargs = ARG2B;
+
+  bc_t *ra = val2ptr(frame_ra(bp));
+
+  val_t *rvs = &frame_rv(bp);
+
+  for (ssz_t i = 0; i < nargs; i++)
+    rvs[i] = bp[rv + i];
+
+  GET_FO(fo);
+
+  bp = prev_bp(bp, fo);
+  ip = ra;
+
+  DISPATCH();
+}
+
+OP_DEFINITION(MOBJ) {
+  ssz_t dst = ARG2A;
+  ssz_t layout = ARG2B;
+
+  if (unlikely(layout > state->numobject)) {
+    MUSTTAIL return invalidlayout(ARGS);
+  }
+
+  NEXT_INSN(exta);
+  ssz_t size = EXTRA_ARGU(exta);
+
+  struct object *obj;
+  PCALL(obj, alloc_object, size, state, bp);
+  PCALL(obj->hd, object_make_header, state->descs[layout]);
+
+  bp[dst] = ptr2val(obj);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(MCLOS) { MUSTTAIL return unimplemented(ARGS); }
+
+OP_DEFINITION(SF) {
+  ssz_t dst = ARG3A;
+  ssz_t nth = ARG3B;
+  ssz_t src = ARG3C;
+
+  struct object *obj = val2ptr(bp[dst]);
+  obj->fields[bp[nth]] = bp[src];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(GF) {
+  ssz_t src = ARG3A;
+  ssz_t nth = ARG3B;
+  ssz_t dst = ARG3C;
+
+  struct object *obj = val2ptr(bp[src]);
+  bp[dst] = obj->fields[bp[nth]];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(SFX) {
+  ssz_t dst = ARG3A;
+  ssz_t src = ARG3B;
+
+  NEXT_INSN(exta);
+
+  ssz_t nth = EXTRA_ARGU(exta);
+
+  struct object *obj = val2ptr(bp[dst]);
+  obj->fields[nth] = bp[src];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(GFX) {
+  ssz_t src = ARG3A;
+  ssz_t dst = ARG3B;
+
+  NEXT_INSN(exta);
+
+  ssz_t nth = EXTRA_ARGU(exta);
+
+  struct object *obj = val2ptr(bp[src]);
+  bp[dst] = obj->fields[nth];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(SFXI8) {
+  ssz_t dst = ARG3A;
+  val_t val = ARG3B;
+
+  NEXT_INSN(exta);
+
+  ssz_t nth = EXTRA_ARGU(exta);
+
+  struct object *obj = val2ptr(bp[dst]);
+  obj->fields[nth] = (val_t)sign_extend(val, 8, 64);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(SFXI16) {
+  ssz_t dst = ARG2A;
+  val_t val = ARG2B;
+
+  NEXT_INSN(exta);
+
+  ssz_t nth = EXTRA_ARGU(exta);
+
+  struct object *obj = val2ptr(bp[dst]);
+  obj->fields[nth] = (val_t)sign_extend(val, 16, 64);
+
+  DISPATCH();
+}
+
+#define OP_LP_DEF(name, type)                                                  \
+  OP_DEFINITION(name) {                                                        \
+    typedef type integer_t;                                                    \
+    ssz_t src = ARG3A;                                                         \
+    ssz_t off = ARG3B;                                                         \
+    ssz_t dst = ARG3C;                                                         \
+                                                                               \
+    struct object *obj = val2ptr(bp[src]);                                     \
+    ptrdiff_t offset = (ptrdiff_t)bp[off];                                     \
+    bp[dst] = *(integer_t *)((uint8_t *)obj + offset);                         \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_LP_DEF(LP8, uint8_t)
+OP_LP_DEF(LP16, uint16_t)
+OP_LP_DEF(LP32, uint32_t)
+OP_LP_DEF(LP64, uint64_t)
+
+#define OP_SP_DEF(name, type)                                                  \
+  OP_DEFINITION(name) {                                                        \
+    typedef type integer_t;                                                    \
+    ssz_t dst = ARG3A;                                                         \
+    ssz_t off = ARG3B;                                                         \
+    ssz_t src = ARG3C;                                                         \
+                                                                               \
+    struct object *obj = val2ptr(bp[dst]);                                     \
+    ptrdiff_t offset = (ptrdiff_t)bp[off];                                     \
+    *(integer_t *)((uint8_t *)obj + offset) = (integer_t)bp[src];              \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_SP_DEF(SP8, uint8_t)
+OP_SP_DEF(SP16, uint16_t)
+OP_SP_DEF(SP32, uint32_t)
+OP_SP_DEF(SP64, uint64_t)
+
+OP_DEFINITION(CSET) {
+  cond_t cond = ARG3A;
+  ssz_t o1 = ARG3B;
+  ssz_t o2 = ARG3C;
+
+  NEXT_INSN(exta);
+  ssz_t dst = (uint8_t)EXTRA_ARG(exta);
+
+  switch (cond) {
+  case EQZ_64:
+    bp[dst] = cast_u(bp[o1], 64) == 0;
+    break;
+  case EQZ_32:
+    bp[dst] = cast_u(bp[o1], 32) == 0;
+    break;
+  case NEZ_64:
+    bp[dst] = cast_u(bp[o1], 64) != 0;
+    break;
+  case NEZ_32:
+    bp[dst] = cast_u(bp[o1], 32) != 0;
+    break;
+  case EQ_64:
+    bp[dst] = cast_u(bp[o1], 64) == cast_u(bp[o2], 64);
+    break;
+  case NE_64:
+    bp[dst] = cast_u(bp[o1], 64) != cast_u(bp[o2], 64);
+    break;
+  case LT_S64:
+    bp[dst] = cast_s(bp[o1], 64) < cast_s(bp[o2], 64);
+    break;
+  case LE_S64:
+    bp[dst] = cast_s(bp[o1], 64) <= cast_s(bp[o2], 64);
+    break;
+  case LT_U64:
+    bp[dst] = cast_u(bp[o1], 64) < cast_u(bp[o2], 64);
+    break;
+  case LE_U64:
+    bp[dst] = cast_u(bp[o1], 64) <= cast_u(bp[o2], 64);
+    break;
+  case EQ_32:
+    bp[dst] = cast_u(bp[o1], 32) == cast_u(bp[o2], 32);
+    break;
+  case NE_32:
+    bp[dst] = cast_u(bp[o1], 32) != cast_u(bp[o2], 32);
+    break;
+  case LT_S32:
+    bp[dst] = cast_s(bp[o1], 32) < cast_s(bp[o2], 32);
+    break;
+  case LE_S32:
+    bp[dst] = cast_s(bp[o1], 32) <= cast_s(bp[o2], 32);
+    break;
+  case LT_U32:
+    bp[dst] = cast_u(bp[o1], 32) < cast_u(bp[o2], 32);
+    break;
+  case LE_U32:
+    bp[dst] = cast_u(bp[o1], 32) <= cast_u(bp[o2], 32);
+    break;
+  case EQ_F64:
+    bp[dst] = cast(bp[o1], double) == cast(bp[o2], double);
+    break;
+  case NE_F64:
+    bp[dst] = cast(bp[o1], double) != cast(bp[o2], double);
+    break;
+  case LT_F64:
+    bp[dst] = cast(bp[o1], double) < cast(bp[o2], double);
+    break;
+  case LE_F64:
+    bp[dst] = cast(bp[o1], double) <= cast(bp[o2], double);
+    break;
+  default:
+    MUSTTAIL return undefined(ARGS);
+  }
+
+  DISPATCH();
+}
+
+#define OP_CMPZ_DEF(name, cmp, width)                                          \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t o1 = ARG2A;                                                          \
+                                                                               \
+    NEXT_INSN(next_insn);                                                      \
+                                                                               \
+    unsigned c = cast_u(bp[o1], width) cmp 0;                                  \
+                                                                               \
+    COND_NEXT_IP(c, next_insn);                                                \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_CMPZ_DEF(CEQZ64, ==, 64)
+OP_CMPZ_DEF(CNEZ64, !=, 64)
+OP_CMPZ_DEF(CEQZ32, ==, 32)
+OP_CMPZ_DEF(CNEZ32, !=, 32)
+
+#define OP_CMPI16_DEF(name, cast, ext, cmp)                                    \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t o1 = ARG2A;                                                          \
+                                                                               \
+    NEXT_INSN(next_insn);                                                      \
+                                                                               \
+    unsigned c = cast(bp[o1], 64) cmp ext(ARG2B, 16, 64);                      \
+                                                                               \
+    COND_NEXT_IP(c, next_insn);                                                \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+#define OP_CMPSI16_DEF(name, cmp) OP_CMPI16_DEF(name, cast_s, sign_extend, cmp)
+#define OP_CMPUI16_DEF(name, cmp) OP_CMPI16_DEF(name, cast_u, zero_extend, cmp)
+
+OP_CMPSI16_DEF(CEQSI16, ==)
+OP_CMPSI16_DEF(CNESI16, !=)
+OP_CMPSI16_DEF(CLTSI16, <)
+OP_CMPSI16_DEF(CLESI16, <=)
+OP_CMPSI16_DEF(CGTSI16, >)
+OP_CMPSI16_DEF(CGESI16, >=)
+
+OP_CMPUI16_DEF(CEQUI16, ==)
+OP_CMPUI16_DEF(CNEUI16, !=)
+OP_CMPUI16_DEF(CLTUI16, <)
+OP_CMPUI16_DEF(CLEUI16, <=)
+OP_CMPUI16_DEF(CGTUI16, >)
+OP_CMPUI16_DEF(CGEUI16, >=)
+
+#define OP_CMP_DEF(name, cmp, cast, width)                                     \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t o1 = ARG3A;                                                          \
+    ssz_t o2 = ARG3B;                                                          \
+                                                                               \
+    NEXT_INSN(next_insn);                                                      \
+                                                                               \
+    unsigned c = cast(bp[o1], width) cmp cast(bp[o2], width);                  \
+                                                                               \
+    COND_NEXT_IP(c, next_insn);                                                \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_CMP_DEF(CEQ64, ==, cast_u, 64)
+OP_CMP_DEF(CNE64, !=, cast_u, 64)
+OP_CMP_DEF(CLTU64, <, cast_u, 64)
+OP_CMP_DEF(CLEU64, <=, cast_u, 64)
+OP_CMP_DEF(CLTS64, <, cast_s, 64)
+OP_CMP_DEF(CLES64, <=, cast_s, 64)
+
+OP_CMP_DEF(CEQ32, ==, cast_u, 32)
+OP_CMP_DEF(CNE32, !=, cast_u, 32)
+OP_CMP_DEF(CLTU32, <, cast_u, 32)
+OP_CMP_DEF(CLEU32, <=, cast_u, 32)
+OP_CMP_DEF(CLTS32, <, cast_s, 32)
+OP_CMP_DEF(CLES32, <=, cast_s, 32)
+
+OP_DEFINITION(EXTEND) {
+  ext_t ext = ARG3A;
+  ssz_t src = ARG3B;
+  ssz_t dst = ARG3C;
+
+  switch (ext) {
+  case SEXT_8_32:
+    bp[dst] = sign_extend(bp[src], 8, 32);
+    break;
+  case SEXT_16_32:
+    bp[dst] = sign_extend(bp[src], 16, 32);
+    break;
+  case SEXT_8_64:
+    bp[dst] = sign_extend(bp[src], 8, 64);
+    break;
+  case SEXT_16_64:
+    bp[dst] = sign_extend(bp[src], 16, 64);
+    break;
+  case SEXT_32_64:
+    bp[dst] = sign_extend(bp[src], 32, 64);
+    break;
+  default:
+    MUSTTAIL return undefined(ARGS);
+  }
+
+  DISPATCH();
+}
+
+OP_DEFINITION(WRAP) {
+  wrap_t wrap = ARG3A;
+  ssz_t src = ARG3B;
+  ssz_t dst = ARG3C;
+
+  switch (wrap) {
+  case WRAP_8:
+    bp[dst] = cast_u(bp[src], 8);
+    break;
+  case WRAP_16:
+    bp[dst] = cast_u(bp[src], 16);
+    break;
+  case WRAP_32:
+    bp[dst] = cast_u(bp[src], 32);
+    break;
+  default:
+    MUSTTAIL return undefined(ARGS);
+  }
+
+  DISPATCH();
+}
+
+OP_DEFINITION(CTZ) {
+  ctz_t ctz = ARG3A;
+  ssz_t src = ARG3B;
+  ssz_t dst = ARG3C;
+
+  val_t x = bp[src];
+
+  switch (ctz) {
+  case CTZ_64:
+    bp[dst] = x == 0 ? 64 : __builtin_ctzll(cast_u(x, 64));
+    break;
+  case CTZ_32:
+    bp[dst] = x == 0 ? 32 : __builtin_ctz(cast_u(x, 32));
+    break;
+  case CTZ_16:
+    bp[dst] = x == 0 ? 16 : __builtin_ctz(cast_u(x, 16));
+    break;
+  case CTZ_8:
+    bp[dst] = x == 0 ? 8 : __builtin_ctz(cast_u(x, 8));
+    break;
+  default:
+    MUSTTAIL return undefined(ARGS);
+  }
+
+  DISPATCH();
+}
+
+OP_DEFINITION(CLZ) {
+  clz_t clz = ARG3A;
+  ssz_t src = ARG3B;
+  ssz_t dst = ARG3C;
+
+  val_t x = bp[src];
+
+  switch (clz) {
+  case CLZ_64:
+    bp[dst] = x == 0 ? 64 : __builtin_clzll(cast_u(x, 64));
+    break;
+  case CLZ_32:
+    bp[dst] = x == 0 ? 32 : __builtin_clz(cast_u(x, 32));
+    break;
+  case CLZ_16:
+    bp[dst] = x == 0 ? 16 : __builtin_clz(cast_u(x, 16));
+    break;
+  case CLZ_8:
+    bp[dst] = x == 0 ? 8 : __builtin_clz(cast_u(x, 8));
+    break;
+  default:
+    MUSTTAIL return undefined(ARGS);
+  }
+
+  DISPATCH();
+}
+
+OP_DEFINITION(POPCNT) {
+  popcnt_t popcnt = ARG3A;
+  ssz_t src = ARG3B;
+  ssz_t dst = ARG3C;
+
+  val_t x = bp[src];
+
+  switch (popcnt) {
+  case POPCNT_64:
+    bp[dst] = __builtin_popcountll(cast_u(x, 64));
+    break;
+  case POPCNT_32:
+    bp[dst] = __builtin_popcount(cast_u(x, 32));
+    break;
+  case POPCNT_16:
+    bp[dst] = __builtin_popcount(cast_u(x, 16));
+    break;
+  case POPCNT_8:
+    bp[dst] = __builtin_popcount(cast_u(x, 8));
+    break;
+  default:
+    MUSTTAIL return undefined(ARGS);
+  }
+
+  DISPATCH();
+}
+
+#define OP_BITWISE_DEF(name, op1, op2, width)                                  \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t o2 = ARG3Z;                                                          \
+                                                                               \
+    bp[dst] = (op1 cast_u(bp[o1], width))op2 cast_u(bp[o2], width);            \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+#define OP_SHIFT_DEF(name, op, cast, width)                                    \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t imm = ARG3Z;                                                         \
+                                                                               \
+    bp[dst] = cast(bp[o1], width) op imm;                                      \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+#define OP_ROTATE_DEF(name, op1, op2, width)                                   \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t imm = ARG3Z;                                                         \
+                                                                               \
+    uint##width##_t operand = cast_u(bp[o1], width);                           \
+    bp[dst] = (operand op1 imm) | (operand op2(width - imm));                  \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_BITWISE_DEF(AND64, , &, 64)
+OP_BITWISE_DEF(OR64, , |, 64)
+OP_BITWISE_DEF(XOR64, , ^, 64)
+OP_BITWISE_DEF(NOTA64, ~, +, 64)
+OP_SHIFT_DEF(SHL64, <<, cast_u, 64)
+OP_SHIFT_DEF(SHRU64, >>, cast_u, 64)
+OP_SHIFT_DEF(SHRS64, >>, cast_s, 64)
+OP_ROTATE_DEF(ROTL64, <<, >>, 64)
+OP_ROTATE_DEF(ROTR64, >>, <<, 64)
+
+OP_BITWISE_DEF(AND32, , &, 32)
+OP_BITWISE_DEF(OR32, , |, 32)
+OP_BITWISE_DEF(XOR32, , ^, 32)
+OP_BITWISE_DEF(NOTA32, ~, +, 32)
+OP_SHIFT_DEF(SHL32, <<, cast_u, 32)
+OP_SHIFT_DEF(SHRU32, >>, cast_u, 32)
+OP_SHIFT_DEF(SHRS32, >>, cast_s, 32)
+OP_ROTATE_DEF(ROTL32, <<, >>, 32)
+OP_ROTATE_DEF(ROTR32, >>, <<, 32)
+
+#define OP_ARITH_DEF(name, op, cast, width)                                    \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t o2 = ARG3Z;                                                          \
+                                                                               \
+    bp[dst] = cast(bp[o1], width) op cast(bp[o2], width);                      \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+#define OP_DIV_DEF(name, cast, width)                                          \
+  OP_DEFINITION(name) {                                                        \
+    typedef int##width##_t itype;                                              \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t src1 = ARG3Y;                                                        \
+    ssz_t src2 = ARG3Z;                                                        \
+                                                                               \
+    itype D = cast(bp[src1], width);                                           \
+    itype d = cast(bp[src2], width);                                           \
+    itype q = D / d;                                                           \
+    itype r = D % d;                                                           \
+    if (sgn(d) + sgn(r) == 0) {                                                \
+      q -= 1;                                                                  \
+    }                                                                          \
+                                                                               \
+    bp[dst] = q;                                                               \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+#define OP_REM_DEF(name, cast, width)                                          \
+  OP_DEFINITION(name) {                                                        \
+    typedef int##width##_t itype;                                              \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t src1 = ARG3Y;                                                        \
+    ssz_t src2 = ARG3Z;                                                        \
+                                                                               \
+    itype D = cast(bp[src1], width);                                           \
+    itype d = cast(bp[src2], width);                                           \
+    itype r = D % d;                                                           \
+    if (sgn(d) + sgn(r) == 0) {                                                \
+      r += d;                                                                  \
+    }                                                                          \
+                                                                               \
+    bp[dst] = r;                                                               \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+#define OP_DIR_DEF(name, cast, width)                                          \
+  OP_DEFINITION(name) {                                                        \
+    typedef int##width##_t itype;                                              \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t src1 = ARG3Y;                                                        \
+    ssz_t src2 = ARG3Z;                                                        \
+                                                                               \
+    itype D = cast(bp[src1], width);                                           \
+    itype d = cast(bp[src2], width);                                           \
+    itype q = D / d;                                                           \
+    itype r = D % d;                                                           \
+    if (sgn(d) + sgn(r) == 0) {                                                \
+      r += d;                                                                  \
+      q -= 1;                                                                  \
+    }                                                                          \
+                                                                               \
+    bp[dst] = q;                                                               \
+    bp[dst + 1] = r;                                                           \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_ARITH_DEF(ADD64, +, cast_u, 64)
+OP_ARITH_DEF(SUB64, -, cast_u, 64)
+OP_ARITH_DEF(MUL64, *, cast_u, 64)
+
+OP_DEFINITION(MUHS64) {
+  ssz_t dst = ARG3X;
+  ssz_t src1 = ARG3Y;
+  ssz_t src2 = ARG3Z;
+
+  typedef __int128 int128_t;
+
+  int128_t x = cast_s(bp[src1], 64);
+  int128_t y = cast_s(bp[src2], 64);
+  int128_t p = x * y;
+
+  bp[dst] = (val_t)(p >> 64);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(MUHU64) {
+  ssz_t dst = ARG3X;
+  ssz_t src1 = ARG3Y;
+  ssz_t src2 = ARG3Z;
+
+  typedef __uint128_t uint128_t;
+
+  uint128_t x = cast_u(bp[src1], 64);
+  uint128_t y = cast_u(bp[src2], 64);
+  uint128_t p = x * y;
+
+  bp[dst] = (val_t)(p >> 64);
+
+  DISPATCH();
+}
+
+OP_DIV_DEF(DIVS64, cast_s, 64)
+OP_DIV_DEF(DIVU64, cast_u, 64)
+OP_REM_DEF(REMS64, cast_s, 64)
+OP_REM_DEF(REMU64, cast_u, 64)
+OP_DIR_DEF(DIRS64, cast_s, 64)
+OP_DIR_DEF(DIRU64, cast_u, 64)
+
+OP_ARITH_DEF(ADD32, +, cast_u, 32)
+OP_ARITH_DEF(SUB32, -, cast_u, 32)
+OP_ARITH_DEF(MUL32, *, cast_u, 32)
+
+OP_DEFINITION(MUHS32) {
+  ssz_t dst = ARG3X;
+  ssz_t src1 = ARG3Y;
+  ssz_t src2 = ARG3Z;
+
+  int64_t x = cast_s(bp[src1], 32);
+  int64_t y = cast_s(bp[src2], 32);
+  int64_t p = x * y;
+
+  bp[dst] = (val_t)(p >> 32);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(MUHU32) {
+  ssz_t dst = ARG3X;
+  ssz_t src1 = ARG3Y;
+  ssz_t src2 = ARG3Z;
+
+  uint64_t x = cast_u(bp[src1], 32);
+  uint64_t y = cast_u(bp[src2], 32);
+  uint64_t p = x * y;
+
+  bp[dst] = (val_t)(p >> 32);
+
+  DISPATCH();
+}
+
+OP_DIV_DEF(DIVS32, cast_s, 32)
+OP_DIV_DEF(DIVU32, cast_u, 32)
+OP_REM_DEF(REMS32, cast_s, 32)
+OP_REM_DEF(REMU32, cast_u, 32)
+OP_DIR_DEF(DIRS32, cast_s, 32)
+OP_DIR_DEF(DIRU32, cast_u, 32)
+
+#define OP_ARITHI_DEF(name, op, cast, width)                                   \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t imm = ARG3Z;                                                         \
+                                                                               \
+    bp[dst] = cast(bp[o1], width) op cast(imm, width);                         \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_ARITHI_DEF(ADD64I, +, cast_u, 64)
+OP_ARITHI_DEF(SUB64I, -, cast_u, 64)
+OP_ARITHI_DEF(MUL64I, *, cast_u, 64)
+
+OP_ARITHI_DEF(ADD32I, +, cast_u, 32)
+OP_ARITHI_DEF(SUB32I, -, cast_u, 32)
+OP_ARITHI_DEF(MUL32I, *, cast_u, 32)
+
+#define OP_MINMAX_DEF(name, op, cast, width)                                   \
+  OP_DEFINITION(name) {                                                        \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t o2 = ARG3Z;                                                          \
+                                                                               \
+    bool cond = cast(bp[o1], width) op cast(bp[o2], width);                    \
+                                                                               \
+    bp[dst] = cond ? bp[o1] : bp[o2];                                          \
+                                                                               \
+    DISPATCH();                                                                \
+  }
+
+OP_MINMAX_DEF(MAXS64, >, cast_s, 64)
+OP_MINMAX_DEF(MAXU64, >, cast_u, 64)
+OP_MINMAX_DEF(MINS64, <, cast_s, 64)
+OP_MINMAX_DEF(MINU64, <, cast_u, 64)
+
+OP_MINMAX_DEF(MAXS32, >, cast_s, 32)
+OP_MINMAX_DEF(MAXU32, >, cast_u, 32)
+OP_MINMAX_DEF(MINS32, <, cast_s, 32)
+OP_MINMAX_DEF(MINU32, <, cast_u, 32)
+
 static opthread *const dispatch[] = {
-#define OPIMPLS(op, name, n, a1, a2, a3) vm_op_##op,
-OPS(OPIMPLS)
+#define OPIMPLS(op, mnemonic, name, n) vm_op_##op,
+    OPS(OPIMPLS)
 #undef OPIMPLS
 };
-

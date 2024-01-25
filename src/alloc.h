@@ -1,15 +1,11 @@
 #ifndef QK_ALLOC_H
 #define QK_ALLOC_H
 
-#include "def.h"
-
 #include <stdint.h>
 #include <stdlib.h>
 
-struct runtime_args {
-  size_t base_size;
-  size_t align;
-};
+#include "def.h"
+#include "state.h"
 
 struct heap {
   uint8_t *bump;
@@ -21,8 +17,9 @@ struct heap {
   struct runtime_args *args;
 };
 
-void *simple_malloc(size_t n, val_t *desc);
-bool heap_init(struct heap *h, struct runtime_args rargs);
+void *alloc_object(size_t n, struct state *restrict st, val_t *restrict bp);
+bool heap_init(struct heap *restrict h, struct runtime_args *restrict rargs);
+void heap_stat_print(struct heap *restrict h);
 
 extern struct heap global_heap;
 

@@ -1,69 +1,95 @@
-#include "obj.h"
+#include "object.h"
 #include "def.h"
+#include "state.h"
 
 #include <stdint.h>
 
-#define frame_rv(bp)    ((bp)[-3])
-#define frame_desc(bp)  ((bp)[-2])
+#define frame_rv(bp)    ((bp)[-2])
 #define frame_ra(bp)    ((bp)[-1])
-#define prev_bp(bp, fo) ((bp)-3-(fo))
-#define next_bp(bp, fo) ((bp)+3+(fo))
-#define add2ip(ip, off) ((bc_t *)((unsigned char*)(ip) + (ptrdiff_t)off))  
+#define prev_bp(bp, fo) ((bp)-2-(fo))
+#define next_bp(bp, fo) ((bp)+2+(fo))
+#define add2ip(ip, off) ((bc_t *)((unsigned char*)(ip) + (ptrdiff_t)off * sizeof(bc_t)))  
 
-#define THREADED [[gnu::noinline, clang::qkcc, gnu::aligned(64)]] static
+#define THREADED [[gnu::noinline, clang::quickaml, gnu::aligned(32)]] static
 #define MUSTTAIL [[clang::musttail]]
-#define DP(dp, op) (*(((opthread *const *)(dp))[op]))
+#define DP(dp, op) (((opthread *const *)(dp))[op])
 
 #define PARAMS_IMPL_1                             \
   [[maybe_unused]] bc_t *restrict ip,             \
-  [[maybe_unused]] int32_t a2sb,                  \
+  [[maybe_unused]] uint16_t a2b,                  \
   [[maybe_unused]] uint8_t a3a,                   \
   [[maybe_unused]] val_t *restrict bp,            \
   [[maybe_unused]] struct state *restrict state,  \
   [[maybe_unused]] const void *restrict dispatch, \
   [[maybe_unused]] struct function *restrict fns[]
 
-#define ARGS_IMPL_1 ip, a2sb, a3a, bp, state, dispatch, fns
+#define ARGS_IMPL_1 ip, a2b, a3a, bp, state, dispatch, fns
 
 #define PARAMS_IMPL_2                             \
   [[maybe_unused]] bc_t *restrict ip,             \
-  [[maybe_unused]] int32_t a2sb,                  \
+  [[maybe_unused]] uint16_t a2b,                  \
   [[maybe_unused]] uint8_t a3a,                   \
   [[maybe_unused]] val_t *restrict bp,            \
   [[maybe_unused]] struct state *restrict state,  \
   [[maybe_unused]] const void *restrict dispatch, \
   [[maybe_unused]] struct function *restrict fns[]
-#define ARGS_IMPL_2 ip, a2sb, a3a, bp, state, dispatch, fns
+#define ARGS_IMPL_2 ip, a2b, a3a, bp, state, dispatch, fns
 
-#define DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
-#define NONTAILDISPATCH() DP(dispatch, op)(ARGS)
+#define REPLICATED_DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
+#define NONTAILDISPATCH()     FETCH_INSN(); DECODE_OP(); DECODE_A3A(); DECODE_A2SB(); INC_IP(); DP(dispatch, op)(ARGS)
+#define DISPATCH_IMPL_1()                                                      \
+  do {                                                                         \
+    FETCH_INSN();                                                              \
+    DECODE_OP();                                                               \
+    opthread *const next = DP(dispatch, op);                                   \
+    DECODE_A3A();                                                              \
+    DECODE_A2SB();                                                             \
+    INC_IP();                                                                  \
+    MUSTTAIL return (*next)(ARGS);                                             \
+  } while (0)
+#define DISPATCH() DISPATCH_IMPL_1()
 
-#define FETCH_DECODE_IMPL_1()        \
-  bc_t insn = *ip++;                 \
-  op_t op = opcode(insn);            \
-  a3a = arg3A(insn);                 \
-  a2sb = arg2sB(insn)
+#define FETCH_INSN_IMPL_1() \
+  bc_t insn = *ip
 
-#define FETCH_DECODE_IMPL_2()        \
-  bc_t *insnp = ip++;                \
-  op_t op = opcodeP(insnp);          \
-  a3a = arg3AP(insnp);               \
-  a2sb = arg2sBP(insnp)
+#define DECODE_OP_IMPL_1() \
+  op_t op = opcode(insn);
 
-#define COND_NEXT_IP_CMOV(c, i)      \
-  do {                               \
-    char *p = (char *)ip;            \
-    p += c                           \
-       ? 0                           \
-       : JUMP_OFFSET(i);             \
-    ip = (bc_t *)p;                  \
+#define DECODE_A3A_IMPL_1() \
+  a3a = arg3A(insn)
+
+#define DECODE_A2SB_IMPL_1() \
+  a2b = arg2B(insn)
+
+#define INC_IP_IMPL_1() \
+  ip++
+
+#define FETCH_INSN_IMPL_2() \
+  bc_t *insnp = ip
+
+#define DECODE_OP_IMPL_2() \
+  op_t op = opcodeP(insnp);
+
+#define DECODE_A3A_IMPL_2() \
+  a3a = arg3AP(insnp)
+
+#define DECODE_A2SB_IMPL_2() \
+  a2b = arg2BP(insnp)
+
+#define INC_IP_IMPL_2() \
+  ip++
+
+#define COND_NEXT_IP_CMOV(c, i)                                                \
+  do {                                                                         \
+    char *p = (char *)ip;                                                      \
+    p += c ? 0 : sizeof(bc_t) * JUMP_OFFSET(i);                                \
+    ip = (bc_t *)p;                                                            \
   } while (0)
 
-#define COND_NEXT_IP_BR(c, i)        \
-  do {                               \
-    if (likely(!c))                  \
-      ip = add2ip(ip,                \
-          JUMP_OFFSET(i));           \
+#define COND_NEXT_IP_BR(c, i)                                                  \
+  do {                                                                         \
+    if (likely(!c))                                                            \
+      ip = add2ip(ip, JUMP_OFFSET(i));                                         \
   } while (0)
 
 #if !defined(JUMP_MODE) || defined(JUMP_MODE) && JUMP_MODE == 0
@@ -77,17 +103,23 @@
 #if !defined(DECODE_MODE) || defined(DECODE_MODE) && DECODE_MODE == 0
 #define PARAMS PARAMS_IMPL_1
 #define ARGS ARGS_IMPL_1
-#define FETCH_DECODE FETCH_DECODE_IMPL_1
-#define COND_NEXT_INSN(x) bc_t x = *ip++
+#define FETCH_INSN FETCH_INSN_IMPL_1
+#define INC_IP INC_IP_IMPL_1
+#define DECODE_OP DECODE_OP_IMPL_1
+#define DECODE_A3A DECODE_A3A_IMPL_1
+#define DECODE_A2SB DECODE_A2SB_IMPL_1
+#define NEXT_INSN(x) bc_t x = *ip++
+#define EXTRA_ARG(x) arg1sA(x)
+#define EXTRA_ARGU(x) arg1A(x)
+#define INSN(x) insn(x)
 #define ARG3A a3a
-#define ARG3B arg3B2sB(a2sb) 
-#define ARG3C arg3C2sB(a2sb)
-#define ARG3X ARG3B
+#define ARG3B arg3B2B(a2b) 
+#define ARG3C arg3C2B(a2b)
+#define ARG3X ARG3C
 #define ARG3Y ARG3A 
-#define ARG3Z ARG3C 
+#define ARG3Z ARG3B 
 #define ARG2A a3a
-#define ARG2sB a2sb
-#define ARG2B arg2B2sB(a2sb)
+#define ARG2B arg2B2B(a2b)
 #define JUMP_OFFSET(x) arg2sB(x)
 #define GET_FO(fo)              \
   bc_t prev_insn = ra[-1];      \
@@ -96,17 +128,23 @@
 #elif defined(DECODE_MODE) && DECODE_MODE == 1
 #define PARAMS PARAMS_IMPL_2
 #define ARGS ARGS_IMPL_2
-#define FETCH_DECODE FETCH_DECODE_IMPL_2
-#define COND_NEXT_INSN(x) bc_t *x = ip++
+#define FETCH_INSN FETCH_INSN_IMPL_2
+#define INC_IP INC_IP_IMPL_2
+#define DECODE_OP DECODE_OP_IMPL_2
+#define DECODE_A3A DECODE_A3A_IMPL_2
+#define DECODE_A2SB DECODE_A2SB_IMPL_2
+#define NEXT_INSN(x) bc_t *x = ip++
+#define EXTRA_ARG(x) arg1sAP(x)
+#define EXTRA_ARGU(x) arg1AP(x)
+#define INSN(x) insnP(x)
 #define ARG3A a3a
-#define ARG3B arg3B2sB(a2sb) 
-#define ARG3C arg3C2sB(a2sb)
-#define ARG3X ARG3B
+#define ARG3B arg3B2B(a2b) 
+#define ARG3C arg3C2B(a2b)
+#define ARG3X ARG3C
 #define ARG3Y ARG3A 
-#define ARG3Z ARG3C 
+#define ARG3Z ARG3B 
 #define ARG2A a3a
-#define ARG2sB a2sb
-#define ARG2B arg2B2sB(a2sb)
+#define ARG2B a2b
 #define JUMP_OFFSET(x) arg2sBP(x)
 #define GET_FO(fo)              \
   bc_t *prev_insnp = ra - 1;    \
@@ -114,7 +152,7 @@
 
 #endif
 
-[[clang::qkcc]] typedef void opthread(PARAMS);
+[[clang::quickaml]] typedef void opthread(PARAMS);
 
 #define PCALL_INNER(o_, f_) o_ = f_
 #define PCALL_INNER_VOID(o_, f_) f_
@@ -144,17 +182,68 @@
   PCALL_AARCH64(PCALL_INNER_VOID, 0, f_, __VA_ARGS__)
 #endif
 
-#define LT <
-#define LE <=
-#define GT >
-#define GE >=
-#define EQ ==
-#define NE !=
-#define ADD +
-#define SUB -
-#define MUL *
-#define DIV /
-#define REM %
+typedef enum {
+  EQZ_64,
+  EQZ_32,
+  NEZ_64,
+  NEZ_32,
+  EQ_64,
+  NE_64,
+  LT_S64,
+  LE_S64,
+  LT_U64,
+  LE_U64,
+  EQ_32,
+  NE_32,
+  LT_S32,
+  LE_S32,
+  LT_U32,
+  LE_U32,
+  EQ_F64,
+  NE_F64, 
+  LT_F64,
+  LE_F64,
+} cond_t;
 
+typedef enum {
+  SEXT_8_32,
+  SEXT_16_32,
+  SEXT_8_64,
+  SEXT_16_64,
+  SEXT_32_64,
+} ext_t;
 
-int vm_entry(struct state *state);
+typedef enum {
+  WRAP_8,
+  WRAP_16,
+  WRAP_32,
+} wrap_t;
+
+typedef enum {
+  CTZ_8,
+  CTZ_16,
+  CTZ_32,
+  CTZ_64,
+} ctz_t;
+
+typedef enum {
+  CLZ_8,
+  CLZ_16,
+  CLZ_32,
+  CLZ_64,
+} clz_t;
+
+typedef enum {
+  POPCNT_8,
+  POPCNT_16,
+  POPCNT_32,
+  POPCNT_64,
+} popcnt_t;
+
+#define cast(x, t)             ((t)(x))
+#define cast_u(x, width)       ((uint##width##_t)(x))
+#define cast_s(x, width)       ((int##width##_t)(uint##width##_t)(x))
+#define sign_extend(x, from, to)   ((int##to##_t)(int##from##_t)(uint##from##_t)(x))
+#define zero_extend(x, from, to)   ((uint##to##_t)(uint##from##_t)(x))
+
+status_t vm_entry(struct state *state);

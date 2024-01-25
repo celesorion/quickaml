@@ -1,45 +1,53 @@
 #include "alloc.h"
-#include "obj.h"
-#include "hashtbl.h"
-#include "ptrdesc.h"
+#include "frame.h"
+#include "object.h"
+#include "vm.h"
 
-#include <string.h>
 #include <stdlib.h>
-
-HASHMAP_NEW_KIND_WITH_DEFAULTS(stackmap, uint32_t, void *, 8)
+#include <string.h>
 
 struct heap global_heap;
 
-static void *heap_alloc(struct heap *h, size_t n) {
-   uint8_t *cur = h->bump;
-   void *p = cur;
-   cur += n;
-   if (cur > h->from_limit)
-     return nullptr;
-   else {
-     h->bump = cur;
-     return p;
-   }
+static void *heap_alloc(struct heap *restrict h, size_t n) {
+  uint8_t *cur = h->bump;
+  void *p = cur;
+  cur += n;
+  if (cur > h->from_limit)
+    return nullptr;
+  else {
+    h->bump = cur;
+    return p;
+  }
 }
 
-bool heap_init(struct heap *h, struct runtime_args rargs) {
-  struct runtime_args *args = malloc(sizeof(rargs));
-  size_t base_size = rargs.base_size;
-  size_t align = rargs.align;
+void heap_stat_print(struct heap *restrict h) {
+  fprintf(stderr, "bump: %p\n", h->bump);
+  fprintf(stderr, "from_base: %p\n", h->from_base);
+  fprintf(stderr, "from_limit: %p\n", h->from_limit);
+  fprintf(stderr, "to_base: %p\n", h->to_base);
+  fprintf(stderr, "to_limit: %p\n", h->to_limit);
+  fprintf(stderr, "used %.2lf%%\n",
+          (double)(h->bump - h->from_base) / (h->from_limit - h->from_base) *
+              100.0);
+}
+
+bool heap_init(struct heap *restrict h, struct runtime_args *restrict rargs) {
+  size_t base_size = rargs->base_size;
+  size_t align = rargs->align;
   uint8_t *s1 = aligned_alloc(align, base_size);
   uint8_t *s2 = aligned_alloc(align, base_size);
-  if (!(s1 && s2)) return false;
-  *args = rargs;
-  *h = (struct heap) {
-    .args       = args,
-    .from_base  = s1,
-    .from_limit = s1 + base_size,
-    .to_base    = s2,
-    .to_limit   = s2 + base_size,
+  if (!(s1 && s2))
+    return false;
+  *h = (struct heap){
+      .bump = s1,
+      .args = rargs,
+      .from_base = s1,
+      .from_limit = s1 + base_size,
+      .to_base = s2,
+      .to_limit = s2 + base_size,
   };
   return true;
 }
-
 
 static void heap_flip(struct heap *h) {
   void *old_base = h->from_base;
@@ -51,22 +59,13 @@ static void heap_flip(struct heap *h) {
   h->to_limit = old_limit;
 }
 
-static void worklist_init(struct heap *h) {
-  h->scan = h->bump;
-}
+static void worklist_init(struct heap *h) { h->scan = h->bump; }
 
-static bool worklist_is_empty(struct heap *h) {
-  return h->scan == h->bump;
-}
-
-static size_t get_object_length(void *ref) {
-  struct object *obj = ref;
-  return object_length(obj->hd);
-}
+static bool worklist_is_empty(struct heap *h) { return h->scan == h->bump; }
 
 static size_t get_object_size(void *ref) {
   struct object *obj = ref;
-  return object_size(obj->hd);
+  return object_get_size(obj->hd);
 }
 
 static void *worklist_pop(struct heap *h) {
@@ -87,24 +86,59 @@ static void *heap_copy(struct heap *h, void *from_ref) {
   return to_ref;
 }
 
-static void *heap_forward(struct heap *h, void *from_ref) {
+static void *heap_forward(struct state *st, struct heap *h, void *from_ref) {
   void *to_ref = *heap_forwarding_address(from_ref);
+  trace(st, TRACE_0, "heap_forward: from_ref=%p to_ref=%p", from_ref, to_ref);
+  // TODO
   if (to_ref)
     return to_ref;
   return heap_copy(h, from_ref);
 }
 
-static void heap_process_field(struct heap *h, void **field) {
+static void heap_process_field(struct state *restrict st, struct heap *h,
+                               void **field) {
+  trace(st, TRACE_0, "heap_process_field: processing field %p", *field);
   void *from_ref = *field;
   if (from_ref)
-    *field = heap_forward(h, from_ref);
+    *field = heap_forward(st, h, from_ref);
 }
 
-static void heap_scan_object(struct heap *h, void *ref) {
-  size_t len = get_object_length(ref);
+static void heap_scan_object(struct state *restrict st, struct heap *h,
+                             void *restrict ref) {
+  struct nextptr next;
   struct object *obj = ref;
-  for (size_t i = 0; i < len; ++i)
-    heap_process_field(h, (void **)&obj->fields[i]);
+  struct layoutdesc *layout = object_get_layout(obj->hd);
+  trace(st, TRACE_0, "heap_scan_object: scanning object %p", obj);
+  if (need_scan_fields(layout)) {
+    assert_assume(layout->kind == LAYOUT_CANONICAL ||
+                  layout->kind == LAYOUT_HYBIRD);
+    switch (layout->kind) {
+    case LAYOUT_CANONICAL:
+      next =
+          layout_canonical_ptr_next(layout_canonical_ptr_scan_init(), layout);
+      while (next.index != NOT_FOUND) {
+        size_t offset = next.offset;
+        void **field = (void **)&obj->fields[offset];
+        trace(st, TRACE_0, "heap_scan_object: scanning field %zu of %p", offset,
+              obj);
+        heap_process_field(st, h, field);
+        next = layout_canonical_ptr_next(next, layout);
+      }
+      break;
+    case LAYOUT_HYBIRD:
+      next = layout_canonical_ptr_next(layout_hybird_ptr_scan_init(layout),
+                                       layout);
+      while (next.index != NOT_FOUND) {
+        size_t offset = next.offset;
+        void **field = (void **)&obj->fields[offset];
+        trace(st, TRACE_0, "heap_scan_object: scanning field %zu of %p", offset,
+              obj);
+        heap_process_field(st, h, field);
+        next = layout_hybird_ptr_next(next, layout);
+      }
+      break;
+    }
+  }
 }
 
 void heap_collect_start(struct heap *h) {
@@ -112,43 +146,51 @@ void heap_collect_start(struct heap *h) {
   worklist_init(h);
 }
 
-void heap_collect_add_root(struct heap *h, void **root) {
-  heap_process_field(h, root);
+void heap_collect_add_root(struct state *restrict st, struct heap *h,
+                           void **root) {
+  heap_process_field(st, h, root);
 }
 
-void heap_collect_end(struct heap *h) {
+void heap_collect_end(struct state *restrict st, struct heap *h) {
+  trace(st, TRACE_0, "heap_collect_end: start scanning, worklist is empty? %d",
+        worklist_is_empty(h));
   while (!worklist_is_empty(h))
-    heap_scan_object(h, worklist_pop(h)); 
+    heap_scan_object(st, h, worklist_pop(h));
 }
 
-[[gnu::noinline]]
-static void *simple_malloc_fallback(size_t n, val_t *desc) {
-  printf("global_heap: %p %p %p\n", global_heap.from_base, global_heap.from_limit, global_heap.bump);
-  heap_collect_start(&global_heap);
+[[gnu::noinline]] static void *alloc_object_fallback(struct state *restrict st,
+                                                     size_t n, val_t *bp) {
+  struct heap *heap = st->heap;
+  heap_collect_start(heap);
 
-  struct ptrdesc *pdesc = (void *)*desc;
-  val_t *bp = desc + 2;
+  struct function *fn = (void *)frame_rv(bp);
 
   struct nextptr next;
-  next = frame_ptr_next(pdesc);
+  next = frame_ptr_next(frame_ptr_scan_init(fn->desc), fn->desc);
+  trace(st, TRACE_0, "alloc_object_fallback: fn ptrmap %lu %lu %lu %lu",
+        fn->desc->ptrmap[0], fn->desc->ptrmap[1], fn->desc->ptrmap[2],
+        fn->desc->ptrmap[3]);
 
-  while (next.found) {
+  while (next.index != NOT_FOUND) {
     size_t offset = next.offset;
-    printf("offset: %zu\n", offset);
     val_t *ptr = bp + offset;
-    printf("ptr: %p\n", ptr);
-    heap_collect_add_root(&global_heap, (void *)ptr);
-    next = frame_ptr_next(pdesc);
+    trace(st, TRACE_0, "alloc_object_fallback: gc root bp[%zu] *%p=%p, meta=%x",
+          offset, ptr, *ptr, ((struct object *)*ptr)->hd);
+    heap_collect_add_root(st, heap, (void **)ptr);
+    next = frame_ptr_next(next, fn->desc);
   }
 
-  heap_collect_end(&global_heap);
+  heap_collect_end(st, heap);
 
-  return heap_alloc(&global_heap, n);
+  return heap_alloc(heap, n);
 }
 
-void *simple_malloc(size_t n, val_t *desc) {
-  void *p = heap_alloc(&global_heap, n);
-  if (p == nullptr)
-    return simple_malloc_fallback(n, desc);
+void *alloc_object(size_t n, struct state *restrict st, val_t *restrict bp) {
+  void *p = heap_alloc(st->heap, n);
+  if (p == nullptr) {
+    trace(st, TRACE_0, "alloc_object: heap is full, collecting garbage");
+    heap_stat_print(st->heap);
+    return alloc_object_fallback(st, n, bp);
+  }
   return p;
 }
