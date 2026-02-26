@@ -1,0 +1,31 @@
+.numfn 2 
+.entry 0
+.stack 1000000
+.fn 6
+.frame 0 0 0 0
+  lzi16       a:2  sb:3
+  lzi16       a:3  sb:12
+  call        a:0  b:1  c:2
+  trap        t:print-regs  b:0  c:1
+  trap        t:halt
+.endfn
+.fn 17
+.frame 0 0 0 0
+  cleui16     a:0  sb:0
+  jmp         sb:2
+  add64i      x:0  y:1  z:1
+  ret         a:0
+  cleui16     a:1  sb:0
+  jmp         sb:4
+  sub64i      x:2  y:0  z:1
+  lzi16       a:3  sb:1
+  call        a:0  b:1  c:2
+  ret         a:0
+  mov         a:5  b:0
+  sub64i      x:2  y:0  z:1
+  sub64i      x:6  y:1  z:1
+  call        a:3  b:1  c:2
+  call        a:0  b:1  c:2
+  ret         a:0
+.endfn
+

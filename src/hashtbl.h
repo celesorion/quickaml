@@ -27,7 +27,7 @@ static_assert(sizeof(ctrl_t) == 1);
 #define CTRL_SENTINEL ((ctrl_t){ .x = -1})
 
 #define MAYBEUNUSED [[maybe_unused]]
-#define HASHTBL_META(X_, NAME_) NAME_ ## _ ## X_ 
+#define HASHTBL_META(X_, NAME_) NAME_ ## _ ## X_
 #define HASHTBL_INTERNAL_META(X_, NAME_) X_ ## _of_ ## NAME_
 
 #define HASHTBL_CHECK(cond, ...)                                                                                                                               \
@@ -123,7 +123,7 @@ static inline ctrl_t h2_hash_as_ctrl(size_t hash) {
 }
 
 static inline bool hashtbl_ctrl_is_empty(ctrl_t ctrl) {
-  return ctrl.x == CTRL_EMPTY.x; 
+  return ctrl.x == CTRL_EMPTY.x;
 }
 
 static inline bool hashtbl_ctrl_is_deleted(ctrl_t ctrl) {
@@ -204,7 +204,7 @@ static inline uint32_t hashtbl_group_count_leading_empty_or_deleted(const group_
   return ctz((uint32_t)(
         simde_mm_movemask_epi8(
           simde_mm_cmpgt_epi8(simde_mm_set1_epi8(CTRL_SENTINEL.x), *gp))
-        + 1)); 
+        + 1));
 }
 
 static inline void hashtbl_group_convert_special_to_empty_and_full_to_deleted(
@@ -242,7 +242,7 @@ static inline struct find_info hashtbl_find_first_non_full(
     if (mask.mask) {
       return (struct find_info){
         hashtbl_probe_seq_offset(&seq, bitmask_ctz(&mask)),
-          seq.index 
+          seq.index
       };
     }
     hashtbl_probe_seq_next(&seq);
@@ -263,9 +263,10 @@ static inline size_t hashtbl_random_seed(void) {
 
 [[maybe_unused]]
 static bool hashtbl_should_insert_backwards(size_t hash, const ctrl_t *ctrl) {
-  return (h1_hash(hash, ctrl) ^ hashtbl_random_seed()) % 13 > 6; 
+  return (h1_hash(hash, ctrl) ^ hashtbl_random_seed()) % 13 > 6;
 }
 
+[[maybe_unused]]
 static void hashtbl_convert_deleted_to_empty_and_full_to_deleted(
     ctrl_t *ctrl, size_t capacity) {
   HASHTBL_DCHECK(ctrl[capacity].x == CTRL_SENTINEL.x, "bad ctrl value at %zu: %02x",
@@ -413,7 +414,7 @@ static inline void hashtbl_erase_meta_only(struct hashtbl_iterator it) {
   group_t gp_before = hashtbl_group_new(it.tbl->ctrl + index_before);
   struct bitmask empty_before = hashtbl_group_match_empty(&gp_before);
 
-  bool was_never_full = 
+  bool was_never_full =
     empty_before.mask && empty_after.mask &&
     (size_t)(bitmask_ctz(&empty_after) +
         bitmask_clz(&empty_before)) < GROUP_WIDTH;
@@ -993,7 +994,7 @@ MAYBEUNUSED                                                                     
 static inline bool                                                                                                        \
 HASHTBL_META(erase, NAME_)(struct NAME_ *tbl, const KEY_TYPE_ *key) {                                                     \
   return HASHTBL_INTERNAL_META(hashtbl_erase, NAME_)(&tbl->raw, key);                                                     \
-} 
+}
 
 #define HASHTBL_INTERNAL_LOOKUP_FUNCTIONS_META(NAME_, GET_, EQ2_, HASH2_, S_) \
   HASHTBL_INTERNAL_FIND_HINTED_BY_META(NAME_, GET_, EQ2_, S_)                 \
@@ -1038,7 +1039,7 @@ MAYBEUNUSED                                                                     
 static inline bool                                                                                                        \
 HASHTBL_META(erase_by_ ## S_, NAME_)(struct NAME_ *tbl, const KEY_TYPE_ *key) {                                           \
   return HASHTBL_INTERNAL_META(hashtbl_erase_by_ ## S_, NAME_)(&tbl->raw, key);                                           \
-} 
+}
 
 
 #define HASHSET_NEW_KIND(NAME_, KEY_TYPE_, KEY_ALIGN_, ALLOC_, COPY_, DEL_, EQ_, FREE_, GET_, HASH_, INIT_, MOVE_)          \
@@ -1109,4 +1110,3 @@ static inline uint64_t hashtbl_default_hash(const void *data, size_t size) {
   HASHTBL_NEW_LOOKUP_KIND(NAME_, KEY_TYPE_, NAME2_, EQ_, DEFAULT_GET, HASH_)
 
 #endif
-
