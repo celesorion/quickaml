@@ -1094,18 +1094,18 @@ lJTI34_0:
 _vm_op_CEQZ64:                          ; @vm_op_CEQZ64
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cbz	x9, LBB35_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cbz	x8, LBB35_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
 LBB35_2:
-	ldrb	w9, [x8]
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1113,18 +1113,21 @@ LBB35_2:
 _vm_op_CEQZ32:                          ; @vm_op_CEQZ32
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cbz	w9, LBB36_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cbz	w8, LBB36_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB36_3
 LBB36_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB36_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1132,18 +1135,21 @@ LBB36_2:
 _vm_op_CNEZ64:                          ; @vm_op_CNEZ64
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cbnz	x9, LBB37_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cbz	x8, LBB37_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB37_3
 LBB37_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB37_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1151,18 +1157,21 @@ LBB37_2:
 _vm_op_CNEZ32:                          ; @vm_op_CNEZ32
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cbnz	w9, LBB38_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cbz	w8, LBB38_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB38_3
 LBB38_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB38_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1171,19 +1180,22 @@ _vm_op_CEQSI16:                         ; @vm_op_CEQSI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, sxth
-	b.eq	LBB39_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, sxth
+	b.ne	LBB39_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB39_3
 LBB39_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB39_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1192,19 +1204,22 @@ _vm_op_CNESI16:                         ; @vm_op_CNESI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, sxth
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, sxth
 	b.ne	LBB40_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB40_3
 LBB40_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB40_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1213,19 +1228,22 @@ _vm_op_CLTSI16:                         ; @vm_op_CLTSI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, sxth
-	b.lt	LBB41_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, sxth
+	b.ge	LBB41_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB41_3
 LBB41_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB41_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1234,19 +1252,22 @@ _vm_op_CLESI16:                         ; @vm_op_CLESI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, sxth
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, sxth
 	b.le	LBB42_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB42_3
 LBB42_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB42_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1255,19 +1276,22 @@ _vm_op_CGTSI16:                         ; @vm_op_CGTSI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, sxth
-	b.gt	LBB43_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, sxth
+	b.le	LBB43_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB43_3
 LBB43_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB43_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1276,19 +1300,22 @@ _vm_op_CGESI16:                         ; @vm_op_CGESI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, sxth
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, sxth
 	b.ge	LBB44_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB44_3
 LBB44_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB44_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1296,19 +1323,22 @@ LBB44_2:
 _vm_op_CEQUI16:                         ; @vm_op_CEQUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, uxtw
-	b.eq	LBB45_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, uxtw
+	b.ne	LBB45_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB45_3
 LBB45_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB45_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1316,19 +1346,22 @@ LBB45_2:
 _vm_op_CNEUI16:                         ; @vm_op_CNEUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, uxtw
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, uxtw
 	b.ne	LBB46_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB46_3
 LBB46_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB46_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1336,19 +1369,22 @@ LBB46_2:
 _vm_op_CLTUI16:                         ; @vm_op_CLTUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, uxtw
-	b.lo	LBB47_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, uxtw
+	b.hs	LBB47_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB47_3
 LBB47_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB47_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1356,19 +1392,22 @@ LBB47_2:
 _vm_op_CLEUI16:                         ; @vm_op_CLEUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, uxtw
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, uxtw
 	b.ls	LBB48_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB48_3
 LBB48_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB48_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1376,19 +1415,22 @@ LBB48_2:
 _vm_op_CGTUI16:                         ; @vm_op_CGTUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, uxtw
-	b.hi	LBB49_2
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, uxtw
+	b.ls	LBB49_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB49_3
 LBB49_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB49_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1396,19 +1438,22 @@ LBB49_2:
 _vm_op_CGEUI16:                         ; @vm_op_CGEUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	cmp	x9, w0, uxtw
+	ldr	x8, [x21, w1, uxtw #3]
+	cmp	x8, w0, uxtw
 	b.hs	LBB50_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB50_3
 LBB50_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB50_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1417,21 +1462,24 @@ _vm_op_CEQ64:                           ; @vm_op_CEQ64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	x9, x10
-	b.eq	LBB51_2
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	x8, x9
+	b.ne	LBB51_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB51_3
 LBB51_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB51_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1440,21 +1488,24 @@ _vm_op_CNE64:                           ; @vm_op_CNE64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	x9, x10
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	x8, x9
 	b.ne	LBB52_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB52_3
 LBB52_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB52_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1463,21 +1514,24 @@ _vm_op_CLTU64:                          ; @vm_op_CLTU64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	x9, x10
-	b.lo	LBB53_2
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	x8, x9
+	b.hs	LBB53_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB53_3
 LBB53_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB53_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1486,21 +1540,24 @@ _vm_op_CLEU64:                          ; @vm_op_CLEU64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	x9, x10
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	x8, x9
 	b.ls	LBB54_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB54_3
 LBB54_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB54_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1509,21 +1566,24 @@ _vm_op_CLTS64:                          ; @vm_op_CLTS64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	x9, x10
-	b.lt	LBB55_2
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	x8, x9
+	b.ge	LBB55_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB55_3
 LBB55_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB55_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1532,21 +1592,24 @@ _vm_op_CLES64:                          ; @vm_op_CLES64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	x9, x10
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	x8, x9
 	b.le	LBB56_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB56_3
 LBB56_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB56_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1555,21 +1618,24 @@ _vm_op_CEQ32:                           ; @vm_op_CEQ32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	w9, w10
-	b.eq	LBB57_2
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	w8, w9
+	b.ne	LBB57_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB57_3
 LBB57_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB57_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1578,21 +1644,24 @@ _vm_op_CNE32:                           ; @vm_op_CNE32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	w9, w10
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	w8, w9
 	b.ne	LBB58_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB58_3
 LBB58_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB58_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1601,21 +1670,24 @@ _vm_op_CLTU32:                          ; @vm_op_CLTU32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	w9, w10
-	b.lo	LBB59_2
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	w8, w9
+	b.hs	LBB59_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB59_3
 LBB59_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB59_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1624,21 +1696,24 @@ _vm_op_CLEU32:                          ; @vm_op_CLEU32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	w9, w10
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	w8, w9
 	b.ls	LBB60_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB60_3
 LBB60_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB60_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1647,21 +1722,24 @@ _vm_op_CLTS32:                          ; @vm_op_CLTS32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	w9, w10
-	b.lt	LBB61_2
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	w8, w9
+	b.ge	LBB61_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	mov	x8, #0                          ; =0x0
+	b	LBB61_3
 LBB61_2:
-	ldrb	w9, [x8]
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+LBB61_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1670,21 +1748,24 @@ _vm_op_CLES32:                          ; @vm_op_CLES32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	cmp	w9, w10
+	ldr	x8, [x21, w1, uxtw #3]
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	cmp	w8, w9
 	b.le	LBB62_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x20, #2]
+	lsl	x8, x8, #2
+	b	LBB62_3
 LBB62_2:
-	ldrb	w9, [x8]
+	mov	x8, #0                          ; =0x0
+LBB62_3:
+	add	x8, x20, x8
+	ldrb	w9, [x8, #4]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ldrb	w1, [x8, #5]
+	ldrh	w0, [x8, #6]
+	add	x20, x8, #8
 	br	x2
 	.cfi_endproc
                                         ; -- End function

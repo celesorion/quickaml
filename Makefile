@@ -41,7 +41,7 @@ TARGET_RELDBG := $(TARGET).reldbg
 TARGET_DBG := $(TARGET).dbg
 
 # Phony targets (non-file targets)
-.PHONY: all rel run reldbg runreldbg debug rundbg vmasm distclean clean
+.PHONY: all rel run reldbg runreldbg debug rundbg distclean clean
 
 # Default target
 all: $(TARGET) $(TARGET_RELDBG) $(TARGET_DBG)

@@ -41,17 +41,19 @@ _vm_entry:                              ; @vm_entry
 	ldr	x8, [x0, #64]
 	ldp	x9, x24, [x0, #16]
 	stp	x9, xzr, [x8, #16]
-	ldrb	w10, [x9, #16]
-	ldrb	w1, [x9, #17]
-	ldrh	w0, [x9, #18]
+	ldr	w10, [x9, #16]
+	and	x11, x10, #0xff
+	ubfx	x0, x10, #16, #16
 Lloh0:
 	adrp	x23, _dispatch@PAGE
 Lloh1:
 	add	x23, x23, _dispatch@PAGEOFF
-	ldr	x10, [x23, x10, lsl #3]
+	ldr	x11, [x23, x11, lsl #3]
+	ubfx	w1, w10, #8, #8
 	add	x20, x9, #20
 	add	x21, x8, #32
-	blr	x10
+                                        ; kill: def $w0 killed $w0 killed $x0
+	blr	x11
 	mov	w0, #0                          ; =0x0
 	ldp	x29, x30, [sp, #144]            ; 16-byte Folded Reload
 	ldp	x20, x19, [sp, #128]            ; 16-byte Folded Reload
@@ -271,11 +273,12 @@ Lloh24:
 	mov	x30, x19
 	; InlineAsm End
 LBB1_22:
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	br	x2
@@ -301,11 +304,12 @@ LBB1_23:
 _vm_op_NOP:                             ; @vm_op_NOP
 	.cfi_startproc
 ; %bb.0:
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -315,11 +319,12 @@ _vm_op_MOV:                             ; @vm_op_MOV
 ; %bb.0:
 	ldr	x8, [x21, w0, uxtw #3]
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -337,11 +342,12 @@ _vm_op_LSI16:                           ; @vm_op_LSI16
                                         ; kill: def $w0 killed $w0 def $x0
 	sxth	x8, w0
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -351,11 +357,12 @@ _vm_op_LZI16:                           ; @vm_op_LZI16
 ; %bb.0:
 	mov	w8, w0
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -363,15 +370,15 @@ _vm_op_LZI16:                           ; @vm_op_LZI16
 _vm_op_LSI32:                           ; @vm_op_LSI32
 	.cfi_startproc
 ; %bb.0:
-	ldr	w8, [x20]
+	ldp	w8, w9, [x20], #8
 	extr	w8, w0, w8, #8
 	sxtw	x8, w8
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20, #4]
+	and	x8, x9, #0xff
 	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -379,14 +386,14 @@ _vm_op_LSI32:                           ; @vm_op_LSI32
 _vm_op_LZI32:                           ; @vm_op_LZI32
 	.cfi_startproc
 ; %bb.0:
-	ldr	w8, [x20]
+	ldp	w8, w9, [x20], #8
 	extr	w8, w0, w8, #8
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20, #4]
+	and	x8, x9, #0xff
 	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -397,11 +404,12 @@ _vm_op_LC:                              ; @vm_op_LC
 	ldr	x8, [x22, #56]
 	ldr	x8, [x8, w0, uxtw #3]
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -418,11 +426,13 @@ _vm_op_APP:                             ; @vm_op_APP
 ; %bb.1:
 	stp	x8, x20, [x21, #-16]
 	str	x9, [x21]
-	ldrb	w9, [x8, #16]
-	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #17]
-	ldrh	w0, [x8, #18]
+	ldr	w9, [x8, #16]
+	and	x10, x9, #0xff
+	ldr	x2, [x23, x10, lsl #3]
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
 	add	x20, x8, #20
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 LBB10_2:
 	add	x20, x8, #16
@@ -443,11 +453,13 @@ _vm_op_CALL:                            ; @vm_op_CALL
 	b.hs	LBB11_2
 ; %bb.1:
 	stp	x8, x20, [x21, #-16]
-	ldrb	w9, [x8, #16]
-	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #17]
-	ldrh	w0, [x8, #18]
+	ldr	w9, [x8, #16]
+	and	x10, x9, #0xff
+	ldr	x2, [x23, x10, lsl #3]
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
 	add	x20, x8, #20
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 LBB11_2:
 	add	x20, x8, #16
@@ -460,12 +472,13 @@ _vm_op_JMP:                             ; @vm_op_JMP
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, w0, sxth #2
-	ldrb	w9, [x8]
+	add	x20, x20, w0, sxth #2
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -474,12 +487,13 @@ _vm_op_JR:                              ; @vm_op_JR
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
-	add	x8, x20, x8, lsl #2
-	ldrb	w9, [x8]
+	add	x20, x20, x8, lsl #2
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -490,12 +504,13 @@ _vm_op_DISP:                            ; @vm_op_DISP
 	ldr	x8, [x21, w1, uxtw #3]
 	add	w8, w8, w0, sxth
 	ubfiz	x8, x8, #2, #32
-	add	x8, x20, x8
-	ldrb	w9, [x8]
+	add	x20, x20, x8
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -507,11 +522,13 @@ _vm_op_RETU:                            ; @vm_op_RETU
 	ldr	x8, [x21, #8]
 	ldurb	w9, [x8, #-3]
 	sub	x21, x21, x9, lsl #3
-	ldrb	w9, [x8]
-	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
+	ldr	w9, [x8]
+	and	x10, x9, #0xff
+	ldr	x2, [x23, x10, lsl #3]
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
 	add	x20, x8, #4
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -524,11 +541,13 @@ _vm_op_RET:                             ; @vm_op_RET
 	ldr	x8, [x21, #8]
 	ldurb	w9, [x8, #-3]
 	sub	x21, x21, x9, lsl #3
-	ldrb	w9, [x8]
-	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
+	ldr	w9, [x8]
+	and	x10, x9, #0xff
+	ldr	x2, [x23, x10, lsl #3]
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
 	add	x20, x8, #4
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -576,11 +595,13 @@ LBB17_7:                                ; =>This Inner Loop Header: Depth=1
 LBB17_8:
 	ldurb	w10, [x8, #-3]
 	sub	x21, x9, x10, lsl #3
-	ldrb	w9, [x8]
-	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
+	ldr	w9, [x8]
+	and	x10, x9, #0xff
+	ldr	x2, [x23, x10, lsl #3]
+	ubfx	x0, x9, #16, #16
+	ubfx	w1, w9, #8, #8
 	add	x20, x8, #4
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -623,11 +644,13 @@ _vm_op_MOBJ:                            ; @vm_op_MOBJ
 	mov	x30, x25
 	; InlineAsm End
 	str	x0, [x21, w19, uxtw #3]
-	ldrb	w8, [x20, #4]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
+	ldr	w8, [x20, #4]
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
 	add	x20, x20, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
 LBB18_3:
@@ -658,11 +681,12 @@ _vm_op_SF:                              ; @vm_op_SF
 	ldr	x8, [x21, w8, uxtw #3]
 	add	x8, x10, x8, lsl #3
 	str	x9, [x8, #8]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -677,11 +701,12 @@ _vm_op_GF:                              ; @vm_op_GF
 	add	x8, x10, x8, lsl #3
 	ldr	x8, [x8, #8]
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -690,19 +715,19 @@ _vm_op_SFX:                             ; @vm_op_SFX
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	ldr	w8, [x20]
-	ldr	x9, [x21, w1, uxtw #3]
-	and	x10, x0, #0xff
-	ldr	x10, [x21, x10, lsl #3]
-	lsr	x8, x8, #5
-	and	x8, x8, #0x7fffff8
-	add	x8, x9, x8
-	str	x10, [x8, #8]
-	ldrb	w8, [x20, #4]
+	ldr	x8, [x21, w1, uxtw #3]
+	ldp	w9, w10, [x20], #8
+	lsr	x9, x9, #5
+	and	x9, x9, #0x7fffff8
+	add	x8, x8, x9
+	and	x9, x0, #0xff
+	ldr	x9, [x21, x9, lsl #3]
+	str	x9, [x8, #8]
+	and	x8, x10, #0xff
 	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
+	ubfx	x0, x10, #16, #16
+	ubfx	w1, w10, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -711,19 +736,19 @@ _vm_op_GFX:                             ; @vm_op_GFX
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	ldr	w8, [x20]
-	ldr	x9, [x21, w1, uxtw #3]
-	lsr	x8, x8, #5
-	and	x8, x8, #0x7fffff8
-	add	x8, x9, x8
+	ldr	x8, [x21, w1, uxtw #3]
+	ldp	w9, w10, [x20], #8
+	lsr	x9, x9, #5
+	and	x9, x9, #0x7fffff8
+	add	x8, x8, x9
 	ldr	x8, [x8, #8]
 	and	x9, x0, #0xff
 	str	x8, [x21, x9, lsl #3]
-	ldrb	w8, [x20, #4]
+	and	x8, x10, #0xff
 	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
+	ubfx	x0, x10, #16, #16
+	ubfx	w1, w10, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -733,17 +758,17 @@ _vm_op_SFXI8:                           ; @vm_op_SFXI8
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	w9, [x20]
-	sxtb	x10, w0
+	ldp	w9, w10, [x20], #8
 	lsr	x9, x9, #5
 	and	x9, x9, #0x7fffff8
 	add	x8, x8, x9
-	str	x10, [x8, #8]
-	ldrb	w8, [x20, #4]
+	sxtb	x9, w0
+	str	x9, [x8, #8]
+	and	x8, x10, #0xff
 	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
+	ubfx	x0, x10, #16, #16
+	ubfx	w1, w10, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -753,17 +778,17 @@ _vm_op_SFXI16:                          ; @vm_op_SFXI16
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	w9, [x20]
-	sxth	x10, w0
+	ldp	w9, w10, [x20], #8
 	lsr	x9, x9, #5
 	and	x9, x9, #0x7fffff8
 	add	x8, x8, x9
-	str	x10, [x8, #8]
-	ldrb	w8, [x20, #4]
+	sxth	x9, w0
+	str	x9, [x8, #8]
+	and	x8, x10, #0xff
 	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
+	ubfx	x0, x10, #16, #16
+	ubfx	w1, w10, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -777,11 +802,12 @@ _vm_op_LP8:                             ; @vm_op_LP8
 	ldr	x8, [x21, w8, uxtw #3]
 	ldrb	w8, [x10, x8]
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -795,11 +821,12 @@ _vm_op_LP16:                            ; @vm_op_LP16
 	ldr	x8, [x21, w8, uxtw #3]
 	ldrh	w8, [x10, x8]
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -813,11 +840,12 @@ _vm_op_LP32:                            ; @vm_op_LP32
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	w8, [x10, x8]
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -831,11 +859,12 @@ _vm_op_LP64:                            ; @vm_op_LP64
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	x8, [x10, x8]
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -849,11 +878,12 @@ _vm_op_SP8:                             ; @vm_op_SP8
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	x9, [x21, w9, uxtw #3]
 	strb	w9, [x10, x8]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -867,11 +897,12 @@ _vm_op_SP16:                            ; @vm_op_SP16
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	x9, [x21, w9, uxtw #3]
 	strh	w9, [x10, x8]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -885,11 +916,12 @@ _vm_op_SP32:                            ; @vm_op_SP32
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	x9, [x21, w9, uxtw #3]
 	str	w9, [x10, x8]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -903,11 +935,12 @@ _vm_op_SP64:                            ; @vm_op_SP64
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	x9, [x21, w9, uxtw #3]
 	str	x9, [x10, x8]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1044,11 +1077,13 @@ LBB34_22:
 	ubfx	x9, x9, #8, #8
 	mov	w8, w8
 	str	x8, [x21, x9, lsl #3]
-	ldrb	w8, [x20, #4]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
+	ldr	w8, [x20, #4]
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
 	add	x20, x20, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 LBB34_23:
 	ldr	x10, [x21, w10, uxtw #3]
@@ -1094,18 +1129,20 @@ lJTI34_0:
 _vm_op_CEQZ64:                          ; @vm_op_CEQZ64
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cbz	x9, LBB35_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB35_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1113,18 +1150,20 @@ LBB35_2:
 _vm_op_CEQZ32:                          ; @vm_op_CEQZ32
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cbz	w9, LBB36_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB36_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1132,18 +1171,20 @@ LBB36_2:
 _vm_op_CNEZ64:                          ; @vm_op_CNEZ64
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cbnz	x9, LBB37_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB37_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1151,18 +1192,20 @@ LBB37_2:
 _vm_op_CNEZ32:                          ; @vm_op_CNEZ32
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cbnz	w9, LBB38_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB38_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1171,19 +1214,21 @@ _vm_op_CEQSI16:                         ; @vm_op_CEQSI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, sxth
 	b.eq	LBB39_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB39_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1192,19 +1237,21 @@ _vm_op_CNESI16:                         ; @vm_op_CNESI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, sxth
 	b.ne	LBB40_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB40_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1213,19 +1260,21 @@ _vm_op_CLTSI16:                         ; @vm_op_CLTSI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, sxth
 	b.lt	LBB41_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB41_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1234,19 +1283,21 @@ _vm_op_CLESI16:                         ; @vm_op_CLESI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, sxth
 	b.le	LBB42_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB42_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1255,19 +1306,21 @@ _vm_op_CGTSI16:                         ; @vm_op_CGTSI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, sxth
 	b.gt	LBB43_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB43_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1276,19 +1329,21 @@ _vm_op_CGESI16:                         ; @vm_op_CGESI16
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, sxth
 	b.ge	LBB44_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB44_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1296,19 +1351,21 @@ LBB44_2:
 _vm_op_CEQUI16:                         ; @vm_op_CEQUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, uxtw
 	b.eq	LBB45_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB45_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1316,19 +1373,21 @@ LBB45_2:
 _vm_op_CNEUI16:                         ; @vm_op_CNEUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, uxtw
 	b.ne	LBB46_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB46_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1336,19 +1395,21 @@ LBB46_2:
 _vm_op_CLTUI16:                         ; @vm_op_CLTUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, uxtw
 	b.lo	LBB47_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB47_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1356,19 +1417,21 @@ LBB47_2:
 _vm_op_CLEUI16:                         ; @vm_op_CLEUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, uxtw
 	b.ls	LBB48_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB48_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1376,19 +1439,21 @@ LBB48_2:
 _vm_op_CGTUI16:                         ; @vm_op_CGTUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, uxtw
 	b.hi	LBB49_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB49_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1396,19 +1461,21 @@ LBB49_2:
 _vm_op_CGEUI16:                         ; @vm_op_CGEUI16
 	.cfi_startproc
 ; %bb.0:
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	cmp	x9, w0, uxtw
 	b.hs	LBB50_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB50_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1417,21 +1484,23 @@ _vm_op_CEQ64:                           ; @vm_op_CEQ64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	x9, x10
 	b.eq	LBB51_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB51_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1440,21 +1509,23 @@ _vm_op_CNE64:                           ; @vm_op_CNE64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	x9, x10
 	b.ne	LBB52_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB52_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1463,21 +1534,23 @@ _vm_op_CLTU64:                          ; @vm_op_CLTU64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	x9, x10
 	b.lo	LBB53_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB53_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1486,21 +1559,23 @@ _vm_op_CLEU64:                          ; @vm_op_CLEU64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	x9, x10
 	b.ls	LBB54_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB54_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1509,21 +1584,23 @@ _vm_op_CLTS64:                          ; @vm_op_CLTS64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	x9, x10
 	b.lt	LBB55_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB55_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1532,21 +1609,23 @@ _vm_op_CLES64:                          ; @vm_op_CLES64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	x9, x10
 	b.le	LBB56_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB56_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1555,21 +1634,23 @@ _vm_op_CEQ32:                           ; @vm_op_CEQ32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	w9, w10
 	b.eq	LBB57_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB57_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1578,21 +1659,23 @@ _vm_op_CNE32:                           ; @vm_op_CNE32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	w9, w10
 	b.ne	LBB58_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB58_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1601,21 +1684,23 @@ _vm_op_CLTU32:                          ; @vm_op_CLTU32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	w9, w10
 	b.lo	LBB59_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB59_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1624,21 +1709,23 @@ _vm_op_CLEU32:                          ; @vm_op_CLEU32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	w9, w10
 	b.ls	LBB60_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB60_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1647,21 +1734,23 @@ _vm_op_CLTS32:                          ; @vm_op_CLTS32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	w9, w10
 	b.lt	LBB61_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB61_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1670,21 +1759,23 @@ _vm_op_CLES32:                          ; @vm_op_CLES32
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	add	x8, x20, #4
+	mov	x8, x20
+	add	x20, x20, #4
 	ldr	x9, [x21, w1, uxtw #3]
 	and	x10, x0, #0xff
 	ldr	x10, [x21, x10, lsl #3]
 	cmp	w9, w10
 	b.le	LBB62_2
 ; %bb.1:
-	ldrsh	x9, [x20, #2]
-	add	x8, x8, x9, lsl #2
+	ldrsh	x8, [x8, #2]
+	add	x20, x20, x8, lsl #2
 LBB62_2:
-	ldrb	w9, [x8]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #1]
-	ldrh	w0, [x8, #2]
-	add	x20, x8, #4
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1706,11 +1797,12 @@ Lloh28:
 	lsl	x10, x10, x8
 	asr	x8, x10, x8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 LBB63_2:
 	b	_undefined
@@ -1729,16 +1821,17 @@ Lloh29:
 Lloh30:
 	add	x8, x8, l_switch.table.vm_op_WRAP@PAGEOFF
 	ldr	x8, [x8, w1, uxtw #3]
-	lsr	w9, w0, #8
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	and	x8, x10, x8
-	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	and	w9, w0, #0xff
+	ldr	x9, [x21, w9, uxtw #3]
+	lsr	w10, w0, #8
+	and	x8, x9, x8
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 LBB64_2:
 	b	_undefined
@@ -1791,11 +1884,12 @@ LBB65_10:
 LBB65_11:
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1841,11 +1935,12 @@ LBB66_10:
 LBB66_11:
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1888,11 +1983,12 @@ LBB67_10:
 	fmov	w8, s0
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1900,17 +1996,18 @@ LBB67_10:
 _vm_op_AND64:                           ; @vm_op_AND64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	and	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	and	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1918,17 +2015,18 @@ _vm_op_AND64:                           ; @vm_op_AND64
 _vm_op_OR64:                            ; @vm_op_OR64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	orr	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	orr	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1936,17 +2034,18 @@ _vm_op_OR64:                            ; @vm_op_OR64
 _vm_op_XOR64:                           ; @vm_op_XOR64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	eor	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	eor	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1957,15 +2056,16 @@ _vm_op_NOTA64:                          ; @vm_op_NOTA64
 	lsr	w8, w0, #8
 	and	w9, w0, #0xff
 	ldr	x10, [x21, w1, uxtw #3]
-	mvn	x10, x10
 	ldr	x9, [x21, w9, uxtw #3]
+	mvn	x10, x10
 	add	x9, x9, x10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1974,15 +2074,16 @@ _vm_op_SHL64:                           ; @vm_op_SHL64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	lsl	x9, x9, x0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	lsl	x8, x8, x0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -1991,15 +2092,16 @@ _vm_op_SHRU64:                          ; @vm_op_SHRU64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	lsr	x9, x9, x0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	lsr	x8, x8, x0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2008,15 +2110,16 @@ _vm_op_SHRS64:                          ; @vm_op_SHRS64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	asr	x9, x9, x0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	asr	x8, x8, x0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2029,11 +2132,12 @@ _vm_op_ROTL64:                          ; @vm_op_ROTL64
 	neg	w10, w0
 	ror	x9, x9, x10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2042,15 +2146,16 @@ _vm_op_ROTR64:                          ; @vm_op_ROTR64
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	ror	x9, x9, x0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	ror	x8, x8, x0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2058,17 +2163,18 @@ _vm_op_ROTR64:                          ; @vm_op_ROTR64
 _vm_op_AND32:                           ; @vm_op_AND32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	and	w9, w9, w10
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	and	w8, w9, w8
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2076,17 +2182,18 @@ _vm_op_AND32:                           ; @vm_op_AND32
 _vm_op_OR32:                            ; @vm_op_OR32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	orr	w9, w10, w9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	orr	w8, w8, w9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2094,17 +2201,18 @@ _vm_op_OR32:                            ; @vm_op_OR32
 _vm_op_XOR32:                           ; @vm_op_XOR32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	eor	w9, w10, w9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	eor	w8, w8, w9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2115,15 +2223,16 @@ _vm_op_NOTA32:                          ; @vm_op_NOTA32
 	lsr	w8, w0, #8
 	and	w9, w0, #0xff
 	ldr	x10, [x21, w1, uxtw #3]
-	mvn	w10, w10
 	ldr	x9, [x21, w9, uxtw #3]
+	mvn	w10, w10
 	add	w9, w9, w10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2131,15 +2240,16 @@ _vm_op_NOTA32:                          ; @vm_op_NOTA32
 _vm_op_SHL32:                           ; @vm_op_SHL32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	lsl	w9, w9, w0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	lsl	w8, w8, w0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2147,15 +2257,16 @@ _vm_op_SHL32:                           ; @vm_op_SHL32
 _vm_op_SHRU32:                          ; @vm_op_SHRU32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	lsr	w9, w9, w0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	lsr	w8, w8, w0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2168,11 +2279,12 @@ _vm_op_SHRS32:                          ; @vm_op_SHRS32
 	asr	w9, w9, w0
 	sxtw	x9, w9
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2185,11 +2297,12 @@ _vm_op_ROTL32:                          ; @vm_op_ROTL32
 	neg	w10, w0
 	ror	w9, w9, w10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2197,15 +2310,16 @@ _vm_op_ROTL32:                          ; @vm_op_ROTL32
 _vm_op_ROTR32:                          ; @vm_op_ROTR32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	ror	w9, w9, w0
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	ror	w8, w8, w0
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2213,17 +2327,18 @@ _vm_op_ROTR32:                          ; @vm_op_ROTR32
 _vm_op_ADD64:                           ; @vm_op_ADD64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	add	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	add	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2231,17 +2346,18 @@ _vm_op_ADD64:                           ; @vm_op_ADD64
 _vm_op_SUB64:                           ; @vm_op_SUB64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	sub	x9, x9, x10
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	sub	x8, x9, x8
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2249,17 +2365,18 @@ _vm_op_SUB64:                           ; @vm_op_SUB64
 _vm_op_MUL64:                           ; @vm_op_MUL64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	mul	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	mul	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2267,17 +2384,18 @@ _vm_op_MUL64:                           ; @vm_op_MUL64
 _vm_op_MUHS64:                          ; @vm_op_MUHS64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	smulh	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	smulh	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2285,17 +2403,18 @@ _vm_op_MUHS64:                          ; @vm_op_MUHS64
 _vm_op_MUHU64:                          ; @vm_op_MUHU64
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	umulh	x9, x10, x9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	umulh	x8, x8, x9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2309,11 +2428,12 @@ _vm_op_DIVS64:                          ; @vm_op_DIVS64
 	sdiv	x8, x9, x8
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2327,11 +2447,12 @@ _vm_op_DIVU64:                          ; @vm_op_DIVU64
 	sdiv	x8, x9, x8
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2346,11 +2467,12 @@ _vm_op_REMS64:                          ; @vm_op_REMS64
 	msub	x8, x10, x8, x9
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2365,11 +2487,12 @@ _vm_op_REMU64:                          ; @vm_op_REMU64
 	msub	x8, x10, x8, x9
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2385,11 +2508,12 @@ _vm_op_DIRU64:                          ; @vm_op_DIRU64
 	lsr	w9, w0, #8
 	add	x9, x21, w9, uxtw #3
 	stp	x10, x8, [x9]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2405,11 +2529,12 @@ _vm_op_DIRS64:                          ; @vm_op_DIRS64
 	lsr	w9, w0, #8
 	add	x9, x21, w9, uxtw #3
 	stp	x10, x8, [x9]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2417,17 +2542,18 @@ _vm_op_DIRS64:                          ; @vm_op_DIRS64
 _vm_op_ADD32:                           ; @vm_op_ADD32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	add	w9, w10, w9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	add	w8, w8, w9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2435,17 +2561,18 @@ _vm_op_ADD32:                           ; @vm_op_ADD32
 _vm_op_SUB32:                           ; @vm_op_SUB32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	sub	w9, w9, w10
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	sub	w8, w9, w8
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2453,17 +2580,18 @@ _vm_op_SUB32:                           ; @vm_op_SUB32
 _vm_op_MUL32:                           ; @vm_op_MUL32
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
+	and	w8, w0, #0xff
 	ldr	x9, [x21, w1, uxtw #3]
-	and	w10, w0, #0xff
-	ldr	x10, [x21, w10, uxtw #3]
-	mul	w9, w10, w9
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w8, uxtw #3]
+	lsr	w10, w0, #8
+	mul	w8, w8, w9
+	str	x8, [x21, w10, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2481,11 +2609,12 @@ _vm_op_MUHS32:                          ; @vm_op_MUHS32
 	smull	x9, w9, w10
 	asr	x9, x9, #32
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2503,11 +2632,12 @@ _vm_op_MUHU32:                          ; @vm_op_MUHU32
 	umull	x9, w9, w10
 	lsr	x9, x9, #32
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2527,11 +2657,12 @@ _vm_op_DIVS32:                          ; @vm_op_DIVS32
 	lsr	w9, w0, #8
 	sxtw	x8, w8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2551,11 +2682,12 @@ _vm_op_DIVU32:                          ; @vm_op_DIVU32
 	lsr	w9, w0, #8
 	sxtw	x8, w8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2571,11 +2703,12 @@ _vm_op_REMS32:                          ; @vm_op_REMS32
 	lsr	w9, w0, #8
 	sxtw	x8, w8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2591,11 +2724,12 @@ _vm_op_REMU32:                          ; @vm_op_REMU32
 	lsr	w9, w0, #8
 	sxtw	x8, w8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2617,11 +2751,12 @@ _vm_op_DIRU32:                          ; @vm_op_DIRU32
 	add	x10, x21, w10, uxtw #3
 	sxtw	x9, w9
 	stp	x8, x9, [x10]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2643,11 +2778,12 @@ _vm_op_DIRS32:                          ; @vm_op_DIRS32
 	add	x10, x21, w10, uxtw #3
 	sxtw	x9, w9
 	stp	x8, x9, [x10]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2656,15 +2792,16 @@ _vm_op_ADD64I:                          ; @vm_op_ADD64I
 	.cfi_startproc
 ; %bb.0:
 	lsr	w8, w0, #8
-	and	w9, w0, #0xff
-	ldr	x10, [x21, w1, uxtw #3]
-	add	x9, x10, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	and	w10, w0, #0xff
+	add	x9, x9, x10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2673,15 +2810,16 @@ _vm_op_SUB64I:                          ; @vm_op_SUB64I
 	.cfi_startproc
 ; %bb.0:
 	lsr	w8, w0, #8
-	and	w9, w0, #0xff
-	ldr	x10, [x21, w1, uxtw #3]
-	sub	x9, x10, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	and	w10, w0, #0xff
+	sub	x9, x9, x10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2690,15 +2828,16 @@ _vm_op_MUL64I:                          ; @vm_op_MUL64I
 	.cfi_startproc
 ; %bb.0:
 	lsr	w8, w0, #8
-	and	w9, w0, #0xff
-	ldr	x10, [x21, w1, uxtw #3]
-	mul	x9, x10, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	and	w10, w0, #0xff
+	mul	x9, x9, x10
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2706,15 +2845,16 @@ _vm_op_MUL64I:                          ; @vm_op_MUL64I
 _vm_op_ADD32I:                          ; @vm_op_ADD32I
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	add	w9, w9, w0, uxtb
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	add	w8, w8, w0, uxtb
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2722,15 +2862,16 @@ _vm_op_ADD32I:                          ; @vm_op_ADD32I
 _vm_op_SUB32I:                          ; @vm_op_SUB32I
 	.cfi_startproc
 ; %bb.0:
-	lsr	w8, w0, #8
-	ldr	x9, [x21, w1, uxtw #3]
-	sub	w9, w9, w0, uxtb
-	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	x8, [x21, w1, uxtw #3]
+	lsr	w9, w0, #8
+	sub	w8, w8, w0, uxtb
+	str	x8, [x21, w9, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2739,15 +2880,16 @@ _vm_op_MUL32I:                          ; @vm_op_MUL32I
 	.cfi_startproc
 ; %bb.0:
 	lsr	w8, w0, #8
-	and	w9, w0, #0xff
-	ldr	x10, [x21, w1, uxtw #3]
-	mul	w9, w9, w10
+	ldr	x9, [x21, w1, uxtw #3]
+	and	w10, w0, #0xff
+	mul	w9, w10, w9
 	str	x9, [x21, w8, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2762,11 +2904,12 @@ _vm_op_MAXS64:                          ; @vm_op_MAXS64
 	csel	x8, x9, x8, gt
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2781,11 +2924,12 @@ _vm_op_MAXU64:                          ; @vm_op_MAXU64
 	csel	x8, x9, x8, hi
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2800,11 +2944,12 @@ _vm_op_MINS64:                          ; @vm_op_MINS64
 	csel	x8, x9, x8, lt
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2819,11 +2964,12 @@ _vm_op_MINU64:                          ; @vm_op_MINU64
 	csel	x8, x9, x8, lo
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2838,11 +2984,12 @@ _vm_op_MAXS32:                          ; @vm_op_MAXS32
 	csel	x8, x9, x8, gt
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2857,11 +3004,12 @@ _vm_op_MAXU32:                          ; @vm_op_MAXU32
 	csel	x8, x9, x8, hi
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2876,11 +3024,12 @@ _vm_op_MINS32:                          ; @vm_op_MINS32
 	csel	x8, x9, x8, lt
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
@@ -2895,11 +3044,12 @@ _vm_op_MINU32:                          ; @vm_op_MINU32
 	csel	x8, x9, x8, lo
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x23, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
 	br	x2
 	.cfi_endproc
                                         ; -- End function
