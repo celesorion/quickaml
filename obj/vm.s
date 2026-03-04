@@ -67,8 +67,8 @@ Lloh1:
 	.loh AdrpAdd	Lloh0, Lloh1
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_TRAP
-_vm_op_TRAP:                            ; @vm_op_TRAP
+	.p2align	5                               ; -- Begin function vm_op_Trap
+_vm_op_Trap:                            ; @vm_op_Trap
 	.cfi_startproc
 ; %bb.0:
 	sub	sp, sp, #32
@@ -227,8 +227,8 @@ Lloh12:
 	.loh AdrpLdrGotLdr	Lloh8, Lloh9, Lloh10
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_NOP
-_vm_op_NOP:                             ; @vm_op_NOP
+	.p2align	5                               ; -- Begin function vm_op_Nop
+_vm_op_Nop:                             ; @vm_op_Nop
 	.cfi_startproc
 ; %bb.0:
 	ldrb	w8, [x20]
@@ -239,8 +239,8 @@ _vm_op_NOP:                             ; @vm_op_NOP
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_MOV
-_vm_op_MOV:                             ; @vm_op_MOV
+	.p2align	5                               ; -- Begin function vm_op_Move
+_vm_op_Move:                            ; @vm_op_Move
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w0, uxtw #3]
@@ -253,15 +253,15 @@ _vm_op_MOV:                             ; @vm_op_MOV
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_EXTA
-_vm_op_EXTA:                            ; @vm_op_EXTA
+	.p2align	5                               ; -- Begin function vm_op_Exta
+_vm_op_Exta:                            ; @vm_op_Exta
 	.cfi_startproc
 ; %bb.0:
 	b	_unusedexta
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_LSI16
-_vm_op_LSI16:                           ; @vm_op_LSI16
+	.p2align	5                               ; -- Begin function vm_op_LoadI
+_vm_op_LoadI:                           ; @vm_op_LoadI
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
@@ -275,8 +275,8 @@ _vm_op_LSI16:                           ; @vm_op_LSI16
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_LZI16
-_vm_op_LZI16:                           ; @vm_op_LZI16
+	.p2align	5                               ; -- Begin function vm_op_LoaduI
+_vm_op_LoaduI:                          ; @vm_op_LoaduI
 	.cfi_startproc
 ; %bb.0:
 	mov	w8, w0
@@ -289,39 +289,8 @@ _vm_op_LZI16:                           ; @vm_op_LZI16
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_LSI32
-_vm_op_LSI32:                           ; @vm_op_LSI32
-	.cfi_startproc
-; %bb.0:
-	ldr	w8, [x20]
-	extr	w8, w0, w8, #8
-	sxtw	x8, w8
-	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20, #4]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
-	br	x2
-	.cfi_endproc
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_LZI32
-_vm_op_LZI32:                           ; @vm_op_LZI32
-	.cfi_startproc
-; %bb.0:
-	ldr	w8, [x20]
-	extr	w8, w0, w8, #8
-	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x20, #4]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #5]
-	ldrh	w0, [x20, #6]
-	add	x20, x20, #8
-	br	x2
-	.cfi_endproc
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_LC
-_vm_op_LC:                              ; @vm_op_LC
+	.p2align	5                               ; -- Begin function vm_op_LoadC
+_vm_op_LoadC:                           ; @vm_op_LoadC
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x22, #40]
@@ -335,8 +304,8 @@ _vm_op_LC:                              ; @vm_op_LC
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_APP
-_vm_op_APP:                             ; @vm_op_APP
+	.p2align	5                               ; -- Begin function vm_op_Apply
+_vm_op_Apply:                           ; @vm_op_Apply
 	.cfi_startproc
 ; %bb.0:
 	add	x21, x21, w1, uxtw #3
@@ -344,7 +313,7 @@ _vm_op_APP:                             ; @vm_op_APP
 	ldr	x8, [x9, #8]
 	ldr	x10, [x22, #56]
 	cmp	x21, x10
-	b.hs	LBB10_2
+	b.hs	LBB8_2
 ; %bb.1:
 	stp	x8, x20, [x21, #-16]
 	str	x9, [x21]
@@ -354,13 +323,13 @@ _vm_op_APP:                             ; @vm_op_APP
 	ldrh	w0, [x8, #10]
 	add	x20, x8, #12
 	br	x2
-LBB10_2:
+LBB8_2:
 	add	x20, x8, #8
 	b	_stackoverflow
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_CALL
-_vm_op_CALL:                            ; @vm_op_CALL
+	.p2align	5                               ; -- Begin function vm_op_Call
+_vm_op_Call:                            ; @vm_op_Call
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
@@ -370,7 +339,7 @@ _vm_op_CALL:                            ; @vm_op_CALL
 	add	x21, x9, #16
 	ldr	x9, [x22, #56]
 	cmp	x21, x9
-	b.hs	LBB11_2
+	b.hs	LBB9_2
 ; %bb.1:
 	stp	x8, x20, [x21, #-16]
 	ldrb	w9, [x8, #8]
@@ -379,14 +348,14 @@ _vm_op_CALL:                            ; @vm_op_CALL
 	ldrh	w0, [x8, #10]
 	add	x20, x8, #12
 	br	x2
-LBB11_2:
+LBB9_2:
 	add	x20, x8, #8
                                         ; kill: def $w0 killed $w0 killed $x0
 	b	_stackoverflow
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_JMP
-_vm_op_JMP:                             ; @vm_op_JMP
+	.p2align	5                               ; -- Begin function vm_op_Jmp
+_vm_op_Jmp:                             ; @vm_op_Jmp
 	.cfi_startproc
 ; %bb.0:
                                         ; kill: def $w0 killed $w0 def $x0
@@ -399,8 +368,8 @@ _vm_op_JMP:                             ; @vm_op_JMP
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_JR
-_vm_op_JR:                              ; @vm_op_JR
+	.p2align	5                               ; -- Begin function vm_op_Jr
+_vm_op_Jr:                              ; @vm_op_Jr
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
@@ -413,8 +382,8 @@ _vm_op_JR:                              ; @vm_op_JR
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_DISP
-_vm_op_DISP:                            ; @vm_op_DISP
+	.p2align	5                               ; -- Begin function vm_op_Disp
+_vm_op_Disp:                            ; @vm_op_Disp
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
@@ -429,8 +398,8 @@ _vm_op_DISP:                            ; @vm_op_DISP
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_RETU
-_vm_op_RETU:                            ; @vm_op_RETU
+	.p2align	5                               ; -- Begin function vm_op_Retu
+_vm_op_Retu:                            ; @vm_op_Retu
 	.cfi_startproc
 ; %bb.0:
 	str	xzr, [x21, #-16]!
@@ -445,8 +414,8 @@ _vm_op_RETU:                            ; @vm_op_RETU
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_RET
-_vm_op_RET:                             ; @vm_op_RET
+	.p2align	5                               ; -- Begin function vm_op_Ret
+_vm_op_Ret:                             ; @vm_op_Ret
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
@@ -462,48 +431,48 @@ _vm_op_RET:                             ; @vm_op_RET
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_RETN
-_vm_op_RETN:                            ; @vm_op_RETN
+	.p2align	5                               ; -- Begin function vm_op_Retn
+_vm_op_Retn:                            ; @vm_op_Retn
 	.cfi_startproc
 ; %bb.0:
 	ldur	x8, [x21, #-8]
 	sub	x9, x21, #16
-	cbz	w0, LBB17_8
+	cbz	w0, LBB15_8
 ; %bb.1:
 	mov	w10, w1
 	mov	w11, w0
 	cmp	w0, #7
-	b.hi	LBB17_3
+	b.hi	LBB15_3
 ; %bb.2:
 	mov	x12, #0                         ; =0x0
-	b	LBB17_6
-LBB17_3:
+	b	LBB15_6
+LBB15_3:
 	and	x12, x11, #0xfff8
 	add	x13, x21, #48
 	add	x14, x21, x10, lsl #3
 	add	x14, x14, #32
 	mov	x15, x12
-LBB17_4:                                ; =>This Inner Loop Header: Depth=1
+LBB15_4:                                ; =>This Inner Loop Header: Depth=1
 	ldp	q0, q1, [x14, #-32]
 	ldp	q2, q3, [x14], #64
 	stp	q0, q1, [x13, #-64]
 	stp	q2, q3, [x13, #-32]
 	add	x13, x13, #64
 	subs	x15, x15, #8
-	b.ne	LBB17_4
+	b.ne	LBB15_4
 ; %bb.5:
 	cmp	x12, x11
-	b.eq	LBB17_8
-LBB17_6:
+	b.eq	LBB15_8
+LBB15_6:
 	add	x13, x21, x12, lsl #3
 	sub	x11, x11, x12
-LBB17_7:                                ; =>This Inner Loop Header: Depth=1
+LBB15_7:                                ; =>This Inner Loop Header: Depth=1
 	ldr	x12, [x13, x10, lsl #3]
 	stur	x12, [x13, #-16]
 	add	x13, x13, #8
 	subs	x11, x11, #1
-	b.ne	LBB17_7
-LBB17_8:
+	b.ne	LBB15_7
+LBB15_8:
 	ldurb	w10, [x8, #-3]
 	sub	x21, x9, x10, lsl #3
 	ldrb	w9, [x8]
@@ -514,14 +483,14 @@ LBB17_8:
 	br	x2
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_MOBJ
-_vm_op_MOBJ:                            ; @vm_op_MOBJ
+	.p2align	5                               ; -- Begin function vm_op_MkObj
+_vm_op_MkObj:                           ; @vm_op_MkObj
 	.cfi_startproc
 ; %bb.0:
 	mov	x19, x1
 	ldr	x8, [x22, #32]
 	cmp	x8, w0, uxtw
-	b.lo	LBB18_2
+	b.lo	LBB16_2
 ; %bb.1:
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
 	mov	x29, sp
@@ -547,13 +516,13 @@ _vm_op_MOBJ:                            ; @vm_op_MOBJ
 	add	x20, x20, #8
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB18_2:
+LBB16_2:
 	mov	x1, x19
 	b	_invalidlayout
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_MCLOS
-_vm_op_MCLOS:                           ; @vm_op_MCLOS
+	.p2align	5                               ; -- Begin function vm_op_Clos
+_vm_op_Clos:                            ; @vm_op_Clos
 	.cfi_startproc
 ; %bb.0:
 	b	_unimplemented
@@ -576,8 +545,8 @@ Lloh14:
 _diverge:                               ; @diverge
 	.cfi_startproc
 ; %bb.0:
-LBB21_1:                                ; =>This Inner Loop Header: Depth=1
-	b	LBB21_1
+LBB19_1:                                ; =>This Inner Loop Header: Depth=1
+	b	LBB19_1
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function unusedexta
@@ -696,25 +665,23 @@ Lloh31:
 	.section	__DATA,__const
 	.p2align	3, 0x0                          ; @dispatch
 _dispatch:
-	.quad	_vm_op_TRAP
-	.quad	_vm_op_NOP
-	.quad	_vm_op_MOV
-	.quad	_vm_op_EXTA
-	.quad	_vm_op_LSI16
-	.quad	_vm_op_LZI16
-	.quad	_vm_op_LSI32
-	.quad	_vm_op_LZI32
-	.quad	_vm_op_LC
-	.quad	_vm_op_APP
-	.quad	_vm_op_CALL
-	.quad	_vm_op_JMP
-	.quad	_vm_op_JR
-	.quad	_vm_op_DISP
-	.quad	_vm_op_RETU
-	.quad	_vm_op_RET
-	.quad	_vm_op_RETN
-	.quad	_vm_op_MOBJ
-	.quad	_vm_op_MCLOS
+	.quad	_vm_op_Trap
+	.quad	_vm_op_Nop
+	.quad	_vm_op_Move
+	.quad	_vm_op_Exta
+	.quad	_vm_op_LoadI
+	.quad	_vm_op_LoaduI
+	.quad	_vm_op_LoadC
+	.quad	_vm_op_Apply
+	.quad	_vm_op_Call
+	.quad	_vm_op_Jmp
+	.quad	_vm_op_Jr
+	.quad	_vm_op_Disp
+	.quad	_vm_op_Retu
+	.quad	_vm_op_Ret
+	.quad	_vm_op_Retn
+	.quad	_vm_op_MkObj
+	.quad	_vm_op_Clos
 
 	.section	__TEXT,__cstring,cstring_literals
 l_.str:                                 ; @.str

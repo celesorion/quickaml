@@ -3,26 +3,24 @@
 
 // clang-format off
 #define OPS(_) \
-  _(TRAP,   "trap",     "trap",               3) \
-  _(NOP,    "nop",      "nop",                0) \
-  _(MOV,    "mov",      "move",               2) \
-  _(EXTA,   "exta",     "ext-arg",            3) \
-  _(LSI16,  "lsi16",    "load-sext-imm16",    2) \
-  _(LZI16,  "lzi16",    "load-zext-imm16",    2) \
-  _(LSI32,  "lsi32",    "load-sext-imm32",    2) \
-  _(LZI32,  "lzi32",    "load-zext-imm32",    2) \
-  _(LC,     "lc",       "load-const",         2) \
-  _(APP,    "app",      "apply-n",            1) \
-  _(CALL,   "call",     "call-n",             2) \
-  _(JMP,    "jmp",      "jump",               1) \
-  _(JR,     "jr",       "jump-register",      1) \
-  _(DISP,   "disp",     "dispatch",           2) \
-  _(RETU,   "retu",     "return-unit",        0) \
-  _(RET,    "ret",      "return",             1) \
-  _(RETN,   "retn",     "return-n",           2) \
+  _(Trap,    "trap",     "trap",               3) \
+  _(Nop,     "nop",      "nop",                0) \
+  _(Move,    "mov",      "move",               2) \
+  _(Exta,    "exta",     "ext-arg",            3) \
+  _(LoadI,   "lsi16",    "load-sext-imm16",    2) \
+  _(LoaduI,  "lzi16",    "load-zext-imm16",    2) \
+  _(LoadC,   "lc",       "load-const",         2) \
+  _(Apply,   "app",      "apply-n",            1) \
+  _(Call,    "call",     "call-n",             2) \
+  _(Jmp,     "jmp",      "jump",               1) \
+  _(Jr,      "jr",       "jump-register",      1) \
+  _(Disp,    "disp",     "dispatch",           2) \
+  _(Retu,    "retu",     "return-unit",        0) \
+  _(Ret,     "ret",      "return",             1) \
+  _(Retn,    "retn",     "return-n",           2) \
   \
-  _(MOBJ,   "mobj",     "make-object",        3) \
-  _(MCLOS,  "mclos",    "make-closure",       3)
+  _(MkObj,   "mobj",     "make-object",        3) \
+  _(Clos,    "mclos",    "make-closure",       3)
 // clang-format on
 
 typedef enum {
@@ -35,58 +33,62 @@ typedef enum {
 static_assert(LIMIT <= 256);
 
 #define insn(i) ((i))
-#define opcode(i) ((i) & 0xff)
-#define arg3A(i) (((i) >> 8) & 0xff)
-#define arg3B(i) (((i) >> 16) & 0xff)
-#define arg3C(i) ((i) >> 24)
-#define arg2A(i) arg3A(i)
-#define arg2B(i) ((i) >> 16)
-#define arg2sB(i) ((int32_t)(i) >> 16)
-#define arg1A(i) ((uint32_t)(i) >> 8)
-#define arg1sA(i) ((int32_t)(i) >> 8)
-#define arg3B2B(i) (((uint32_t)(i)) & 0xff)
-#define arg3C2B(i) ((((uint32_t)(i)) >> 8) & 0xff)
+#define gOP(i) ((i) & 0xff)
+#define g3A(i) (((i) >> 8) & 0xff)
+#define g3B(i) (((i) >> 16) & 0xff)
+#define g3C(i) ((i) >> 24)
+#define g2A(i) g3A(i)
+#define g2B(i) ((i) >> 16)
+#define g2sB(i) ((int32_t)(i) >> 16)
+#define g1A(i) ((uint32_t)(i) >> 8)
+#define g1sA(i) ((int32_t)(i) >> 8)
+#define g3B_of_2B(i) (((uint32_t)(i)) & 0xff)
+#define g3C_of_2B(i) ((((uint32_t)(i)) >> 8) & 0xff)
 
 #define insnP(ip) (*(ip))
-#define opcodeP(ip) (((uint8_t *)(ip))[0])
-#define arg3AP(ip) (((uint8_t *)(ip))[1])
-#define arg3BP(ip) (((uint8_t *)(ip))[2])
-#define arg3CP(ip) (((uint8_t *)(ip))[3])
-#define arg2AP(ip) arg3AP(ip)
-#define arg2BP(ip) (((uint16_t *)(ip))[1])
-#define arg2sBP(ip) (((int16_t *)(ip))[1])
-#define arg1sAP(ip) ((int32_t)(*(ip)) >> 8)
-#define arg1AP(ip) ((uint32_t)(*(ip)) >> 8)
+#define gpOP(ip) (((uint8_t *)(ip))[0])
+#define gp3A(ip) (((uint8_t *)(ip))[1])
+#define gp3B(ip) (((uint8_t *)(ip))[2])
+#define gp3C(ip) (((uint8_t *)(ip))[3])
+#define gp2A(ip) gp3A(ip)
+#define gp2B(ip) (((uint16_t *)(ip))[1])
+#define gp2sB(ip) (((int16_t *)(ip))[1])
+#define gp1sA(ip) ((int32_t)(*(ip)) >> 8)
+#define gp1A(ip) ((uint32_t)(*(ip)) >> 8)
 
-#define mkOP(x_) (((bc_t)(x_)) & 0xff)
-#define mk3A(x_) ((((bc_t)(x_)) & 0xff) << 8)
-#define mk3B(x_) ((((bc_t)(x_)) & 0xff) << 16)
-#define mk3C(x_) ((((bc_t)(x_)) & 0xff) << 24)
-#define mk2A(x_) ((((bc_t)(x_)) & 0xff) << 8)
-#define mk2B(x_) ((((bc_t)(x_)) & 0xffff) << 16)
+#define vOP(x_) (((bc_t)(x_)) & 0xff)
+#define v3A(x_) ((((bc_t)(x_)) & 0xff) << 8)
+#define v3B(x_) ((((bc_t)(x_)) & 0xff) << 16)
+#define v3C(x_) ((((bc_t)(x_)) & 0xff) << 24)
+#define v2A(x_) ((((bc_t)(x_)) & 0xff) << 8)
+#define v2B(x_) ((((bc_t)(x_)) & 0xffff) << 16)
+#define v1A(x_) ((((bc_t)(x_)) & 0xffffff) << 8)
 
-#define make3ABC(op, a, b, c) (mkOP(op) | mk3A(a) | mk3B(b) | mk3C(c))
-#define make2AB(op, a, b) (mkOP(op) | mk2A(a) | mk2B(b))
-#define make2A(op, a) make2AB(op, a, 0)
-#define make2B(op, b) make2AB(op, 0, b)
+#define mk3(op, a, b, c) (vOP(op) | v3A(a) | v3B(b) | v3C(c))
+#define mk2(op, a, b) (vOP(op) | v2A(a) | v2B(b))
+#define mk2A(op, a) mk2(op, a, 0)
+#define mk2B(op, b) mk2(op, 0, b)
+#define mk1(op, a) (vOP(op) | v1A(a))
 
+// clang-format off
 /*
 
-MSB               24                16                8               LSB
-+-----------------+-----------------+-----------------+-----------------+
-|      3C(X)      |      3B(Z)      |      3A(Y)      |       OP        |
-+-----------------+-----------------+-----------------+-----------------+
+          MSB               24                16                8               LSB
+          +-----------------+-----------------+-----------------+-----------------+
+  T3      |      3C(X)      |      3B(Z)      |      3A(Y)      |       OP        |
+          +-----------------+-----------------+-----------------+-----------------+
 
-MSB                                                                   LSB
-+-----------------------------------+-----------------+-----------------+
-|              2(s)B                |        2A       |       OP        |
-+-----------------------------------+-----------------+-----------------+
+          MSB                                                                   LSB
+          +-----------------------------------+-----------------+-----------------+
+  T2      |              2(s)B                |        2A       |       OP        |
+          +-----------------------------------+-----------------+-----------------+
 
-MSB                                                                   LSB
-+-----------------------------------------------------+-----------------+
-|                       1(s)A                         |       OP        |
-+-----------------------------------------------------+-----------------+
+          MSB                                                                   LSB
+          +-----------------------------------------------------+-----------------+
+  T1      |                       1(s)A                         |       OP        |
+          +-----------------------------------------------------+-----------------+
 
 */
+// clang-format on
 
 #endif

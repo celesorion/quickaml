@@ -55,21 +55,21 @@
 
 #define FETCH_INSN_IMPL_1() bc_t insn = *ip
 
-#define DECODE_OP_IMPL_1() op_t op = opcode(insn);
+#define DECODE_OP_IMPL_1() op_t op = gOP(insn);
 
-#define DECODE_A3A_IMPL_1() a3a = arg3A(insn)
+#define DECODE_A3A_IMPL_1() a3a = g3A(insn)
 
-#define DECODE_A2SB_IMPL_1() a2b = arg2B(insn)
+#define DECODE_A2SB_IMPL_1() a2b = g2B(insn)
 
 #define INC_IP_IMPL_1() ip++
 
 #define FETCH_INSN_IMPL_2() bc_t *insnp = ip
 
-#define DECODE_OP_IMPL_2() op_t op = opcodeP(insnp);
+#define DECODE_OP_IMPL_2() op_t op = gpOP(insnp);
 
-#define DECODE_A3A_IMPL_2() a3a = arg3AP(insnp)
+#define DECODE_A3A_IMPL_2() a3a = gp3A(insnp)
 
-#define DECODE_A2SB_IMPL_2() a2b = arg2BP(insnp)
+#define DECODE_A2SB_IMPL_2() a2b = gp2B(insnp)
 
 #define INC_IP_IMPL_2() ip++
 
@@ -103,21 +103,21 @@
 #define DECODE_A3A DECODE_A3A_IMPL_1
 #define DECODE_A2SB DECODE_A2SB_IMPL_1
 #define NEXT_INSN(x) bc_t x = *ip++
-#define EXTRA_ARG(x) arg1sA(x)
-#define EXTRA_ARGU(x) arg1A(x)
+#define EXTRA_ARG(x) g1sA(x)
+#define EXTRA_ARGU(x) g1A(x)
 #define INSN(x) insn(x)
 #define ARG3A a3a
-#define ARG3B arg3B2B(a2b)
-#define ARG3C arg3C2B(a2b)
+#define ARG3B g3B_of_2B(a2b)
+#define ARG3C g3C_of_2B(a2b)
 #define ARG3X ARG3C
 #define ARG3Y ARG3A
 #define ARG3Z ARG3B
 #define ARG2A a3a
 #define ARG2B a2b
-#define JUMP_OFFSET(x) arg2sB(x)
+#define JUMP_OFFSET(x) g2sB(x)
 #define GET_FO(fo)                                                             \
   bc_t prev_insn = ra[-1];                                                     \
-  ssz_t fo = arg3A(prev_insn)
+  ssz_t fo = g3A(prev_insn)
 
 #elif defined(DECODE_MODE) && DECODE_MODE == 1
 #define PARAMS PARAMS_IMPL_2
@@ -128,21 +128,21 @@
 #define DECODE_A3A DECODE_A3A_IMPL_2
 #define DECODE_A2SB DECODE_A2SB_IMPL_2
 #define NEXT_INSN(x) bc_t *x = ip++
-#define EXTRA_ARG(x) arg1sAP(x)
-#define EXTRA_ARGU(x) arg1AP(x)
+#define EXTRA_ARG(x) gp1sA(x)
+#define EXTRA_ARGU(x) gp1A(x)
 #define INSN(x) insnP(x)
 #define ARG3A a3a
-#define ARG3B arg3B2B(a2b)
-#define ARG3C arg3C2B(a2b)
+#define ARG3B g3B_of_2B(a2b)
+#define ARG3C g3C_of_2B(a2b)
 #define ARG3X ARG3C
 #define ARG3Y ARG3A
 #define ARG3Z ARG3B
 #define ARG2A a3a
 #define ARG2B a2b
-#define JUMP_OFFSET(x) arg2sBP(x)
+#define JUMP_OFFSET(x) gp2sB(x)
 #define GET_FO(fo)                                                             \
   bc_t *prev_insnp = ra - 1;                                                   \
-  ssz_t fo = arg3AP(prev_insnp)
+  ssz_t fo = gp3A(prev_insnp)
 
 #endif
 

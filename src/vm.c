@@ -12,9 +12,6 @@
 
 static opthread *const dispatch[];
 
-INLINE
-int sgn(val_t x) { return (x > (val_t)0) - (x < (val_t)0); }
-
 [[gnu::noinline]]
 status_t vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
@@ -88,7 +85,7 @@ void diverge(PARAMS) {
 THREADED
 void halt(PARAMS) { return; }
 
-OP_DEFINITION(TRAP) {
+OP_DEFINITION(Trap) {
   ssz_t tid = ARG3A;
   switch (tid) {
   case T_UNDEFINED:
@@ -142,9 +139,9 @@ OP_DEFINITION(TRAP) {
   DISPATCH();
 }
 
-OP_DEFINITION(NOP) { DISPATCH(); }
+OP_DEFINITION(Nop) { DISPATCH(); }
 
-OP_DEFINITION(MOV) {
+OP_DEFINITION(Move) {
   ssz_t dst = ARG2A;
   ssz_t src = ARG2B;
 
@@ -153,9 +150,9 @@ OP_DEFINITION(MOV) {
   DISPATCH();
 }
 
-OP_DEFINITION(EXTA) { MUSTTAIL return unusedexta(ARGS); }
+OP_DEFINITION(Exta) { MUSTTAIL return unusedexta(ARGS); }
 
-OP_DEFINITION(LSI16) {
+OP_DEFINITION(LoadI) {
   ssz_t dst = ARG2A;
 
   bp[dst] = sign_extend(ARG2B, 16, 64);
@@ -163,7 +160,7 @@ OP_DEFINITION(LSI16) {
   DISPATCH();
 }
 
-OP_DEFINITION(LZI16) {
+OP_DEFINITION(LoaduI) {
   ssz_t dst = ARG2A;
 
   bp[dst] = zero_extend(ARG2B, 16, 64);
@@ -171,33 +168,7 @@ OP_DEFINITION(LZI16) {
   DISPATCH();
 }
 
-OP_DEFINITION(LSI32) {
-  ssz_t dst = ARG2A;
-
-  NEXT_INSN(exta);
-
-  uint32_t low24 = EXTRA_ARGU(exta);
-  uint32_t high8 = ARG2B << 24;
-
-  bp[dst] = sign_extend(low24 | high8, 32, 64);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(LZI32) {
-  ssz_t dst = ARG2A;
-
-  NEXT_INSN(exta);
-
-  uint32_t low24 = EXTRA_ARGU(exta);
-  uint32_t high8 = ARG2B << 24;
-
-  bp[dst] = zero_extend(low24 | high8, 32, 64);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(LC) {
+OP_DEFINITION(LoadC) {
   ssz_t dst = ARG2A;
   val_t imm = ARG2B;
 
@@ -206,7 +177,7 @@ OP_DEFINITION(LC) {
   DISPATCH();
 }
 
-OP_DEFINITION(APP) {
+OP_DEFINITION(Apply) {
   ssz_t iclos = ARG2A;
 
   struct closure *clos = val2ptr(bp[iclos]);
@@ -229,7 +200,7 @@ OP_DEFINITION(APP) {
   DISPATCH();
 }
 
-OP_DEFINITION(CALL) {
+OP_DEFINITION(Call) {
   ssz_t dst = ARG3A;
   ssz_t fx = ARG3B;
 
@@ -249,7 +220,7 @@ OP_DEFINITION(CALL) {
   DISPATCH();
 }
 
-OP_DEFINITION(JMP) {
+OP_DEFINITION(Jmp) {
   joff_t target = val2off(sign_extend(ARG2B, 16, 64));
 
   ip = add2ip(ip, target);
@@ -257,7 +228,7 @@ OP_DEFINITION(JMP) {
   DISPATCH();
 }
 
-OP_DEFINITION(JR) {
+OP_DEFINITION(Jr) {
   val_t src = ARG2A;
   joff_t target = val2off(bp[src]);
 
@@ -266,7 +237,7 @@ OP_DEFINITION(JR) {
   DISPATCH();
 }
 
-OP_DEFINITION(DISP) {
+OP_DEFINITION(Disp) {
   ssz_t dispatched = ARG2A;
   int32_t base = sign_extend(ARG2B, 16, 32);
 
@@ -276,7 +247,7 @@ OP_DEFINITION(DISP) {
   DISPATCH();
 }
 
-OP_DEFINITION(RETU) {
+OP_DEFINITION(Retu) {
   frame_rv(bp) = 0;
 
   bc_t *ra = val2ptr(frame_ra(bp));
@@ -289,7 +260,7 @@ OP_DEFINITION(RETU) {
   DISPATCH();
 }
 
-OP_DEFINITION(RET) {
+OP_DEFINITION(Ret) {
   ssz_t rv = ARG2A;
 
   frame_rv(bp) = bp[rv];
@@ -304,7 +275,7 @@ OP_DEFINITION(RET) {
   DISPATCH();
 }
 
-OP_DEFINITION(RETN) {
+OP_DEFINITION(Retn) {
   ssz_t rv = ARG2A;
   ssz_t nargs = ARG2B;
 
@@ -323,7 +294,7 @@ OP_DEFINITION(RETN) {
   DISPATCH();
 }
 
-OP_DEFINITION(MOBJ) {
+OP_DEFINITION(MkObj) {
   ssz_t dst = ARG2A;
   ssz_t layout = ARG2B;
 
@@ -342,7 +313,7 @@ OP_DEFINITION(MOBJ) {
   DISPATCH();
 }
 
-OP_DEFINITION(MCLOS) { MUSTTAIL return unimplemented(ARGS); }
+OP_DEFINITION(Clos) { MUSTTAIL return unimplemented(ARGS); }
 
 static opthread *const dispatch[] = {
 #define OPIMPLS(op, mnemonic, name, n) vm_op_##op,
