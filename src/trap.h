@@ -10,7 +10,7 @@
   _(T_PRINTREGSX, "print-regs-hex")                                            \
   _(T_ASSERT_EQ, "assert-eq")                                                  \
   _(T_PRINTOBJ, "print-obj")                                                   \
-  _(T_HEAPSTAT, "heap-stat")                                                   \
+  _(T_HEAPSTAT, "heap-stat")
 
 typedef enum {
 #define TLIST(t, desc) t,

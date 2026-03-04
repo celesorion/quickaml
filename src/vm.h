@@ -172,64 +172,6 @@
 #define PCALL_VOID(f_, ...) PCALL_AARCH64(PCALL_INNER_VOID, 0, f_, __VA_ARGS__)
 #endif
 
-typedef enum {
-  EQZ_64,
-  EQZ_32,
-  NEZ_64,
-  NEZ_32,
-  EQ_64,
-  NE_64,
-  LT_S64,
-  LE_S64,
-  LT_U64,
-  LE_U64,
-  EQ_32,
-  NE_32,
-  LT_S32,
-  LE_S32,
-  LT_U32,
-  LE_U32,
-  EQ_F64,
-  NE_F64,
-  LT_F64,
-  LE_F64,
-} cond_t;
-
-typedef enum {
-  SEXT_8_32,
-  SEXT_16_32,
-  SEXT_8_64,
-  SEXT_16_64,
-  SEXT_32_64,
-} ext_t;
-
-typedef enum {
-  WRAP_8,
-  WRAP_16,
-  WRAP_32,
-} wrap_t;
-
-typedef enum {
-  CTZ_8,
-  CTZ_16,
-  CTZ_32,
-  CTZ_64,
-} ctz_t;
-
-typedef enum {
-  CLZ_8,
-  CLZ_16,
-  CLZ_32,
-  CLZ_64,
-} clz_t;
-
-typedef enum {
-  POPCNT_8,
-  POPCNT_16,
-  POPCNT_32,
-  POPCNT_64,
-} popcnt_t;
-
 #define cast(x, t) ((t)(x))
 #define cast_u(x, width) ((uint##width##_t)(x))
 #define cast_s(x, width) ((int##width##_t)(uint##width##_t)(x))

@@ -1,6 +1,4 @@
 #include "alloc.h"
-#include "frame.h"
-#include "object.h"
 #include "vm.h"
 
 #include <stdlib.h>
@@ -65,7 +63,8 @@ static bool worklist_is_empty(struct heap *h) { return h->scan == h->bump; }
 
 static size_t get_object_size(void *ref) {
   struct object *obj = ref;
-  return object_get_size(obj->hd);
+  // TODO: get object size
+  return 0;
 }
 
 static void *worklist_pop(struct heap *h) {
@@ -104,42 +103,7 @@ static void heap_process_field(struct state *restrict st, struct heap *h,
 }
 
 static void heap_scan_object(struct state *restrict st, struct heap *h,
-                             void *restrict ref) {
-  struct nextptr next;
-  struct object *obj = ref;
-  struct layoutdesc *layout = object_get_layout(obj->hd);
-  trace(st, TRACE_0, "heap_scan_object: scanning object %p", obj);
-  if (need_scan_fields(layout)) {
-    assert_assume(layout->kind == LAYOUT_CANONICAL ||
-                  layout->kind == LAYOUT_HYBIRD);
-    switch (layout->kind) {
-    case LAYOUT_CANONICAL:
-      next =
-          layout_canonical_ptr_next(layout_canonical_ptr_scan_init(), layout);
-      while (next.index != NOT_FOUND) {
-        size_t offset = next.offset;
-        void **field = (void **)&obj->fields[offset];
-        trace(st, TRACE_0, "heap_scan_object: scanning field %zu of %p", offset,
-              obj);
-        heap_process_field(st, h, field);
-        next = layout_canonical_ptr_next(next, layout);
-      }
-      break;
-    case LAYOUT_HYBIRD:
-      next = layout_canonical_ptr_next(layout_hybird_ptr_scan_init(layout),
-                                       layout);
-      while (next.index != NOT_FOUND) {
-        size_t offset = next.offset;
-        void **field = (void **)&obj->fields[offset];
-        trace(st, TRACE_0, "heap_scan_object: scanning field %zu of %p", offset,
-              obj);
-        heap_process_field(st, h, field);
-        next = layout_hybird_ptr_next(next, layout);
-      }
-      break;
-    }
-  }
-}
+                             void *restrict ref) {}
 
 void heap_collect_start(struct heap *h) {
   heap_flip(h);
@@ -163,22 +127,7 @@ void heap_collect_end(struct state *restrict st, struct heap *h) {
   struct heap *heap = st->heap;
   heap_collect_start(heap);
 
-  struct function *fn = (void *)frame_rv(bp);
-
-  struct nextptr next;
-  next = frame_ptr_next(frame_ptr_scan_init(fn->desc), fn->desc);
-  trace(st, TRACE_0, "alloc_object_fallback: fn ptrmap %lu %lu %lu %lu",
-        fn->desc->ptrmap[0], fn->desc->ptrmap[1], fn->desc->ptrmap[2],
-        fn->desc->ptrmap[3]);
-
-  while (next.index != NOT_FOUND) {
-    size_t offset = next.offset;
-    val_t *ptr = bp + offset;
-    trace(st, TRACE_0, "alloc_object_fallback: gc root bp[%zu] *%p=%p, meta=%x",
-          offset, ptr, *ptr, ((struct object *)*ptr)->hd);
-    heap_collect_add_root(st, heap, (void **)ptr);
-    next = frame_ptr_next(next, fn->desc);
-  }
+  // TODO: do collection
 
   heap_collect_end(st, heap);
 
