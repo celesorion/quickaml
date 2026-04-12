@@ -1,10 +1,12 @@
 #include "alloc.h"
 #include "state.h"
+#include "trace.h"
 #include "vm.h"
 
 status_t exec(struct state *state) { return vm_entry(state); }
 
 int main(int argc, const char *const argv[]) {
+  (void)argv;
   if (argc <= 1)
     return exit_with_status(S_INSUFFICIENT_ARGS);
 

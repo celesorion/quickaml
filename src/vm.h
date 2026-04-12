@@ -114,7 +114,7 @@
 #define ARG3Z ARG3B
 #define ARG2A a3a
 #define ARG2B a2b
-#define JUMP_OFFSET(x) g2sB(x)
+#define JUMP_OFFSET (((int32_t)(int16_t)a2b << 8) | a3a)
 #define GET_FO(fo)                                                             \
   bc_t prev_insn = ra[-1];                                                     \
   ssz_t fo = g3A(prev_insn)
@@ -139,7 +139,7 @@
 #define ARG3Z ARG3B
 #define ARG2A a3a
 #define ARG2B a2b
-#define JUMP_OFFSET(x) gp2sB(x)
+#define JUMP_OFFSET (((int32_t)(int16_t)a2b << 8) | a3a)
 #define GET_FO(fo)                                                             \
   bc_t *prev_insnp = ra - 1;                                                   \
   ssz_t fo = gp3A(prev_insnp)

@@ -1,30 +1,10 @@
 #ifndef QK_BC_H
 #define QK_BC_H
 
-// clang-format off
-#define OPS(_) \
-  _(Trap,    "trap",     "trap",               3) \
-  _(Nop,     "nop",      "nop",                0) \
-  _(Move,    "mov",      "move",               2) \
-  _(Exta,    "exta",     "ext-arg",            3) \
-  _(LoadI,   "lsi16",    "load-sext-imm16",    2) \
-  _(LoaduI,  "lzi16",    "load-zext-imm16",    2) \
-  _(LoadC,   "lc",       "load-const",         2) \
-  _(Apply,   "app",      "apply-n",            1) \
-  _(Call,    "call",     "call-n",             2) \
-  _(Jmp,     "jmp",      "jump",               1) \
-  _(Jr,      "jr",       "jump-register",      1) \
-  _(Disp,    "disp",     "dispatch",           2) \
-  _(Retu,    "retu",     "return-unit",        0) \
-  _(Ret,     "ret",      "return",             1) \
-  _(Retn,    "retn",     "return-n",           2) \
-  \
-  _(MkObj,   "mobj",     "make-object",        3) \
-  _(Clos,    "mclos",    "make-closure",       3)
-// clang-format on
+#include "bclist.def"
 
 typedef enum {
-#define OPLIST(op, mnemonic, longname, n) op,
+#define OPLIST(op, mnemonic) op,
   OPS(OPLIST)
 #undef OPLIST
       LIMIT

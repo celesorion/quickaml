@@ -6,11 +6,19 @@
 #include "trap.h"
 
 #include <inttypes.h>
+#include <limits.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 static opthread *const dispatch[];
+
+enum {
+  // Tags below this threshold are encoded directly as values by `mobj`.
+  // Heap-backed materialization is deferred until allocation/GC semantics land.
+  MOBJ_NON_ALLOC = 4,
+};
 
 [[gnu::noinline]]
 status_t vm_entry(struct state *state) {
@@ -77,6 +85,12 @@ void unusedexta(PARAMS) {
 }
 
 THREADED
+void notanumber(PARAMS) {
+  state->msg = "not a number";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void diverge(PARAMS) {
   for (;;)
     ;
@@ -84,6 +98,74 @@ void diverge(PARAMS) {
 
 THREADED
 void halt(PARAMS) { return; }
+
+INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
+  return flag == UINT16_MAX ? val_is_false(lhs) : val_is_true(lhs);
+}
+
+INLINE int32_t di_imm(uint8_t imm) { return sign_extend(imm, 8, 32); }
+
+#define CMP_DI(op_, lhs_, imm_, badret_, on_true_, on_false_)                  \
+  do {                                                                         \
+    val_t _lhs = (lhs_);                                                       \
+    int32_t _imm = (imm_);                                                     \
+    if (val_is_int(_lhs)) {                                                    \
+      if (val_as_i32(_lhs) op_ _imm) {                                         \
+        on_true_;                                                              \
+      } else {                                                                 \
+        on_false_;                                                             \
+      }                                                                        \
+    } else if (val_is_number(_lhs)) {                                          \
+      if (val_as_f64(_lhs) op_(double) _imm) {                                 \
+        on_true_;                                                              \
+      } else {                                                                 \
+        on_false_;                                                             \
+      }                                                                        \
+    } else {                                                                   \
+      MUSTTAIL return badret_;                                                 \
+    }                                                                          \
+  } while (0)
+
+#define CMP_NUM(op_, lhs_, rhs_, badret_, on_true_, on_false_)                 \
+  do {                                                                         \
+    val_t _lhs = (lhs_);                                                       \
+    val_t _rhs = (rhs_);                                                       \
+    if (val_is_int(_lhs)) {                                                    \
+      if (val_is_int(_rhs)) {                                                  \
+        if (val_as_i32(_lhs) op_ val_as_i32(_rhs)) {                           \
+          on_true_;                                                            \
+        } else {                                                               \
+          on_false_;                                                           \
+        }                                                                      \
+      } else if (val_is_number(_rhs)) {                                        \
+        if ((double)val_as_i32(_lhs) op_ val_as_f64(_rhs)) {                   \
+          on_true_;                                                            \
+        } else {                                                               \
+          on_false_;                                                           \
+        }                                                                      \
+      } else {                                                                 \
+        MUSTTAIL return badret_;                                               \
+      }                                                                        \
+    } else if (val_is_number(_lhs)) {                                          \
+      if (val_is_int(_rhs)) {                                                  \
+        if (val_as_f64(_lhs) op_(double) val_as_i32(_rhs)) {                   \
+          on_true_;                                                            \
+        } else {                                                               \
+          on_false_;                                                           \
+        }                                                                      \
+      } else if (val_is_number(_rhs)) {                                        \
+        if (val_as_f64(_lhs) op_ val_as_f64(_rhs)) {                           \
+          on_true_;                                                            \
+        } else {                                                               \
+          on_false_;                                                           \
+        }                                                                      \
+      } else {                                                                 \
+        MUSTTAIL return badret_;                                               \
+      }                                                                        \
+    } else {                                                                   \
+      MUSTTAIL return badret_;                                                 \
+    }                                                                          \
+  } while (0)
 
 OP_DEFINITION(Trap) {
   ssz_t tid = ARG3A;
@@ -124,8 +206,10 @@ OP_DEFINITION(Trap) {
   }
   case T_PRINTOBJ: {
     ssz_t o = ARG3B;
-    struct object *obj = val2ptr(bp[o]);
-    // TODO: print
+    [[maybe_unused]] int r;
+    PCALL(r, fprintf, stderr, "r%u = ", o);
+    PCALL_VOID(obj_print, stderr, bp[o]);
+    PCALL(r, fprintf, stderr, "\n");
     break;
   }
   case T_HEAPSTAT: {
@@ -141,6 +225,51 @@ OP_DEFINITION(Trap) {
 
 OP_DEFINITION(Nop) { DISPATCH(); }
 
+OP_DEFINITION(Exta) { MUSTTAIL return unusedexta(ARGS); }
+
+OP_DEFINITION(LoadI) {
+  ssz_t dst = ARG2A;
+
+  bp[dst] = val_from_i32(sign_extend(ARG2B, 16, 32));
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LoaduI) {
+  ssz_t dst = ARG2A;
+
+  bp[dst] = val_from_i32(zero_extend(ARG2B, 16, 32));
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LoadC) {
+  ssz_t dst = ARG2A;
+  val_t cidx = ARG2B;
+
+  bp[dst] = state->ctbl[cidx];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LoadF) {
+  ssz_t dst = ARG2A;
+  val_t fidx = ARG2B;
+
+  (void)dst;
+  (void)fidx;
+  MUSTTAIL return unimplemented(ARGS);
+}
+
+OP_DEFINITION(SetF) {
+  ssz_t dst = ARG2A;
+  val_t fidx = ARG2B;
+
+  (void)dst;
+  (void)fidx;
+  MUSTTAIL return unimplemented(ARGS);
+}
+
 OP_DEFINITION(Move) {
   ssz_t dst = ARG2A;
   ssz_t src = ARG2B;
@@ -150,38 +279,11 @@ OP_DEFINITION(Move) {
   DISPATCH();
 }
 
-OP_DEFINITION(Exta) { MUSTTAIL return unusedexta(ARGS); }
-
-OP_DEFINITION(LoadI) {
-  ssz_t dst = ARG2A;
-
-  bp[dst] = sign_extend(ARG2B, 16, 64);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(LoaduI) {
-  ssz_t dst = ARG2A;
-
-  bp[dst] = zero_extend(ARG2B, 16, 64);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(LoadC) {
-  ssz_t dst = ARG2A;
-  val_t imm = ARG2B;
-
-  bp[dst] = state->ctbl[imm];
-
-  DISPATCH();
-}
-
 OP_DEFINITION(Apply) {
   ssz_t iclos = ARG2A;
 
-  struct closure *clos = val2ptr(bp[iclos]);
-  struct function *fn = val2ptr(clos->fp);
+  struct closure *clos = val_as_ptr(bp[iclos]);
+  struct function *fn = clos->fn;
 
   bc_t *oldip = ip;
   ip = fn->ops;
@@ -195,14 +297,14 @@ OP_DEFINITION(Apply) {
   frame_ra(bp) = ptr2val(oldip);
 
   // copy closure to the first slot as arg 0
-  bp[0] = ptr2val(clos);
+  bp[0] = val_from_ptr(clos);
 
   DISPATCH();
 }
 
 OP_DEFINITION(Call) {
-  ssz_t dst = ARG3A;
-  ssz_t fx = ARG3B;
+  ssz_t dst = ARG2A;
+  ssz_t fx = ARG2B;
 
   struct function *fn = val2ptr(fns[fx]);
 
@@ -216,33 +318,6 @@ OP_DEFINITION(Call) {
 
   frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(Jmp) {
-  joff_t target = val2off(sign_extend(ARG2B, 16, 64));
-
-  ip = add2ip(ip, target);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(Jr) {
-  val_t src = ARG2A;
-  joff_t target = val2off(bp[src]);
-
-  ip = add2ip(ip, target);
-
-  DISPATCH();
-}
-
-OP_DEFINITION(Disp) {
-  ssz_t dispatched = ARG2A;
-  int32_t base = sign_extend(ARG2B, 16, 32);
-
-  ssz_t entry = bp[dispatched] + base;
-  ip = add2ip(ip, entry);
 
   DISPATCH();
 }
@@ -294,29 +369,409 @@ OP_DEFINITION(Retn) {
   DISPATCH();
 }
 
-OP_DEFINITION(MkObj) {
+OP_DEFINITION(Clos) {
   ssz_t dst = ARG2A;
-  ssz_t layout = ARG2B;
+  ssz_t fx = ARG2B;
 
-  if (unlikely(layout > state->numobject)) {
-    MUSTTAIL return invalidlayout(ARGS);
-  }
+  struct closure *clos;
+  PCALL(clos, alloc_object, closure_size(0), state, bp);
+  closure_init(clos, fns[fx], 0);
 
-  NEXT_INSN(exta);
-  ssz_t size = EXTRA_ARGU(exta);
-
-  struct object *obj;
-  PCALL(obj, alloc_object, size, state, bp);
-
-  bp[dst] = ptr2val(obj);
+  bp[dst] = val_from_ptr(clos);
 
   DISPATCH();
 }
 
-OP_DEFINITION(Clos) { MUSTTAIL return unimplemented(ARGS); }
+OP_DEFINITION(WObj) {
+  ssz_t fld = ARG3A;
+  ssz_t tag = ARG3B;
+  ssz_t len = ARG3C;
+
+  if (unlikely(tag > state->numobject)) {
+    MUSTTAIL return invalidlayout(ARGS);
+  }
+
+  /* TODO: len or size? */
+
+  struct object *obj;
+  PCALL(obj, alloc_object, object_size(len), state, bp);
+  object_init(obj, (uint16_t)tag, len);
+  for (ssz_t i = 0; i < len; i++)
+    obj->fields[i] = bp[fld + i];
+
+  bp[fld] = val_from_ptr(obj);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(MObj) {
+  ssz_t dst = ARG3A;
+  ssz_t tag = ARG3B;
+  ssz_t src = ARG3C;
+  (void)src;
+
+  if (tag < MOBJ_NON_ALLOC) {
+    bp[dst] = val_from_tag((uint8_t)tag);
+    DISPATCH();
+  }
+
+  if (unlikely(tag > state->numobject)) {
+    MUSTTAIL return invalidlayout(ARGS);
+  }
+
+  // TODO: allocate and materialize heap-backed objects here once the allocator
+  // and GC semantics are ready.
+  bp[dst] = bp[src];
+
+  DISPATCH();
+}
+
+OP_DEFINITION(Jmp) {
+  joff_t target = JUMP_OFFSET;
+
+  ip = add2ip(ip, target);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(Goto) {
+  val_t src = ARG2A;
+  joff_t target =
+      val_is_int(bp[src]) ? (joff_t)val_as_i32(bp[src]) : val2off(bp[src]);
+
+  ip = add2ip(ip, target);
+
+  DISPATCH();
+}
+
+#define DEFINE_OP_ARITH_DI(name_, op_, overflow_)                              \
+  OP_DEFINITION(name_) {                                                       \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    int32_t imm = di_imm(ARG3Z);                                               \
+    if (val_is_int(bp[o1])) {                                                  \
+      int32_t lhs = val_as_i32(bp[o1]);                                        \
+      int32_t out;                                                             \
+      if (!(overflow_))                                                        \
+        bp[dst] = val_from_i32(out);                                           \
+      else                                                                     \
+        bp[dst] = val_from_f64((double)lhs op_(double) imm);                   \
+    } else if (val_is_float(bp[o1])) {                                         \
+      double lhs = val_as_f64(bp[o1]);                                         \
+      bp[dst] = val_from_f64(lhs op_(double) imm);                             \
+    } else {                                                                   \
+      MUSTTAIL return notanumber(ARGS);                                        \
+    }                                                                          \
+    DISPATCH();                                                                \
+  }
+
+#define ARITH_DI_INT_OVERFLOW(op_, overflow_)
+
+DEFINE_OP_ARITH_DI(AddDI, +, __builtin_add_overflow(lhs, imm, &out))
+DEFINE_OP_ARITH_DI(SubDI, -, __builtin_sub_overflow(lhs, imm, &out))
+DEFINE_OP_ARITH_DI(MulDI, *, __builtin_mul_overflow(lhs, imm, &out))
+
+OP_DEFINITION(DivDI) {
+  ssz_t dst = ARG3X;
+  ssz_t o1 = ARG3Y;
+  int32_t imm = di_imm(ARG3Z);
+  if (val_is_int(bp[o1])) {
+    int32_t lhs = val_as_i32(bp[o1]);
+    if (imm != 0 && !(lhs == INT32_MIN && imm == -1) && lhs % imm == 0)
+      bp[dst] = val_from_i32(lhs / imm);
+    else
+      bp[dst] = val_from_f64((double)lhs / (double)imm);
+  } else if (val_is_float(bp[o1])) {
+    double lhs = val_as_f64(bp[o1]);
+    bp[dst] = val_from_f64(lhs / (double)imm);
+  } else {
+    MUSTTAIL return notanumber(ARGS);
+  }
+  DISPATCH();
+}
+
+OP_DEFINITION(ModDI) {
+  ssz_t dst = ARG3X;
+  ssz_t o1 = ARG3Y;
+  int32_t imm = di_imm(ARG3Z);
+  if (val_is_int(bp[o1])) {
+    int32_t lhs = val_as_i32(bp[o1]);
+    if (imm != 0)
+      bp[dst] = val_from_i32(lhs % imm);
+    else
+      bp[dst] = val_from_f64(fmod((double)lhs, (double)imm));
+  } else if (val_is_float(bp[o1])) {
+    double lhs = val_as_f64(bp[o1]);
+    bp[dst] = val_from_f64(fmod(lhs, (double)imm));
+  } else {
+    MUSTTAIL return notanumber(ARGS);
+  }
+  DISPATCH();
+}
+
+#define DEFINE_OP_ARITH_DD(name_, op_, overflow_)                              \
+  OP_DEFINITION(name_) {                                                       \
+    ssz_t dst = ARG3X;                                                         \
+    ssz_t o1 = ARG3Y;                                                          \
+    ssz_t o2 = ARG3Z;                                                          \
+    if (val_is_int(bp[o1])) {                                                  \
+      if (val_is_int(bp[o2])) {                                                \
+        int32_t lhs = val_as_i32(bp[o1]);                                      \
+        int32_t rhs = val_as_i32(bp[o2]);                                      \
+        int32_t out;                                                           \
+        if (!(overflow_))                                                      \
+          bp[dst] = val_from_i32(out);                                         \
+        else                                                                   \
+          bp[dst] = val_from_f64((double)lhs op_(double) rhs);                 \
+      } else if (val_is_number(bp[o2])) {                                      \
+        bp[dst] =                                                              \
+            val_from_f64((double)val_as_i32(bp[o1]) op_ val_as_f64(bp[o2]));   \
+      } else {                                                                 \
+        MUSTTAIL return notanumber(ARGS);                                      \
+      }                                                                        \
+    } else if (val_is_number(bp[o1])) {                                        \
+      if (val_is_int(bp[o2])) {                                                \
+        bp[dst] =                                                              \
+            val_from_f64(val_as_f64(bp[o1]) op_(double) val_as_i32(bp[o2]));   \
+      } else if (val_is_number(bp[o2])) {                                      \
+        bp[dst] = val_from_f64(val_as_f64(bp[o1]) op_ val_as_f64(bp[o2]));     \
+      } else {                                                                 \
+        MUSTTAIL return notanumber(ARGS);                                      \
+      }                                                                        \
+    } else {                                                                   \
+      MUSTTAIL return notanumber(ARGS);                                        \
+    }                                                                          \
+    DISPATCH();                                                                \
+  }
+
+DEFINE_OP_ARITH_DD(AddDD, +, __builtin_add_overflow(lhs, rhs, &out))
+DEFINE_OP_ARITH_DD(SubDD, -, __builtin_sub_overflow(lhs, rhs, &out))
+DEFINE_OP_ARITH_DD(MulDD, *, __builtin_mul_overflow(lhs, rhs, &out))
+
+OP_DEFINITION(DivDD) {
+  ssz_t dst = ARG3X;
+  ssz_t o1 = ARG3Y;
+  ssz_t o2 = ARG3Z;
+  if (val_is_int(bp[o1])) {
+    if (val_is_int(bp[o2])) {
+      int32_t lhs = val_as_i32(bp[o1]);
+      int32_t rhs = val_as_i32(bp[o2]);
+      if (rhs != 0 && !(lhs == INT32_MIN && rhs == -1) && lhs % rhs == 0)
+        bp[dst] = val_from_i32(lhs / rhs);
+      else
+        bp[dst] = val_from_f64((double)lhs / (double)rhs);
+    } else if (val_is_number(bp[o2])) {
+      bp[dst] = val_from_f64((double)val_as_i32(bp[o1]) / val_as_f64(bp[o2]));
+    } else {
+      MUSTTAIL return notanumber(ARGS);
+    }
+  } else if (val_is_number(bp[o1])) {
+    if (val_is_int(bp[o2])) {
+      bp[dst] = val_from_f64(val_as_f64(bp[o1]) / (double)val_as_i32(bp[o2]));
+    } else if (val_is_number(bp[o2])) {
+      bp[dst] = val_from_f64(val_as_f64(bp[o1]) / val_as_f64(bp[o2]));
+    } else {
+      MUSTTAIL return notanumber(ARGS);
+    }
+  } else {
+    MUSTTAIL return notanumber(ARGS);
+  }
+  DISPATCH();
+}
+
+OP_DEFINITION(ModDD) {
+  ssz_t dst = ARG3X;
+  ssz_t o1 = ARG3Y;
+  ssz_t o2 = ARG3Z;
+  if (val_is_int(bp[o1])) {
+    if (val_is_int(bp[o2])) {
+      int32_t lhs = val_as_i32(bp[o1]);
+      int32_t rhs = val_as_i32(bp[o2]);
+      if (rhs != 0)
+        bp[dst] = val_from_i32(lhs % rhs);
+      else
+        bp[dst] = val_from_f64(fmod((double)lhs, (double)rhs));
+    } else if (val_is_number(bp[o2])) {
+      bp[dst] =
+          val_from_f64(fmod((double)val_as_i32(bp[o1]), val_as_f64(bp[o2])));
+    } else {
+      MUSTTAIL return notanumber(ARGS);
+    }
+  } else if (val_is_number(bp[o1])) {
+    if (val_is_int(bp[o2])) {
+      bp[dst] =
+          val_from_f64(fmod(val_as_f64(bp[o1]), (double)val_as_i32(bp[o2])));
+    } else if (val_is_number(bp[o2])) {
+      bp[dst] = val_from_f64(fmod(val_as_f64(bp[o1]), val_as_f64(bp[o2])));
+    } else {
+      MUSTTAIL return notanumber(ARGS);
+    }
+  } else {
+    MUSTTAIL return notanumber(ARGS);
+  }
+  DISPATCH();
+}
+
+OP_DEFINITION(NegD) {
+  ssz_t dst = ARG3X;
+  ssz_t src = ARG3Y;
+  if (val_is_int(bp[src])) {
+    int32_t value = val_as_i32(bp[src]);
+    if (value != INT32_MIN)
+      bp[dst] = val_from_i32(-value);
+    else
+      bp[dst] = val_from_f64(-(double)value);
+  } else if (val_is_number(bp[src])) {
+    bp[dst] = val_from_f64(-val_as_f64(bp[src]));
+  } else {
+    MUSTTAIL return notanumber(ARGS);
+  }
+  DISPATCH();
+}
+
+#define SETCOND_ON_TRUE()                                                      \
+  do {                                                                         \
+    if (mode < 0) {                                                            \
+      bp[dst] = val_from_bool(false);                                          \
+      ip++;                                                                    \
+    } else {                                                                   \
+      bp[dst] = val_from_bool(true);                                           \
+    }                                                                          \
+  } while (0)
+
+#define SETCOND_ON_FALSE()                                                     \
+  do {                                                                         \
+    if (mode > 0) {                                                            \
+      bp[dst] = val_from_bool(false);                                          \
+      ip++;                                                                    \
+    } else {                                                                   \
+      bp[dst] = val_from_bool(true);                                           \
+    }                                                                          \
+  } while (0)
+
+OP_DEFINITION(SetCond) {
+  ssz_t dst = ARG2A;
+  int16_t mode = cast_s(ARG2B, 16);
+
+  FETCH_INSN();
+  DECODE_OP();
+  DECODE_A3A();
+  DECODE_A2SB();
+  INC_IP();
+
+  switch (op) {
+  case CmpNotF:
+    if (cmp_notf(bp[ARG2A], ARG2B))
+      SETCOND_ON_TRUE();
+    else
+      SETCOND_ON_FALSE();
+    DISPATCH();
+  case CmpEqDI:
+    CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), SETCOND_ON_TRUE(),
+           SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpNeDI:
+    CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), SETCOND_ON_TRUE(),
+           SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpEqDC:
+    CMP_NUM(==, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
+            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpNeDC:
+    CMP_NUM(!=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
+            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpLtDC:
+    CMP_NUM(<, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
+            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpLeDC:
+    CMP_NUM(<=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
+            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpGtDC:
+    CMP_NUM(>, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
+            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpGeDC:
+    CMP_NUM(>=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
+            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpEqDD:
+    CMP_NUM(==, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
+            SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpNeDD:
+    CMP_NUM(!=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
+            SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpLtDD:
+    CMP_NUM(<, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
+            SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpLeDD:
+    CMP_NUM(<=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
+            SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpGtDD:
+    CMP_NUM(>, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
+            SETCOND_ON_FALSE());
+    DISPATCH();
+  case CmpGeDD:
+    CMP_NUM(>=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
+            SETCOND_ON_FALSE());
+    DISPATCH();
+  default:
+    MUSTTAIL return unimplemented(ARGS);
+  }
+}
+
+OP_DEFINITION(CmpNotF) {
+  if (!cmp_notf(bp[ARG2A], ARG2B))
+    ip++;
+  DISPATCH();
+}
+
+OP_DEFINITION(CmpEqDI) {
+  CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ((void)0), ip++);
+  DISPATCH();
+}
+
+OP_DEFINITION(CmpNeDI) {
+  CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ((void)0), ip++);
+  DISPATCH();
+}
+
+#define DEFINE_OP_CMP_DC(name_, op_)                                           \
+  OP_DEFINITION(name_) {                                                       \
+    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), ((void)0),   \
+            ip++);                                                             \
+    DISPATCH();                                                                \
+  }
+
+DEFINE_OP_CMP_DC(CmpEqDC, ==)
+DEFINE_OP_CMP_DC(CmpNeDC, !=)
+DEFINE_OP_CMP_DC(CmpLtDC, <)
+DEFINE_OP_CMP_DC(CmpLeDC, <=)
+DEFINE_OP_CMP_DC(CmpGtDC, >)
+DEFINE_OP_CMP_DC(CmpGeDC, >=)
+
+#define DEFINE_OP_CMP_DD(name_, op_)                                           \
+  OP_DEFINITION(name_) {                                                       \
+    CMP_NUM(op_, bp[ARG2A], bp[ARG2B], notanumber(ARGS), ((void)0), ip++);     \
+    DISPATCH();                                                                \
+  }
+
+DEFINE_OP_CMP_DD(CmpEqDD, ==)
+DEFINE_OP_CMP_DD(CmpNeDD, !=)
+DEFINE_OP_CMP_DD(CmpLtDD, <)
+DEFINE_OP_CMP_DD(CmpLeDD, <=)
+DEFINE_OP_CMP_DD(CmpGtDD, >)
+DEFINE_OP_CMP_DD(CmpGeDD, >=)
 
 static opthread *const dispatch[] = {
-#define OPIMPLS(op, mnemonic, name, n) vm_op_##op,
+#define OPIMPLS(op, mnemonic) vm_op_##op,
     OPS(OPIMPLS)
 #undef OPIMPLS
 };

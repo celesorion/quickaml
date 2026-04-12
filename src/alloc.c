@@ -1,4 +1,5 @@
 #include "alloc.h"
+#include "trace.h"
 #include "vm.h"
 
 #include <stdlib.h>
@@ -61,11 +62,7 @@ static void worklist_init(struct heap *h) { h->scan = h->bump; }
 
 static bool worklist_is_empty(struct heap *h) { return h->scan == h->bump; }
 
-static size_t get_object_size(void *ref) {
-  struct object *obj = ref;
-  // TODO: get object size
-  return 0;
-}
+static size_t get_object_size(void *ref) { return obj_size(ref); }
 
 static void *worklist_pop(struct heap *h) {
   void *ref = h->scan;
@@ -73,37 +70,56 @@ static void *worklist_pop(struct heap *h) {
   return ref;
 }
 
-static void **heap_forwarding_address(void *from_ref) {
-  return (void **)from_ref;
-}
-
 static void *heap_copy(struct heap *h, void *from_ref) {
+  size_t size = get_object_size(from_ref);
   void *to_ref = h->bump;
-  h->bump += get_object_size(from_ref);
-  memcpy(to_ref, from_ref, get_object_size(from_ref));
-  *heap_forwarding_address(from_ref) = to_ref;
+  h->bump += size;
+  memcpy(to_ref, from_ref, size);
+  obj_set_forward(from_ref, size, to_ref);
   return to_ref;
 }
 
 static void *heap_forward(struct state *st, struct heap *h, void *from_ref) {
-  void *to_ref = *heap_forwarding_address(from_ref);
-  trace(st, TRACE_0, "heap_forward: from_ref=%p to_ref=%p", from_ref, to_ref);
-  // TODO
-  if (to_ref)
+  if (obj_kind_of(from_ref) == OBJ_FORWARD) {
+    void *to_ref = obj_forwardee(from_ref);
+    trace(st, TRACE_0, "heap_forward: from_ref=%p to_ref=%p", from_ref, to_ref);
     return to_ref;
+  }
+
   return heap_copy(h, from_ref);
 }
 
 static void heap_process_field(struct state *restrict st, struct heap *h,
-                               void **field) {
-  trace(st, TRACE_0, "heap_process_field: processing field %p", *field);
-  void *from_ref = *field;
-  if (from_ref)
-    *field = heap_forward(st, h, from_ref);
+                               val_t *field) {
+  if (!val_is_ptr(*field))
+    return;
+
+  void *from_ref = val_as_ptr(*field);
+  trace(st, TRACE_0, "heap_process_field: processing field %p", from_ref);
+  *field = val_from_ptr(heap_forward(st, h, from_ref));
 }
 
 static void heap_scan_object(struct state *restrict st, struct heap *h,
-                             void *restrict ref) {}
+                             void *restrict ref) {
+  switch (obj_kind_of(ref)) {
+  case OBJ_WORDS: {
+    struct object *obj = ref;
+    size_t nfields = (obj_size(obj) - sizeof(*obj)) / sizeof(val_t);
+    for (size_t i = 0; i < nfields; i++)
+      heap_process_field(st, h, &obj->fields[i]);
+    break;
+  }
+  case OBJ_CLOSURE: {
+    struct closure *clos = ref;
+    for (size_t i = 0; i < clos->nfree; i++)
+      heap_process_field(st, h, &clos->freevars[i]);
+    break;
+  }
+  case OBJ_STRING:
+  case OBJ_FORWARD:
+    break;
+  }
+}
 
 void heap_collect_start(struct heap *h) {
   heap_flip(h);
@@ -111,7 +127,7 @@ void heap_collect_start(struct heap *h) {
 }
 
 void heap_collect_add_root(struct state *restrict st, struct heap *h,
-                           void **root) {
+                           val_t *root) {
   heap_process_field(st, h, root);
 }
 
@@ -125,6 +141,7 @@ void heap_collect_end(struct state *restrict st, struct heap *h) {
 [[gnu::noinline]] static void *alloc_object_fallback(struct state *restrict st,
                                                      size_t n, val_t *bp) {
   struct heap *heap = st->heap;
+  (void)bp;
   heap_collect_start(heap);
 
   // TODO: do collection
