@@ -23,12 +23,12 @@
   _(SubDI     , "sub.di"    )\
   _(MulDI     , "mul.di"    )\
   _(DivDI     , "div.di"    )\
-  _(ModDI     , "mod.di"    )\
+  _(RemDI     , "rem.di"    )\
   _(AddDD     , "add.dd"    )\
   _(SubDD     , "sub.dd"    )\
   _(MulDD     , "mul.dd"    )\
   _(DivDD     , "div.dd"    )\
-  _(ModDD     , "mod.dd"    )\
+  _(RemDD     , "rem.dd"    )\
   _(NegD      , "neg.d"     )\
   _(SetCond   , "setcond"   )\
   _(CmpNotF   , "cmp.not.f" )\

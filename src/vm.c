@@ -100,7 +100,7 @@ THREADED
 void halt(PARAMS) { return; }
 
 INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
-  return flag == UINT16_MAX ? val_is_false(lhs) : val_is_true(lhs);
+  return flag == UINT16_MAX ? val_is_falsy(lhs) : !val_is_falsy(lhs);
 }
 
 INLINE int32_t di_imm(uint8_t imm) { return sign_extend(imm, 8, 32); }
@@ -477,9 +477,13 @@ OP_DEFINITION(DivDI) {
   int32_t imm = di_imm(ARG3Z);
   if (val_is_int(bp[o1])) {
     int32_t lhs = val_as_i32(bp[o1]);
-    if (imm != 0 && !(lhs == INT32_MIN && imm == -1) && lhs % imm == 0)
-      bp[dst] = val_from_i32(lhs / imm);
-    else
+    if (imm != 0 && !(lhs == INT32_MIN && imm == -1)) {
+      int32_t q = lhs / imm;
+      int32_t r = lhs % imm;
+      if (r != 0 && ((lhs ^ imm) < 0))
+        q -= 1;
+      bp[dst] = val_from_i32(q);
+    } else
       bp[dst] = val_from_f64((double)lhs / (double)imm);
   } else if (val_is_float(bp[o1])) {
     double lhs = val_as_f64(bp[o1]);
@@ -490,15 +494,18 @@ OP_DEFINITION(DivDI) {
   DISPATCH();
 }
 
-OP_DEFINITION(ModDI) {
+OP_DEFINITION(RemDI) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   int32_t imm = di_imm(ARG3Z);
   if (val_is_int(bp[o1])) {
     int32_t lhs = val_as_i32(bp[o1]);
-    if (imm != 0)
-      bp[dst] = val_from_i32(lhs % imm);
-    else
+    if (imm != 0) {
+      int32_t r = lhs % imm;
+      if (r != 0 && ((lhs ^ imm) < 0))
+        r += imm;
+      bp[dst] = val_from_i32(r);
+    } else
       bp[dst] = val_from_f64(fmod((double)lhs, (double)imm));
   } else if (val_is_float(bp[o1])) {
     double lhs = val_as_f64(bp[o1]);
@@ -556,9 +563,13 @@ OP_DEFINITION(DivDD) {
     if (val_is_int(bp[o2])) {
       int32_t lhs = val_as_i32(bp[o1]);
       int32_t rhs = val_as_i32(bp[o2]);
-      if (rhs != 0 && !(lhs == INT32_MIN && rhs == -1) && lhs % rhs == 0)
-        bp[dst] = val_from_i32(lhs / rhs);
-      else
+      if (rhs != 0 && !(lhs == INT32_MIN && rhs == -1)) {
+        int32_t q = lhs / rhs;
+        int32_t r = lhs % rhs;
+        if (r != 0 && ((lhs ^ rhs) < 0))
+          q -= 1;
+        bp[dst] = val_from_i32(q);
+      } else
         bp[dst] = val_from_f64((double)lhs / (double)rhs);
     } else if (val_is_number(bp[o2])) {
       bp[dst] = val_from_f64((double)val_as_i32(bp[o1]) / val_as_f64(bp[o2]));
@@ -579,7 +590,7 @@ OP_DEFINITION(DivDD) {
   DISPATCH();
 }
 
-OP_DEFINITION(ModDD) {
+OP_DEFINITION(RemDD) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   ssz_t o2 = ARG3Z;
@@ -587,9 +598,12 @@ OP_DEFINITION(ModDD) {
     if (val_is_int(bp[o2])) {
       int32_t lhs = val_as_i32(bp[o1]);
       int32_t rhs = val_as_i32(bp[o2]);
-      if (rhs != 0)
-        bp[dst] = val_from_i32(lhs % rhs);
-      else
+      if (rhs != 0) {
+        int32_t r = lhs % rhs;
+        if (r != 0 && ((lhs ^ rhs) < 0))
+          r += rhs;
+        bp[dst] = val_from_i32(r);
+      } else
         bp[dst] = val_from_f64(fmod((double)lhs, (double)rhs));
     } else if (val_is_number(bp[o2])) {
       bp[dst] =

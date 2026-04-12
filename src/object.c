@@ -9,28 +9,6 @@ struct forwarded {
   void *to_ref;
 };
 
-static val_t bitcast_f64_to_val(double num) {
-  val_t raw = 0;
-  memcpy(&raw, &num, sizeof(raw));
-  return raw;
-}
-
-static double bitcast_val_to_f64(val_t raw) {
-  double num = 0.0;
-  memcpy(&num, &raw, sizeof(num));
-  return num;
-}
-
-val_t val_from_f64(double num) {
-  val_t raw = bitcast_f64_to_val(num);
-  return raw + VAL_NUN_BIAS;
-}
-
-double val_as_f64(val_t value) {
-  assert(val_is_float(value));
-  return bitcast_val_to_f64(value - VAL_NUN_BIAS);
-}
-
 val_t val_from_tag(uint8_t tag) {
   switch (tag) {
   case 0:

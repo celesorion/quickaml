@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 struct heap;
 struct state;
@@ -40,11 +41,12 @@ enum {
 #define VAL_FLOAT_TAG UINT64_C(0xfffe000000000000)
 #define VAL_OTHER_TAG UINT64_C(0x2)
 #define VAL_BOOL_TAG UINT64_C(0x4)
+#define VAL_BOOL_VAL_BIT UINT64_C(0x1) /* distinguishes true from false */
 #define VAL_NOT_CELL_MASK (VAL_FLOAT_TAG | VAL_OTHER_TAG)
 #define VAL_EMPTY UINT64_C(0x0)
 #define VAL_NULL VAL_OTHER_TAG
 #define VAL_FALSE (VAL_OTHER_TAG | VAL_BOOL_TAG)
-#define VAL_TRUE (VAL_OTHER_TAG | VAL_BOOL_TAG | UINT64_C(0x1))
+#define VAL_TRUE (VAL_OTHER_TAG | VAL_BOOL_TAG | VAL_BOOL_VAL_BIT)
 
 static_assert(sizeof(val_t) == 8, "NuN boxing requires 64-bit values");
 static_assert(sizeof(metainfo) == 8, "object headers must stay 64-bit");
@@ -77,8 +79,18 @@ INLINE bool val_is_false(val_t value) { return value == VAL_FALSE; }
 
 INLINE bool val_is_true(val_t value) { return value == VAL_TRUE; }
 
+/* Mask out the value bit; both false and true collapse to VAL_FALSE. */
 INLINE bool val_is_bool(val_t value) {
-  return (value & ~UINT64_C(0x1)) == VAL_FALSE;
+  return (value & ~VAL_BOOL_VAL_BIT) == VAL_FALSE;
+}
+
+/* Falsy values are null and false.  Mask out the bool tag so that
+ *   null  (OTHER)            -> OTHER  == VAL_NULL  ✓
+ *   false (OTHER | BOOL)     -> OTHER  == VAL_NULL  ✓
+ *   true  (OTHER | BOOL | 1) -> OTHER | 1  ≠ VAL_NULL
+ * Everything else has different tag bits and cannot match. */
+INLINE bool val_is_falsy(val_t value) {
+  return (value & ~VAL_BOOL_TAG) == VAL_NULL;
 }
 
 INLINE bool val_is_cell(val_t value) { return !(value & VAL_NOT_CELL_MASK); }
@@ -125,8 +137,26 @@ INLINE bool val_as_bool(val_t value) {
 
 INLINE val_t val_from_null(void) { return VAL_NULL; }
 
-val_t val_from_f64(double num);
-double val_as_f64(val_t value);
+INLINE val_t bitcast_f64_to_val(double num) {
+  val_t raw = 0;
+  memcpy(&raw, &num, sizeof(raw));
+  return raw;
+}
+
+INLINE double bitcast_val_to_f64(val_t raw) {
+  double num = 0.0;
+  memcpy(&num, &raw, sizeof(num));
+  return num;
+}
+
+INLINE val_t val_from_f64(double num) {
+  return bitcast_f64_to_val(num) + VAL_NUN_BIAS;
+}
+
+INLINE double val_as_f64(val_t value) {
+  assert(val_is_float(value));
+  return bitcast_val_to_f64(value - VAL_NUN_BIAS);
+}
 
 INLINE metainfo obj_meta_pack(uint32_t size, uint16_t tag, uint8_t kind,
                               uint8_t flags) {

@@ -399,7 +399,7 @@ Lloh21:
 	adrp	x3, l_.str.13@PAGE
 Lloh22:
 	add	x3, x3, l_.str.13@PAGEOFF
-	mov	w2, #108                        ; =0x6c
+	mov	w2, #120                        ; =0x78
 	bl	___assert_rtn
 LBB10_4:
 	add	x20, x8, #8
@@ -570,7 +570,7 @@ Lloh27:
 	adrp	x3, l_.str.15@PAGE
 Lloh28:
 	add	x3, x3, l_.str.15@PAGEOFF
-	mov	w2, #102                        ; =0x66
+	mov	w2, #114                        ; =0x72
 	bl	___assert_rtn
 LBB15_4:
 Lloh29:
@@ -585,7 +585,7 @@ Lloh33:
 	adrp	x3, l_.str.16@PAGE
 Lloh34:
 	add	x3, x3, l_.str.16@PAGEOFF
-	mov	w2, #103                        ; =0x67
+	mov	w2, #115                        ; =0x73
 	bl	___assert_rtn
 	.loh AdrpAdd	Lloh27, Lloh28
 	.loh AdrpAdd	Lloh25, Lloh26
@@ -647,7 +647,7 @@ Lloh39:
 	adrp	x3, l_.str.15@PAGE
 Lloh40:
 	add	x3, x3, l_.str.15@PAGEOFF
-	mov	w2, #102                        ; =0x66
+	mov	w2, #114                        ; =0x72
 	bl	___assert_rtn
 LBB16_4:
 	mov	w8, w26
@@ -724,7 +724,7 @@ Lloh45:
 	adrp	x3, l_.str.16@PAGE
 Lloh46:
 	add	x3, x3, l_.str.16@PAGEOFF
-	mov	w2, #103                        ; =0x67
+	mov	w2, #115                        ; =0x73
 	bl	___assert_rtn
 	.loh AdrpAdd	Lloh39, Lloh40
 	.loh AdrpAdd	Lloh37, Lloh38
@@ -814,50 +814,46 @@ _vm_op_Goto:                            ; @vm_op_Goto
 _vm_op_AddDI:                           ; @vm_op_AddDI
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x19, x0
-	sxtb	w25, w0
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x8, #-562949953421312           ; =0xfffe000000000000
-	cmp	x0, x8
-	b.lo	LBB20_3
+	sxtb	w8, w0
+	ldr	x9, [x21, w1, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB20_2
 ; %bb.1:
-	adds	w8, w0, w25
-	b.vc	LBB20_6
-; %bb.2:
-	scvtf	d0, w0
-	scvtf	d1, w25
+	adds	w10, w9, w8
+	cset	w11, vs
+	scvtf	d0, w9
+	scvtf	d1, w8
 	fadd	d0, d1, d0
-	b	LBB20_5
-LBB20_3:
-	lsr	x8, x0, #49
-	cbz	x8, LBB20_8
-; %bb.4:
-	bl	_val_as_f64
-	scvtf	d1, w25
-	fadd	d0, d0, d1
-LBB20_5:
-	bl	_val_from_f64
-	b	LBB20_7
-LBB20_6:
-	orr	x0, x8, #0xfffe000000000000
-LBB20_7:
-	lsr	w8, w19, #8
-	str	x0, [x21, w8, uxtw #3]
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	orr	x9, x10, #0xfffe000000000000
+	tst	w11, #0x1
+	csel	x8, x8, x9, ne
+	b	LBB20_4
+LBB20_2:
+	lsr	x10, x9, #49
+	cbz	x10, LBB20_5
+; %bb.3:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fadd	d0, d1, d0
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB20_4:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB20_8:
-	mov	x0, x19
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB20_5:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -865,48 +861,46 @@ LBB20_8:
 _vm_op_SubDI:                           ; @vm_op_SubDI
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x19, x0
-	sxtb	w25, w0
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x8, #-562949953421312           ; =0xfffe000000000000
-	cmp	x0, x8
-	b.lo	LBB21_3
+	sxtb	w8, w0
+	ldr	x9, [x21, w1, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB21_2
 ; %bb.1:
-	subs	w8, w0, w25
-	b.vc	LBB21_6
-; %bb.2:
-	scvtf	d0, w0
-	b	LBB21_5
-LBB21_3:
-	lsr	x8, x0, #49
-	cbz	x8, LBB21_8
-; %bb.4:
-	bl	_val_as_f64
-LBB21_5:
-	scvtf	d1, w25
+	subs	w10, w9, w8
+	cset	w11, vs
+	scvtf	d0, w9
+	scvtf	d1, w8
 	fsub	d0, d0, d1
-	bl	_val_from_f64
-	b	LBB21_7
-LBB21_6:
-	orr	x0, x8, #0xfffe000000000000
-LBB21_7:
-	lsr	w8, w19, #8
-	str	x0, [x21, w8, uxtw #3]
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	orr	x9, x10, #0xfffe000000000000
+	tst	w11, #0x1
+	csel	x8, x8, x9, ne
+	b	LBB21_4
+LBB21_2:
+	lsr	x10, x9, #49
+	cbz	x10, LBB21_5
+; %bb.3:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fsub	d0, d0, d1
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB21_4:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB21_8:
-	mov	x0, x19
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB21_5:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -914,52 +908,48 @@ LBB21_8:
 _vm_op_MulDI:                           ; @vm_op_MulDI
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x19, x0
-	sxtb	w25, w0
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x8, #-562949953421312           ; =0xfffe000000000000
-	cmp	x0, x8
-	b.lo	LBB22_3
+	sxtb	w8, w0
+	ldr	x9, [x21, w1, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB22_2
 ; %bb.1:
-	smull	x8, w0, w25
-	cmp	x8, w8, sxtw
-	b.eq	LBB22_6
-; %bb.2:
-	scvtf	d0, w0
-	scvtf	d1, w25
+	smull	x10, w9, w8
+	cmp	x10, w10, sxtw
+	cset	w11, ne
+	scvtf	d0, w9
+	scvtf	d1, w8
 	fmul	d0, d1, d0
-	b	LBB22_5
-LBB22_3:
-	lsr	x8, x0, #49
-	cbz	x8, LBB22_8
-; %bb.4:
-	bl	_val_as_f64
-	scvtf	d1, w25
-	fmul	d0, d0, d1
-LBB22_5:
-	bl	_val_from_f64
-	b	LBB22_7
-LBB22_6:
-	mov	w8, w8
-	orr	x0, x8, #0xfffe000000000000
-LBB22_7:
-	lsr	w8, w19, #8
-	str	x0, [x21, w8, uxtw #3]
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	mov	w9, w10
+	orr	x9, x9, #0xfffe000000000000
+	tst	w11, #0x1
+	csel	x8, x8, x9, ne
+	b	LBB22_4
+LBB22_2:
+	lsr	x10, x9, #49
+	cbz	x10, LBB22_5
+; %bb.3:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fmul	d0, d1, d0
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB22_4:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB22_8:
-	mov	x0, x19
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB22_5:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -967,65 +957,63 @@ LBB22_8:
 _vm_op_DivDI:                           ; @vm_op_DivDI
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x19, x0
-	sxtb	w25, w0
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x8, #-562949953421312           ; =0xfffe000000000000
-	cmp	x0, x8
-	b.lo	LBB23_6
+	sxtb	w8, w0
+	ldr	x9, [x21, w1, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB23_5
 ; %bb.1:
-	lsl	w8, w19, #24
-	cbz	w8, LBB23_5
+	lsl	w10, w0, #24
+	cbz	w10, LBB23_4
 ; %bb.2:
-	mov	w9, #-16777216                  ; =0xff000000
-	cmp	w8, w9
-	b.ne	LBB23_4
+	mov	w11, #-16777216                 ; =0xff000000
+	cmp	w10, w11
+	b.ne	LBB23_9
 ; %bb.3:
-	mov	w8, #-2147483648                ; =0x80000000
-	cmp	w0, w8
-	b.eq	LBB23_5
+	mov	w10, #-2147483648               ; =0x80000000
+	cmp	w9, w10
+	b.ne	LBB23_9
 LBB23_4:
-	sdiv	w8, w0, w25
-	msub	w9, w8, w25, w0
-	cbz	w9, LBB23_11
+	scvtf	d0, w9
+	b	LBB23_7
 LBB23_5:
-	scvtf	d0, w0
-	b	LBB23_8
-LBB23_6:
-	lsr	x8, x0, #49
-	cbz	x8, LBB23_10
-; %bb.7:
-	bl	_val_as_f64
-LBB23_8:
-	scvtf	d1, w25
+	lsr	x10, x9, #49
+	cbz	x10, LBB23_8
+; %bb.6:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+LBB23_7:
+	scvtf	d1, w8
 	fdiv	d0, d0, d1
-	bl	_val_from_f64
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	b	LBB23_10
+LBB23_8:
+	b	_notanumber
 LBB23_9:
-	lsr	w8, w19, #8
-	str	x0, [x21, w8, uxtw #3]
+	sdiv	w10, w9, w8
+	msub	w11, w10, w8, w9
+	eor	w8, w8, w9
+	cmp	w8, #0
+	ccmp	w11, #0, #4, lt
+	cset	w8, ne
+	sub	w8, w10, w8
+	orr	x8, x8, #0xfffe000000000000
+LBB23_10:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB23_10:
-	mov	x0, x19
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	_notanumber
-LBB23_11:
-	orr	x0, x8, #0xfffe000000000000
-	b	LBB23_9
 	.cfi_endproc
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_ModDI
-_vm_op_ModDI:                           ; @vm_op_ModDI
+	.p2align	5                               ; -- Begin function vm_op_RemDI
+_vm_op_RemDI:                           ; @vm_op_RemDI
 	.cfi_startproc
 ; %bb.0:
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
@@ -1033,41 +1021,49 @@ _vm_op_ModDI:                           ; @vm_op_ModDI
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	mov	x8, x0
-	lsr	w19, w0, #8
-	sxtb	w25, w0
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x0, x9
+	sxtb	w8, w0
+	ldr	x9, [x21, w1, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
 	b.lo	LBB24_3
 ; %bb.1:
-	lsl	w8, w8, #24
-	cbz	w8, LBB24_6
+	lsl	w10, w0, #24
+	cbz	w10, LBB24_6
 ; %bb.2:
-	sdiv	w8, w0, w25
-	msub	w8, w8, w25, w0
+	sdiv	w10, w9, w8
+	msub	w10, w10, w8, w9
+	eor	w9, w8, w9
+	and	w8, w8, w9, asr #31
+	add	w8, w10, w8
+	cmp	w10, #0
+	csel	w8, wzr, w8, eq
 	orr	x8, x8, #0xfffe000000000000
-	str	x8, [x21, w19, uxtw #3]
 	b	LBB24_8
 LBB24_3:
-	lsr	x9, x0, #49
-	cbz	x9, LBB24_5
+	lsr	x10, x9, #49
+	cbz	x10, LBB24_5
 ; %bb.4:
-	bl	_val_as_f64
-	scvtf	d1, w25
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
 	b	LBB24_7
 LBB24_5:
-	mov	x0, x8
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 LBB24_6:
-	scvtf	d0, w0
+	scvtf	d0, w9
 	movi	d1, #0000000000000000
 LBB24_7:
+	mov	x19, x0
 	bl	_fmod
-	bl	_val_from_f64
-	str	x0, [x21, w19, uxtw #3]
+	mov	x0, x19
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
 LBB24_8:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
@@ -1081,77 +1077,65 @@ LBB24_8:
 _vm_op_AddDD:                           ; @vm_op_AddDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	and	w9, w0, #0xff
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	x10, #-562949953421312          ; =0xfffe000000000000
 	cmp	x8, x10
-	b.lo	LBB25_4
+	b.lo	LBB25_3
 ; %bb.1:
 	ldr	x9, [x21, w9, uxtw #3]
 	cmp	x9, x10
-	b.lo	LBB25_7
+	b.lo	LBB25_6
 ; %bb.2:
 	adds	w10, w8, w9
-	b.vc	LBB25_10
-; %bb.3:
+	cset	w11, vs
 	scvtf	d0, w8
 	scvtf	d1, w9
 	fadd	d0, d0, d1
-	mov	x19, x0
-	b	LBB25_9
-LBB25_4:
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	orr	x9, x10, #0xfffe000000000000
+	tst	w11, #0x1
+	csel	x8, x8, x9, ne
+	b	LBB25_12
+LBB25_3:
 	lsr	x10, x8, #49
-	cbz	x10, LBB25_15
+	cbz	x10, LBB25_13
+; %bb.4:
+	ldr	x9, [x21, w9, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB25_8
 ; %bb.5:
-	ldr	x19, [x21, w9, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB25_11
-; %bb.6:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fadd	d0, d0, d1
-	b	LBB25_13
-LBB25_7:
+	add	x8, x8, x10
+	fmov	d0, x8
+	scvtf	d1, w9
+	b	LBB25_11
+LBB25_6:
 	lsr	x10, x9, #49
-	cbz	x10, LBB25_15
-; %bb.8:
-	scvtf	d8, w8
-	mov	x19, x0
-	mov	x0, x9
-	bl	_val_as_f64
-	fadd	d0, d0, d8
-LBB25_9:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x19
-	b	LBB25_14
+	cbz	x10, LBB25_13
+; %bb.7:
+	scvtf	d0, w8
+	mov	x8, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x9, x8
+	b	LBB25_10
+LBB25_8:
+	lsr	x10, x9, #49
+	cbz	x10, LBB25_13
+; %bb.9:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x8, x8, x10
+	fmov	d0, x8
+	add	x8, x9, x10
 LBB25_10:
-	orr	x8, x10, #0xfffe000000000000
-	b	LBB25_14
+	fmov	d1, x8
 LBB25_11:
-	lsr	x9, x19, #49
-	cbz	x9, LBB25_15
-; %bb.12:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fadd	d0, d8, d0
-LBB25_13:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x25
-LBB25_14:
+	fadd	d0, d0, d1
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB25_12:
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
@@ -1159,10 +1143,8 @@ LBB25_14:
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB25_15:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB25_13:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -1170,77 +1152,65 @@ LBB25_15:
 _vm_op_SubDD:                           ; @vm_op_SubDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	and	w9, w0, #0xff
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	x10, #-562949953421312          ; =0xfffe000000000000
 	cmp	x8, x10
-	b.lo	LBB26_4
+	b.lo	LBB26_3
 ; %bb.1:
 	ldr	x9, [x21, w9, uxtw #3]
 	cmp	x9, x10
-	b.lo	LBB26_7
+	b.lo	LBB26_6
 ; %bb.2:
 	subs	w10, w8, w9
-	b.vc	LBB26_10
-; %bb.3:
+	cset	w11, vs
 	scvtf	d0, w8
 	scvtf	d1, w9
 	fsub	d0, d0, d1
-	mov	x19, x0
-	b	LBB26_9
-LBB26_4:
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	orr	x9, x10, #0xfffe000000000000
+	tst	w11, #0x1
+	csel	x8, x8, x9, ne
+	b	LBB26_12
+LBB26_3:
 	lsr	x10, x8, #49
-	cbz	x10, LBB26_15
+	cbz	x10, LBB26_13
+; %bb.4:
+	ldr	x9, [x21, w9, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB26_8
 ; %bb.5:
-	ldr	x19, [x21, w9, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB26_11
-; %bb.6:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fsub	d0, d0, d1
-	b	LBB26_13
-LBB26_7:
+	add	x8, x8, x10
+	fmov	d0, x8
+	scvtf	d1, w9
+	b	LBB26_11
+LBB26_6:
 	lsr	x10, x9, #49
-	cbz	x10, LBB26_15
-; %bb.8:
-	scvtf	d8, w8
-	mov	x19, x0
-	mov	x0, x9
-	bl	_val_as_f64
-	fsub	d0, d8, d0
-LBB26_9:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x19
-	b	LBB26_14
+	cbz	x10, LBB26_13
+; %bb.7:
+	scvtf	d0, w8
+	mov	x8, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x9, x8
+	b	LBB26_10
+LBB26_8:
+	lsr	x10, x9, #49
+	cbz	x10, LBB26_13
+; %bb.9:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x8, x8, x10
+	fmov	d0, x8
+	add	x8, x9, x10
 LBB26_10:
-	orr	x8, x10, #0xfffe000000000000
-	b	LBB26_14
+	fmov	d1, x8
 LBB26_11:
-	lsr	x9, x19, #49
-	cbz	x9, LBB26_15
-; %bb.12:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fsub	d0, d8, d0
-LBB26_13:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x25
-LBB26_14:
+	fsub	d0, d0, d1
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB26_12:
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
@@ -1248,10 +1218,8 @@ LBB26_14:
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB26_15:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB26_13:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -1259,79 +1227,67 @@ LBB26_15:
 _vm_op_MulDD:                           ; @vm_op_MulDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	and	w9, w0, #0xff
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	x10, #-562949953421312          ; =0xfffe000000000000
 	cmp	x8, x10
-	b.lo	LBB27_4
+	b.lo	LBB27_3
 ; %bb.1:
 	ldr	x9, [x21, w9, uxtw #3]
 	cmp	x9, x10
-	b.lo	LBB27_7
+	b.lo	LBB27_6
 ; %bb.2:
 	smull	x10, w8, w9
 	cmp	x10, w10, sxtw
-	b.eq	LBB27_10
-; %bb.3:
+	cset	w11, ne
 	scvtf	d0, w8
 	scvtf	d1, w9
 	fmul	d0, d0, d1
-	mov	x19, x0
-	b	LBB27_9
-LBB27_4:
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+	mov	w9, w10
+	orr	x9, x9, #0xfffe000000000000
+	tst	w11, #0x1
+	csel	x8, x8, x9, ne
+	b	LBB27_12
+LBB27_3:
 	lsr	x10, x8, #49
-	cbz	x10, LBB27_15
+	cbz	x10, LBB27_13
+; %bb.4:
+	ldr	x9, [x21, w9, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB27_8
 ; %bb.5:
-	ldr	x19, [x21, w9, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB27_11
-; %bb.6:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fmul	d0, d0, d1
-	b	LBB27_13
-LBB27_7:
+	add	x8, x8, x10
+	fmov	d0, x8
+	scvtf	d1, w9
+	b	LBB27_11
+LBB27_6:
 	lsr	x10, x9, #49
-	cbz	x10, LBB27_15
-; %bb.8:
-	scvtf	d8, w8
-	mov	x19, x0
-	mov	x0, x9
-	bl	_val_as_f64
-	fmul	d0, d0, d8
-LBB27_9:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x19
-	b	LBB27_14
+	cbz	x10, LBB27_13
+; %bb.7:
+	scvtf	d0, w8
+	mov	x8, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x9, x8
+	b	LBB27_10
+LBB27_8:
+	lsr	x10, x9, #49
+	cbz	x10, LBB27_13
+; %bb.9:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x8, x8, x10
+	fmov	d0, x8
+	add	x8, x9, x10
 LBB27_10:
-	mov	w8, w10
-	orr	x8, x8, #0xfffe000000000000
-	b	LBB27_14
+	fmov	d1, x8
 LBB27_11:
-	lsr	x9, x19, #49
-	cbz	x9, LBB27_15
-; %bb.12:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fmul	d0, d8, d0
-LBB27_13:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x25
-LBB27_14:
+	fmul	d0, d0, d1
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB27_12:
 	lsr	w9, w0, #8
 	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
@@ -1339,10 +1295,8 @@ LBB27_14:
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB27_15:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB27_13:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -1350,6 +1304,89 @@ LBB27_15:
 _vm_op_DivDD:                           ; @vm_op_DivDD
 	.cfi_startproc
 ; %bb.0:
+	and	w9, w0, #0xff
+	ldr	x8, [x21, w1, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB28_5
+; %bb.1:
+	ldr	x9, [x21, w9, uxtw #3]
+	cmp	x9, x10
+	b.lo	LBB28_8
+; %bb.2:
+	cbz	w9, LBB28_10
+; %bb.3:
+	mov	w10, #-2147483648               ; =0x80000000
+	cmp	w8, w10
+	ccmn	w9, #1, #0, eq
+	b.eq	LBB28_10
+; %bb.4:
+	sdiv	w10, w8, w9
+	msub	w11, w10, w9, w8
+	eor	w8, w9, w8
+	cmp	w8, #0
+	ccmp	w11, #0, #4, lt
+	cset	w8, ne
+	sub	w8, w10, w8
+	orr	x8, x8, #0xfffe000000000000
+	b	LBB28_13
+LBB28_5:
+	lsr	x10, x8, #49
+	cbz	x10, LBB28_16
+; %bb.6:
+	ldr	x9, [x21, w9, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB28_14
+; %bb.7:
+	add	x8, x8, x10
+	fmov	d0, x8
+	b	LBB28_11
+LBB28_8:
+	lsr	x10, x9, #49
+	cbz	x10, LBB28_16
+; %bb.9:
+	scvtf	d0, w8
+	mov	x8, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x9, x8
+	fmov	d1, x8
+	b	LBB28_12
+LBB28_10:
+	scvtf	d0, w8
+LBB28_11:
+	scvtf	d1, w9
+LBB28_12:
+	fdiv	d0, d0, d1
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
+LBB28_13:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB28_14:
+	lsr	x10, x9, #49
+	cbz	x10, LBB28_16
+; %bb.15:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x8, x8, x10
+	fmov	d0, x8
+	add	x8, x9, x10
+	fmov	d1, x8
+	b	LBB28_12
+LBB28_16:
+	b	_notanumber
+	.cfi_endproc
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_RemDD
+_vm_op_RemDD:                           ; @vm_op_RemDD
+	.cfi_startproc
+; %bb.0:
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
 	mov	x29, sp
 	.cfi_def_cfa w29, 16
@@ -1359,105 +1396,6 @@ _vm_op_DivDD:                           ; @vm_op_DivDD
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	x10, #-562949953421312          ; =0xfffe000000000000
 	cmp	x8, x10
-	b.lo	LBB28_6
-; %bb.1:
-	ldr	x9, [x21, w9, uxtw #3]
-	cmp	x9, x10
-	b.lo	LBB28_9
-; %bb.2:
-	cbz	w9, LBB28_5
-; %bb.3:
-	mov	w10, #-2147483648               ; =0x80000000
-	cmp	w8, w10
-	ccmn	w9, #1, #0, eq
-	b.eq	LBB28_5
-; %bb.4:
-	sdiv	w10, w8, w9
-	msub	w11, w10, w9, w8
-	cbz	w11, LBB28_17
-LBB28_5:
-	scvtf	d0, w8
-	scvtf	d1, w9
-	fdiv	d0, d0, d1
-	mov	x19, x0
-	b	LBB28_11
-LBB28_6:
-	lsr	x10, x8, #49
-	cbz	x10, LBB28_16
-; %bb.7:
-	ldr	x19, [x21, w9, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB28_12
-; %bb.8:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fdiv	d0, d0, d1
-	b	LBB28_14
-LBB28_9:
-	lsr	x10, x9, #49
-	cbz	x10, LBB28_16
-; %bb.10:
-	scvtf	d8, w8
-	mov	x19, x0
-	mov	x0, x9
-	bl	_val_as_f64
-	fdiv	d0, d8, d0
-LBB28_11:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x19
-	b	LBB28_15
-LBB28_12:
-	lsr	x9, x19, #49
-	cbz	x9, LBB28_16
-; %bb.13:
-	mov	x25, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fdiv	d0, d8, d0
-LBB28_14:
-	bl	_val_from_f64
-	mov	x8, x0
-	mov	x0, x25
-LBB28_15:
-	lsr	w9, w0, #8
-	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x23, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	br	x2
-LBB28_16:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	_notanumber
-LBB28_17:
-	orr	x8, x10, #0xfffe000000000000
-	b	LBB28_15
-	.cfi_endproc
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_ModDD
-_vm_op_ModDD:                           ; @vm_op_ModDD
-	.cfi_startproc
-; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x8, x0
-	lsr	w25, w0, #8
-	and	w9, w0, #0xff
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x0, x10
 	b.lo	LBB29_4
 ; %bb.1:
 	ldr	x9, [x21, w9, uxtw #3]
@@ -1466,54 +1404,63 @@ _vm_op_ModDD:                           ; @vm_op_ModDD
 ; %bb.2:
 	cbz	w9, LBB29_13
 ; %bb.3:
-	sdiv	w8, w0, w9
-	msub	w8, w8, w9, w0
+	sdiv	w10, w8, w9
+	msub	w10, w10, w9, w8
+	eor	w8, w9, w8
+	and	w8, w9, w8, asr #31
+	add	w8, w10, w8
+	cmp	w10, #0
+	csel	w8, wzr, w8, eq
 	orr	x8, x8, #0xfffe000000000000
-	str	x8, [x21, w25, uxtw #3]
 	b	LBB29_15
 LBB29_4:
-	lsr	x10, x0, #49
+	lsr	x10, x8, #49
 	cbz	x10, LBB29_12
 ; %bb.5:
-	ldr	x19, [x21, w9, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
+	ldr	x9, [x21, w9, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
 	b.lo	LBB29_9
 ; %bb.6:
-	bl	_val_as_f64
-	scvtf	d1, w19
+	add	x8, x8, x10
+	fmov	d0, x8
+	scvtf	d1, w9
 	b	LBB29_14
 LBB29_7:
 	lsr	x10, x9, #49
 	cbz	x10, LBB29_12
 ; %bb.8:
-	scvtf	d8, w0
-	mov	x0, x9
+	scvtf	d0, w8
+	mov	x8, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x9, x8
 	b	LBB29_11
 LBB29_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB29_12
+	lsr	x10, x9, #49
+	cbz	x10, LBB29_12
 ; %bb.10:
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x8, x8, x10
+	fmov	d0, x8
+	add	x8, x9, x10
 LBB29_11:
-	bl	_val_as_f64
-	fmov	d1, d0
-	fmov	d0, d8
+	fmov	d1, x8
 	b	LBB29_14
 LBB29_12:
-	mov	x0, x8
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 LBB29_13:
-	scvtf	d0, w0
+	scvtf	d0, w8
 	movi	d1, #0000000000000000
 LBB29_14:
+	mov	x19, x0
 	bl	_fmod
-	bl	_val_from_f64
-	str	x0, [x21, w25, uxtw #3]
+	mov	x0, x19
+	fmov	x8, d0
+	mov	x9, #562949953421312            ; =0x2000000000000
+	add	x8, x8, x9
 LBB29_15:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
@@ -1527,49 +1474,34 @@ LBB29_15:
 _vm_op_NegD:                            ; @vm_op_NegD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x19, x0
-	ldr	x0, [x21, w1, uxtw #3]
-	mov	x8, #-562949953421312           ; =0xfffe000000000000
-	cmp	x0, x8
-	b.lo	LBB30_3
+	ldr	x8, [x21, w1, uxtw #3]
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	cmp	x8, x9
+	b.lo	LBB30_2
 ; %bb.1:
-	mov	w8, #-2147483648                ; =0x80000000
-	cmp	w0, w8
-	b.ne	LBB30_6
-; %bb.2:
-	mov	x8, #4746794007248502784        ; =0x41e0000000000000
-	fmov	d0, x8
-	b	LBB30_5
-LBB30_3:
-	lsr	x8, x0, #49
-	cbz	x8, LBB30_8
-; %bb.4:
-	bl	_val_as_f64
-	fneg	d0, d0
-LBB30_5:
-	bl	_val_from_f64
-	b	LBB30_7
-LBB30_6:
-	neg	w8, w0
-	orr	x0, x8, #0xfffe000000000000
-LBB30_7:
-	lsr	w8, w19, #8
-	str	x0, [x21, w8, uxtw #3]
+	mov	x9, #4747356957201924096        ; =0x41e2000000000000
+	mov	w10, #-2147483648               ; =0x80000000
+	neg	w11, w8
+	orr	x11, x11, #0xfffe000000000000
+	cmp	w8, w10
+	csel	x8, x9, x11, eq
+	b	LBB30_4
+LBB30_2:
+	lsr	x9, x8, #49
+	cbz	x9, LBB30_5
+; %bb.3:
+	mov	x9, #-9223372036854775808       ; =0x8000000000000000
+	add	x8, x8, x9
+LBB30_4:
+	lsr	w9, w0, #8
+	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB30_8:
-	mov	x0, x19
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB30_5:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -1577,589 +1509,526 @@ LBB30_8:
 _vm_op_SetCond:                         ; @vm_op_SetCond
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	mov	x19, x20
-	ldrb	w9, [x20]
-	ldrb	w8, [x20, #1]
-	ldrh	w25, [x20, #2]
+	mov	x8, x20
+	ldrb	w11, [x20]
+	ldrb	w9, [x20, #1]
+	ldrh	w10, [x20, #2]
 	add	x20, x20, #4
-	sub	w9, w9, #31
-	cmp	w9, #14
-	b.hi	LBB31_25
+	sub	w11, w11, #31
+	cmp	w11, #14
+	b.hi	LBB31_24
 ; %bb.1:
 Lloh47:
-	adrp	x10, lJTI31_0@PAGE
+	adrp	x12, lJTI31_0@PAGE
 Lloh48:
-	add	x10, x10, lJTI31_0@PAGEOFF
-	adr	x11, LBB31_2
-	ldrb	w12, [x10, x9]
-	add	x11, x11, x12, lsl #2
-	br	x11
+	add	x12, x12, lJTI31_0@PAGEOFF
+	adr	x13, LBB31_2
+	ldrb	w14, [x12, x11]
+	add	x13, x13, x14, lsl #2
+	br	x13
 LBB31_2:
-	ldr	x8, [x21, x8, lsl #3]
-	mov	w9, #65535                      ; =0xffff
-	cmp	w25, w9
-	b.eq	LBB31_112
-; %bb.3:
-	cmp	x8, #7
-	b.ne	LBB31_9
+	ldr	x9, [x21, x9, lsl #3]
+	mov	w11, #65535                     ; =0xffff
+	cmp	w10, w11
+	cset	w10, eq
+	and	x9, x9, #0xfffffffffffffffb
+	cmp	x9, #2
+	cset	w9, eq
+	eor	w9, w10, w9
+	tbz	w9, #0, LBB31_8
+LBB31_3:
+	sxth	w9, w0
+	cmp	w9, #1
+	b.lt	LBB31_9
 LBB31_4:
-	tbnz	w0, #15, LBB31_10
-LBB31_5:
-	mov	w8, #7                          ; =0x7
-	str	x8, [x21, w1, uxtw #3]
-	b	LBB31_75
-LBB31_6:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x26, [x21, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_58
-; %bb.7:
-	cmp	x26, x10
-	b.lo	LBB31_53
-LBB31_8:
-	cmp	w9, w26
-	b.ge	LBB31_4
-LBB31_9:
-	sxth	w8, w0
-	cmp	w8, #1
-	b.lt	LBB31_5
-LBB31_10:
-	mov	w8, #6                          ; =0x6
-	str	x8, [x21, w1, uxtw #3]
-	b	LBB31_57
-LBB31_11:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x26, [x21, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_61
-; %bb.12:
-	cmp	x26, x10
-	b.lo	LBB31_37
-LBB31_13:
-	cmp	w9, w26
-	b.ge	LBB31_9
-	b	LBB31_4
-LBB31_14:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x10, [x22, #40]
-	ldr	x26, [x10, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_64
-; %bb.15:
-	cmp	x26, x10
-	b.lo	LBB31_49
-LBB31_16:
-	cmp	w9, w26
-	b.eq	LBB31_9
-	b	LBB31_4
-LBB31_17:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x26, [x21, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_67
-; %bb.18:
-	cmp	x26, x10
-	b.lo	LBB31_45
-LBB31_19:
-	cmp	w9, w26
-	b.gt	LBB31_9
-	b	LBB31_4
-LBB31_20:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x26, [x21, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_70
-; %bb.21:
-	cmp	x26, x10
-	b.lo	LBB31_28
-LBB31_22:
-	cmp	w9, w26
-	b.ne	LBB31_9
-	b	LBB31_4
-LBB31_23:
-	ldr	x9, [x21, x8, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_76
-; %bb.24:
-	cmp	w9, w25
-	b.eq	LBB31_9
-	b	LBB31_4
-LBB31_25:
-	mov	x0, x25
-	mov	x1, x8
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	_unimplemented
-LBB31_26:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x10, [x22, #40]
-	ldr	x26, [x10, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_80
-; %bb.27:
-	cmp	x26, x10
-	b.hs	LBB31_22
-LBB31_28:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.29:
-	mov	x27, x0
-	mov	x25, x1
-	scvtf	d8, w9
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.eq	LBB31_73
-	b	LBB31_55
-LBB31_30:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x10, [x22, #40]
-	ldr	x26, [x10, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_84
-; %bb.31:
-	cmp	x26, x10
-	b.lo	LBB31_41
-LBB31_32:
-	cmp	w9, w26
-	b.le	LBB31_9
-	b	LBB31_4
-LBB31_33:
-	ldr	x9, [x21, x8, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_87
-; %bb.34:
-	cmp	w9, w25
-	b.ne	LBB31_9
-	b	LBB31_4
-LBB31_35:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x10, [x22, #40]
-	ldr	x26, [x10, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_91
-; %bb.36:
-	cmp	x26, x10
-	b.hs	LBB31_13
-LBB31_37:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.38:
-	mov	x27, x0
-	mov	x25, x1
-	scvtf	d8, w9
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.gt	LBB31_73
-	b	LBB31_55
-LBB31_39:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x26, [x21, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_95
-; %bb.40:
-	cmp	x26, x10
-	b.hs	LBB31_32
-LBB31_41:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.42:
-	mov	x27, x0
-	mov	x25, x1
-	scvtf	d8, w9
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.mi	LBB31_73
-	b	LBB31_55
-LBB31_43:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x10, [x22, #40]
-	ldr	x26, [x10, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_99
-; %bb.44:
-	cmp	x26, x10
-	b.hs	LBB31_19
-LBB31_45:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.46:
-	mov	x27, x0
-	mov	x25, x1
-	scvtf	d8, w9
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.ge	LBB31_73
-	b	LBB31_55
-LBB31_47:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x26, [x21, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_103
-; %bb.48:
-	cmp	x26, x10
-	b.hs	LBB31_16
-LBB31_49:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.50:
-	mov	x27, x0
-	mov	x25, x1
-	scvtf	d8, w9
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.ne	LBB31_73
-	b	LBB31_55
-LBB31_51:
-	ldr	x9, [x21, x8, lsl #3]
-	ldr	x10, [x22, #40]
-	ldr	x26, [x10, x25, lsl #3]
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x9, x10
-	b.lo	LBB31_107
-; %bb.52:
-	cmp	x26, x10
-	b.hs	LBB31_8
-LBB31_53:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.54:
-	mov	x27, x0
-	mov	x25, x1
-	scvtf	d8, w9
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.ls	LBB31_73
-LBB31_55:
-	sxth	w8, w27
-	cmp	w8, #1
-	b.lt	LBB31_74
-LBB31_56:
-	mov	w8, #6                          ; =0x6
-	str	x8, [x21, w25, uxtw #3]
-LBB31_57:
-	add	x20, x19, #8
-	b	LBB31_75
-LBB31_58:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.59:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.lo	LBB31_109
-LBB31_60:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	scvtf	d1, w26
-	fcmp	d0, d1
-	b.ge	LBB31_73
-	b	LBB31_55
-LBB31_61:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.62:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.lo	LBB31_93
-LBB31_63:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	scvtf	d1, w26
-	fcmp	d0, d1
-	b.mi	LBB31_73
-	b	LBB31_55
-LBB31_64:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.65:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.lo	LBB31_105
-LBB31_66:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	scvtf	d1, w26
-	fcmp	d0, d1
-	b.ne	LBB31_73
-	b	LBB31_55
-LBB31_67:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.68:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.lo	LBB31_101
-LBB31_69:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	scvtf	d1, w26
-	fcmp	d0, d1
-	b.ls	LBB31_73
-	b	LBB31_55
-LBB31_70:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.71:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.lo	LBB31_82
-LBB31_72:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	scvtf	d1, w26
-	fcmp	d0, d1
-	b.ne	LBB31_55
-LBB31_73:
-	tbnz	w27, #15, LBB31_56
-LBB31_74:
-	mov	w8, #7                          ; =0x7
-	str	x8, [x21, w25, uxtw #3]
-LBB31_75:
+	mov	w9, #6                          ; =0x6
+	str	x9, [x21, w1, uxtw #3]
+	add	x20, x8, #8
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB31_76:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.77:
-	mov	x27, x0
-	mov	x26, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	ucvtf	d1, w25
-	fcmp	d0, d1
-	b.eq	LBB31_89
-LBB31_78:
-	tbnz	w27, #15, LBB31_90
-LBB31_79:
+LBB31_5:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x21, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_54
+; %bb.6:
+	cmp	x11, x13
+	b.lo	LBB31_52
+LBB31_7:
+	cmp	w12, w11
+	b.lt	LBB31_3
+LBB31_8:
+	tbnz	w0, #15, LBB31_4
+LBB31_9:
 	mov	w8, #7                          ; =0x7
-	str	x8, [x21, w26, uxtw #3]
-	b	LBB31_75
+	str	x8, [x21, w1, uxtw #3]
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB31_10:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x21, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_57
+; %bb.11:
+	cmp	x11, x13
+	b.lo	LBB31_36
+LBB31_12:
+	cmp	w12, w11
+	b.lt	LBB31_8
+	b	LBB31_3
+LBB31_13:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x22, #40]
+	ldr	x11, [x11, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_60
+; %bb.14:
+	cmp	x11, x13
+	b.lo	LBB31_48
+LBB31_15:
+	cmp	w12, w11
+	b.ne	LBB31_8
+	b	LBB31_3
+LBB31_16:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x21, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_63
+; %bb.17:
+	cmp	x11, x13
+	b.lo	LBB31_44
+LBB31_18:
+	cmp	w12, w11
+	b.le	LBB31_8
+	b	LBB31_3
+LBB31_19:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x21, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_66
+; %bb.20:
+	cmp	x11, x13
+	b.lo	LBB31_27
+LBB31_21:
+	cmp	w12, w11
+	b.eq	LBB31_8
+	b	LBB31_3
+LBB31_22:
+	ldr	x11, [x21, x9, lsl #3]
+	mov	x12, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x12
+	b.lo	LBB31_69
+; %bb.23:
+	cmp	w11, w10
+	b.ne	LBB31_8
+	b	LBB31_3
+LBB31_24:
+	mov	x0, x10
+	mov	x1, x9
+	b	_unimplemented
+LBB31_25:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x22, #40]
+	ldr	x11, [x11, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_71
+; %bb.26:
+	cmp	x11, x13
+	b.hs	LBB31_21
+LBB31_27:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.28:
+	scvtf	d0, w12
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d1, d0
+	b.eq	LBB31_8
+	b	LBB31_3
+LBB31_29:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x22, #40]
+	ldr	x11, [x11, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_75
+; %bb.30:
+	cmp	x11, x13
+	b.lo	LBB31_40
+LBB31_31:
+	cmp	w12, w11
+	b.gt	LBB31_8
+	b	LBB31_3
+LBB31_32:
+	ldr	x11, [x21, x9, lsl #3]
+	mov	x12, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x12
+	b.lo	LBB31_78
+; %bb.33:
+	cmp	w11, w10
+	b.eq	LBB31_8
+	b	LBB31_3
+LBB31_34:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x22, #40]
+	ldr	x11, [x11, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_80
+; %bb.35:
+	cmp	x11, x13
+	b.hs	LBB31_12
+LBB31_36:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.37:
+	scvtf	d0, w12
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d1, d0
+	b.gt	LBB31_8
+	b	LBB31_3
+LBB31_38:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x21, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_84
+; %bb.39:
+	cmp	x11, x13
+	b.hs	LBB31_31
+LBB31_40:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.41:
+	scvtf	d0, w12
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d1, d0
+	b.mi	LBB31_8
+	b	LBB31_3
+LBB31_42:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x22, #40]
+	ldr	x11, [x11, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_88
+; %bb.43:
+	cmp	x11, x13
+	b.hs	LBB31_18
+LBB31_44:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.45:
+	scvtf	d0, w12
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d1, d0
+	b.ge	LBB31_8
+	b	LBB31_3
+LBB31_46:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x21, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_92
+; %bb.47:
+	cmp	x11, x13
+	b.hs	LBB31_15
+LBB31_48:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.49:
+	scvtf	d0, w12
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d1, d0
+	b.ne	LBB31_8
+	b	LBB31_3
+LBB31_50:
+	ldr	x12, [x21, x9, lsl #3]
+	ldr	x11, [x22, #40]
+	ldr	x11, [x11, x10, lsl #3]
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x12, x13
+	b.lo	LBB31_96
+; %bb.51:
+	cmp	x11, x13
+	b.hs	LBB31_7
+LBB31_52:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.53:
+	scvtf	d0, w12
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d1, d0
+	b.ls	LBB31_8
+	b	LBB31_3
+LBB31_54:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.55:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.lo	LBB31_98
+LBB31_56:
+	add	x9, x12, x13
+	fmov	d0, x9
+	scvtf	d1, w11
+	fcmp	d0, d1
+	b.ge	LBB31_8
+	b	LBB31_3
+LBB31_57:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.58:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.lo	LBB31_82
+LBB31_59:
+	add	x9, x12, x13
+	fmov	d0, x9
+	scvtf	d1, w11
+	fcmp	d0, d1
+	b.mi	LBB31_8
+	b	LBB31_3
+LBB31_60:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.61:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.lo	LBB31_94
+LBB31_62:
+	add	x9, x12, x13
+	fmov	d0, x9
+	scvtf	d1, w11
+	fcmp	d0, d1
+	b.ne	LBB31_8
+	b	LBB31_3
+LBB31_63:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.64:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.lo	LBB31_90
+LBB31_65:
+	add	x9, x12, x13
+	fmov	d0, x9
+	scvtf	d1, w11
+	fcmp	d0, d1
+	b.ls	LBB31_8
+	b	LBB31_3
+LBB31_66:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.67:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.lo	LBB31_73
+LBB31_68:
+	add	x9, x12, x13
+	fmov	d0, x9
+	scvtf	d1, w11
+	fcmp	d0, d1
+	b.eq	LBB31_8
+	b	LBB31_3
+LBB31_69:
+	lsr	x12, x11, #49
+	cbz	x12, LBB31_100
+; %bb.70:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d0, x9
+	ucvtf	d1, w10
+	fcmp	d0, d1
+	b.ne	LBB31_8
+	b	LBB31_3
+LBB31_71:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.72:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.hs	LBB31_68
+LBB31_73:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.74:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x10, x12, x9
+	fmov	d0, x10
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d0, d1
+	b.eq	LBB31_8
+	b	LBB31_3
+LBB31_75:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.76:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.lo	LBB31_86
+LBB31_77:
+	add	x9, x12, x13
+	fmov	d0, x9
+	scvtf	d1, w11
+	fcmp	d0, d1
+	b.gt	LBB31_8
+	b	LBB31_3
+LBB31_78:
+	lsr	x12, x11, #49
+	cbz	x12, LBB31_100
+; %bb.79:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x9, x11, x9
+	fmov	d0, x9
+	ucvtf	d1, w10
+	fcmp	d0, d1
+	b.eq	LBB31_8
+	b	LBB31_3
 LBB31_80:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
 ; %bb.81:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.hs	LBB31_72
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.hs	LBB31_59
 LBB31_82:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
 ; %bb.83:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d8, d0
-	b.eq	LBB31_73
-	b	LBB31_55
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x10, x12, x9
+	fmov	d0, x10
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d0, d1
+	b.mi	LBB31_8
+	b	LBB31_3
 LBB31_84:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
 ; %bb.85:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.lo	LBB31_97
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.hs	LBB31_77
 LBB31_86:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	scvtf	d1, w26
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.87:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x10, x12, x9
+	fmov	d0, x10
+	add	x9, x11, x9
+	fmov	d1, x9
 	fcmp	d0, d1
-	b.gt	LBB31_73
-	b	LBB31_55
-LBB31_87:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.88:
-	mov	x27, x0
-	mov	x26, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	ucvtf	d1, w25
-	fcmp	d0, d1
-	b.eq	LBB31_78
-LBB31_89:
-	sxth	w8, w27
-	cmp	w8, #1
-	b.lt	LBB31_79
+	b.gt	LBB31_8
+	b	LBB31_3
+LBB31_88:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.89:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.hs	LBB31_65
 LBB31_90:
-	mov	w8, #6                          ; =0x6
-	str	x8, [x21, w26, uxtw #3]
-	b	LBB31_57
-LBB31_91:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.92:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.hs	LBB31_63
-LBB31_93:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.94:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d8, d0
-	b.mi	LBB31_73
-	b	LBB31_55
-LBB31_95:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.96:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.hs	LBB31_86
-LBB31_97:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.98:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d8, d0
-	b.gt	LBB31_73
-	b	LBB31_55
-LBB31_99:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.100:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.hs	LBB31_69
-LBB31_101:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.102:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d8, d0
-	b.ls	LBB31_73
-	b	LBB31_55
-LBB31_103:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.104:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.hs	LBB31_66
-LBB31_105:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.106:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d8, d0
-	b.ne	LBB31_73
-	b	LBB31_55
-LBB31_107:
-	lsr	x10, x9, #49
-	cbz	x10, LBB31_111
-; %bb.108:
-	mov	x10, #-562949953421312          ; =0xfffe000000000000
-	cmp	x26, x10
-	b.hs	LBB31_60
-LBB31_109:
-	lsr	x10, x26, #49
-	cbz	x10, LBB31_111
-; %bb.110:
-	mov	x27, x0
-	mov	x25, x1
-	mov	x0, x9
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x26
-	bl	_val_as_f64
-	fcmp	d8, d0
-	b.ge	LBB31_73
-	b	LBB31_55
-LBB31_111:
-	mov	x0, x25
-	mov	x1, x8
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.91:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x10, x12, x9
+	fmov	d0, x10
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d0, d1
+	b.ls	LBB31_8
+	b	LBB31_3
+LBB31_92:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.93:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.hs	LBB31_62
+LBB31_94:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.95:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x10, x12, x9
+	fmov	d0, x10
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d0, d1
+	b.ne	LBB31_8
+	b	LBB31_3
+LBB31_96:
+	lsr	x13, x12, #49
+	cbz	x13, LBB31_100
+; %bb.97:
+	mov	x13, #-562949953421312          ; =0xfffe000000000000
+	cmp	x11, x13
+	b.hs	LBB31_56
+LBB31_98:
+	lsr	x13, x11, #49
+	cbz	x13, LBB31_100
+; %bb.99:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x10, x12, x9
+	fmov	d0, x10
+	add	x9, x11, x9
+	fmov	d1, x9
+	fcmp	d0, d1
+	b.ge	LBB31_8
+	b	LBB31_3
+LBB31_100:
+	mov	x0, x10
+	mov	x1, x9
 	b	_notanumber
-LBB31_112:
-	cmp	x8, #6
-	b.ne	LBB31_9
-	b	LBB31_4
 	.loh AdrpAdd	Lloh47, Lloh48
 	.cfi_endproc
 	.section	__TEXT,__const
 lJTI31_0:
 	.byte	(LBB31_2-LBB31_2)>>2
-	.byte	(LBB31_33-LBB31_2)>>2
-	.byte	(LBB31_23-LBB31_2)>>2
-	.byte	(LBB31_26-LBB31_2)>>2
-	.byte	(LBB31_14-LBB31_2)>>2
-	.byte	(LBB31_35-LBB31_2)>>2
-	.byte	(LBB31_43-LBB31_2)>>2
-	.byte	(LBB31_30-LBB31_2)>>2
-	.byte	(LBB31_51-LBB31_2)>>2
-	.byte	(LBB31_20-LBB31_2)>>2
-	.byte	(LBB31_47-LBB31_2)>>2
-	.byte	(LBB31_11-LBB31_2)>>2
-	.byte	(LBB31_17-LBB31_2)>>2
-	.byte	(LBB31_39-LBB31_2)>>2
-	.byte	(LBB31_6-LBB31_2)>>2
+	.byte	(LBB31_32-LBB31_2)>>2
+	.byte	(LBB31_22-LBB31_2)>>2
+	.byte	(LBB31_25-LBB31_2)>>2
+	.byte	(LBB31_13-LBB31_2)>>2
+	.byte	(LBB31_34-LBB31_2)>>2
+	.byte	(LBB31_42-LBB31_2)>>2
+	.byte	(LBB31_29-LBB31_2)>>2
+	.byte	(LBB31_50-LBB31_2)>>2
+	.byte	(LBB31_19-LBB31_2)>>2
+	.byte	(LBB31_46-LBB31_2)>>2
+	.byte	(LBB31_10-LBB31_2)>>2
+	.byte	(LBB31_16-LBB31_2)>>2
+	.byte	(LBB31_38-LBB31_2)>>2
+	.byte	(LBB31_5-LBB31_2)>>2
                                         ; -- End function
 	.section	__TEXT,__text,regular,pure_instructions
 	.p2align	5                               ; -- Begin function vm_op_CmpNotF
@@ -2169,11 +2038,15 @@ _vm_op_CmpNotF:                         ; @vm_op_CmpNotF
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	w9, #65535                      ; =0xffff
 	cmp	w0, w9
-	mov	w9, #6                          ; =0x6
-	cinc	x9, x9, ne
-	cmp	x8, x9
+	cset	w9, eq
+	and	x8, x8, #0xfffffffffffffffb
+	cmp	x8, #2
 	cset	w8, ne
-	add	x8, x20, w8, uxtw #2
+	eor	w8, w9, w8
+	cmp	w8, #0
+	mov	w8, #4                          ; =0x4
+	csel	x8, xzr, x8, ne
+	add	x8, x20, x8
 	ldrb	w9, [x8]
 	ldr	x2, [x23, x9, lsl #3]
 	ldrb	w1, [x8, #1]
@@ -2186,11 +2059,6 @@ _vm_op_CmpNotF:                         ; @vm_op_CmpNotF
 _vm_op_CmpEqDI:                         ; @vm_op_CmpEqDI
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	x9, #-562949953421312           ; =0xfffe000000000000
 	cmp	x8, x9
@@ -2199,28 +2067,30 @@ _vm_op_CmpEqDI:                         ; @vm_op_CmpEqDI
 	cmp	w8, w0
 	cset	w8, ne
 	add	x8, x20, w8, uxtw #2
-	b	LBB33_4
-LBB33_2:
-	lsr	x9, x8, #49
-	cbz	x9, LBB33_5
-; %bb.3:
-	mov	x19, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	ucvtf	d1, w19
-	fcmp	d0, d1
-	add	x8, x20, #4
-	csel	x8, x20, x8, eq
-LBB33_4:
 	ldrb	w9, [x8]
 	ldr	x2, [x23, x9, lsl #3]
 	ldrb	w1, [x8, #1]
 	ldrh	w0, [x8, #2]
 	add	x20, x8, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB33_5:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB33_2:
+	lsr	x9, x8, #49
+	cbz	x9, LBB33_4
+; %bb.3:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d0, x8
+	ucvtf	d1, w0
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x8, x20, x8, eq
+	ldrb	w9, [x8]
+	ldr	x2, [x23, x9, lsl #3]
+	ldrb	w1, [x8, #1]
+	ldrh	w0, [x8, #2]
+	add	x20, x8, #4
+	br	x2
+LBB33_4:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2228,11 +2098,6 @@ LBB33_5:
 _vm_op_CmpNeDI:                         ; @vm_op_CmpNeDI
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	ldr	x8, [x21, w1, uxtw #3]
 	mov	x9, #-562949953421312           ; =0xfffe000000000000
 	cmp	x8, x9
@@ -2241,28 +2106,30 @@ _vm_op_CmpNeDI:                         ; @vm_op_CmpNeDI
 	cmp	w8, w0
 	cset	w8, eq
 	add	x8, x20, w8, uxtw #2
-	b	LBB34_4
-LBB34_2:
-	lsr	x9, x8, #49
-	cbz	x9, LBB34_5
-; %bb.3:
-	mov	x19, x0
-	mov	x0, x8
-	bl	_val_as_f64
-	ucvtf	d1, w19
-	fcmp	d0, d1
-	add	x8, x20, #4
-	csel	x8, x20, x8, ne
-LBB34_4:
 	ldrb	w9, [x8]
 	ldr	x2, [x23, x9, lsl #3]
 	ldrb	w1, [x8, #1]
 	ldrh	w0, [x8, #2]
 	add	x20, x8, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB34_5:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB34_2:
+	lsr	x9, x8, #49
+	cbz	x9, LBB34_4
+; %bb.3:
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d0, x8
+	ucvtf	d1, w0
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x8, x20, x8, ne
+	ldrb	w9, [x8]
+	ldr	x2, [x23, x9, lsl #3]
+	ldrb	w1, [x8, #1]
+	ldrh	w0, [x8, #2]
+	add	x20, x8, #4
+	br	x2
+LBB34_4:
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2270,222 +2137,248 @@ LBB34_5:
 _vm_op_CmpEqDC:                         ; @vm_op_CmpEqDC
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x22, #40]
-	ldr	x19, [x9, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x22, #40]
+	ldr	x8, [x8, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
 	b.lo	LBB35_3
 ; %bb.1:
-	cmp	x19, x9
+	cmp	x8, x10
 	b.lo	LBB35_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, ne
 	add	x20, x20, w8, uxtw #2
-	b	LBB35_12
-LBB35_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB35_13
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB35_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.eq	LBB35_12
-; %bb.6:
-	add	x20, x20, #4
-	b	LBB35_12
-LBB35_7:
-	lsr	x9, x19, #49
-	cbz	x9, LBB35_13
-; %bb.8:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b	LBB35_11
-LBB35_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB35_13
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-LBB35_11:
-	add	x8, x20, #4
-	csel	x20, x20, x8, eq
-LBB35_12:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB35_13:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB35_3:
+	lsr	x10, x9, #49
+	cbz	x10, LBB35_12
+; %bb.4:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB35_9
+; %bb.5:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.ne	LBB35_13
+; %bb.6:
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB35_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB35_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b	LBB35_11
+LBB35_9:
+	lsr	x10, x8, #49
+	cbz	x10, LBB35_12
+; %bb.10:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+LBB35_11:
+	add	x8, x20, #4
+	csel	x20, x20, x8, eq
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB35_12:
 	b	_notanumber
+LBB35_13:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_CmpNeDC
 _vm_op_CmpNeDC:                         ; @vm_op_CmpNeDC
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x22, #40]
-	ldr	x19, [x9, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x22, #40]
+	ldr	x8, [x8, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
 	b.lo	LBB36_3
 ; %bb.1:
-	cmp	x19, x9
+	cmp	x8, x10
 	b.lo	LBB36_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, eq
 	add	x20, x20, w8, uxtw #2
-	b	LBB36_12
-LBB36_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB36_13
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB36_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.ne	LBB36_12
-; %bb.6:
-	add	x20, x20, #4
-	b	LBB36_12
-LBB36_7:
-	lsr	x9, x19, #49
-	cbz	x9, LBB36_13
-; %bb.8:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b	LBB36_11
-LBB36_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB36_13
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-LBB36_11:
-	add	x8, x20, #4
-	csel	x20, x20, x8, ne
-LBB36_12:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB36_13:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+LBB36_3:
+	lsr	x10, x9, #49
+	cbz	x10, LBB36_12
+; %bb.4:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB36_9
+; %bb.5:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.eq	LBB36_13
+; %bb.6:
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB36_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB36_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b	LBB36_11
+LBB36_9:
+	lsr	x10, x8, #49
+	cbz	x10, LBB36_12
+; %bb.10:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+LBB36_11:
+	add	x8, x20, #4
+	csel	x20, x20, x8, ne
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB36_12:
 	b	_notanumber
+LBB36_13:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_CmpLtDC
 _vm_op_CmpLtDC:                         ; @vm_op_CmpLtDC
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x22, #40]
-	ldr	x19, [x9, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB37_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x22, #40]
+	ldr	x8, [x8, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB37_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB37_7
+	cmp	x8, x10
+	b.lo	LBB37_8
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, ge
 	add	x20, x20, w8, uxtw #2
-	b	LBB37_11
 LBB37_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB37_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB37_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.mi	LBB37_11
-; %bb.6:
-	add	x20, x20, #4
-	b	LBB37_11
-LBB37_7:
-	lsr	x9, x19, #49
-	cbz	x9, LBB37_12
-; %bb.8:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	add	x8, x20, #4
-	csel	x20, x20, x8, gt
-	b	LBB37_11
-LBB37_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB37_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, mi
-LBB37_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB37_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB37_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB37_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.mi	LBB37_3
+; %bb.7:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB37_8:
+	lsr	x10, x8, #49
+	cbz	x10, LBB37_12
+; %bb.9:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	add	x8, x20, #4
+	csel	x20, x20, x8, gt
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB37_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB37_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, mi
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB37_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2493,74 +2386,82 @@ LBB37_12:
 _vm_op_CmpLeDC:                         ; @vm_op_CmpLeDC
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x22, #40]
-	ldr	x19, [x9, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB38_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x22, #40]
+	ldr	x8, [x8, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB38_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB38_7
+	cmp	x8, x10
+	b.lo	LBB38_8
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, gt
 	add	x20, x20, w8, uxtw #2
-	b	LBB38_11
 LBB38_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB38_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB38_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.ls	LBB38_11
-; %bb.6:
-	add	x20, x20, #4
-	b	LBB38_11
-LBB38_7:
-	lsr	x9, x19, #49
-	cbz	x9, LBB38_12
-; %bb.8:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	add	x8, x20, #4
-	csel	x20, x20, x8, ge
-	b	LBB38_11
-LBB38_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB38_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, ls
-LBB38_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB38_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB38_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB38_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.ls	LBB38_3
+; %bb.7:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB38_8:
+	lsr	x10, x8, #49
+	cbz	x10, LBB38_12
+; %bb.9:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	add	x8, x20, #4
+	csel	x20, x20, x8, ge
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB38_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB38_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, ls
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB38_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2568,74 +2469,82 @@ LBB38_12:
 _vm_op_CmpGtDC:                         ; @vm_op_CmpGtDC
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x22, #40]
-	ldr	x19, [x9, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB39_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x22, #40]
+	ldr	x8, [x8, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB39_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB39_7
+	cmp	x8, x10
+	b.lo	LBB39_8
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, le
 	add	x20, x20, w8, uxtw #2
-	b	LBB39_11
 LBB39_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB39_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB39_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.gt	LBB39_11
-; %bb.6:
-	add	x20, x20, #4
-	b	LBB39_11
-LBB39_7:
-	lsr	x9, x19, #49
-	cbz	x9, LBB39_12
-; %bb.8:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	add	x8, x20, #4
-	csel	x20, x20, x8, mi
-	b	LBB39_11
-LBB39_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB39_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, gt
-LBB39_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB39_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB39_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB39_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.gt	LBB39_3
+; %bb.7:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB39_8:
+	lsr	x10, x8, #49
+	cbz	x10, LBB39_12
+; %bb.9:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	add	x8, x20, #4
+	csel	x20, x20, x8, mi
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB39_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB39_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, gt
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB39_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2643,74 +2552,82 @@ LBB39_12:
 _vm_op_CmpGeDC:                         ; @vm_op_CmpGeDC
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x22, #40]
-	ldr	x19, [x9, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB40_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x22, #40]
+	ldr	x8, [x8, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB40_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB40_7
+	cmp	x8, x10
+	b.lo	LBB40_8
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, lt
 	add	x20, x20, w8, uxtw #2
-	b	LBB40_11
 LBB40_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB40_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB40_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.ge	LBB40_11
-; %bb.6:
-	add	x20, x20, #4
-	b	LBB40_11
-LBB40_7:
-	lsr	x9, x19, #49
-	cbz	x9, LBB40_12
-; %bb.8:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	add	x8, x20, #4
-	csel	x20, x20, x8, ls
-	b	LBB40_11
-LBB40_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB40_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, ge
-LBB40_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB40_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB40_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB40_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.ge	LBB40_3
+; %bb.7:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB40_8:
+	lsr	x10, x8, #49
+	cbz	x10, LBB40_12
+; %bb.9:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	add	x8, x20, #4
+	csel	x20, x20, x8, ls
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB40_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB40_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, ge
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB40_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2718,72 +2635,80 @@ LBB40_12:
 _vm_op_CmpEqDD:                         ; @vm_op_CmpEqDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x19, [x21, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x21, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
 	b.lo	LBB41_3
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB41_6
+	cmp	x8, x10
+	b.lo	LBB41_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, ne
 	add	x20, x20, w8, uxtw #2
-	b	LBB41_11
-LBB41_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB41_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB41_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.eq	LBB41_11
-	b	LBB41_8
-LBB41_6:
-	lsr	x9, x19, #49
-	cbz	x9, LBB41_12
-; %bb.7:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.eq	LBB41_11
-LBB41_8:
-	add	x20, x20, #4
-	b	LBB41_11
-LBB41_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB41_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, eq
-LBB41_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB41_3:
+	lsr	x10, x9, #49
+	cbz	x10, LBB41_12
+; %bb.4:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB41_10
+; %bb.5:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.eq	LBB41_9
+LBB41_6:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB41_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB41_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b.ne	LBB41_6
+LBB41_9:
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB41_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB41_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, eq
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB41_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2791,72 +2716,80 @@ LBB41_12:
 _vm_op_CmpNeDD:                         ; @vm_op_CmpNeDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x19, [x21, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x21, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
 	b.lo	LBB42_3
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB42_6
+	cmp	x8, x10
+	b.lo	LBB42_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, eq
 	add	x20, x20, w8, uxtw #2
-	b	LBB42_11
-LBB42_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB42_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB42_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.ne	LBB42_11
-	b	LBB42_8
-LBB42_6:
-	lsr	x9, x19, #49
-	cbz	x9, LBB42_12
-; %bb.7:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.ne	LBB42_11
-LBB42_8:
-	add	x20, x20, #4
-	b	LBB42_11
-LBB42_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB42_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, ne
-LBB42_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB42_3:
+	lsr	x10, x9, #49
+	cbz	x10, LBB42_12
+; %bb.4:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB42_10
+; %bb.5:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.ne	LBB42_9
+LBB42_6:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB42_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB42_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b.eq	LBB42_6
+LBB42_9:
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB42_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB42_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, ne
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB42_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2864,72 +2797,75 @@ LBB42_12:
 _vm_op_CmpLtDD:                         ; @vm_op_CmpLtDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x19, [x21, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB43_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x21, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB43_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB43_6
+	cmp	x8, x10
+	b.lo	LBB43_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, ge
 	add	x20, x20, w8, uxtw #2
-	b	LBB43_11
 LBB43_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB43_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB43_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.mi	LBB43_11
-	b	LBB43_8
-LBB43_6:
-	lsr	x9, x19, #49
-	cbz	x9, LBB43_12
-; %bb.7:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.gt	LBB43_11
-LBB43_8:
-	add	x20, x20, #4
-	b	LBB43_11
-LBB43_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB43_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, mi
-LBB43_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB43_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB43_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB43_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.mi	LBB43_3
+	b	LBB43_9
+LBB43_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB43_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b.gt	LBB43_3
+LBB43_9:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB43_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB43_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, mi
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB43_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -2937,72 +2873,75 @@ LBB43_12:
 _vm_op_CmpLeDD:                         ; @vm_op_CmpLeDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x19, [x21, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB44_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x21, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB44_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB44_6
+	cmp	x8, x10
+	b.lo	LBB44_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, gt
 	add	x20, x20, w8, uxtw #2
-	b	LBB44_11
 LBB44_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB44_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB44_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.ls	LBB44_11
-	b	LBB44_8
-LBB44_6:
-	lsr	x9, x19, #49
-	cbz	x9, LBB44_12
-; %bb.7:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.ge	LBB44_11
-LBB44_8:
-	add	x20, x20, #4
-	b	LBB44_11
-LBB44_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB44_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, ls
-LBB44_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB44_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB44_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB44_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.ls	LBB44_3
+	b	LBB44_9
+LBB44_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB44_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b.ge	LBB44_3
+LBB44_9:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB44_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB44_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, ls
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB44_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -3010,72 +2949,75 @@ LBB44_12:
 _vm_op_CmpGtDD:                         ; @vm_op_CmpGtDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x19, [x21, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB45_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x21, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB45_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB45_6
+	cmp	x8, x10
+	b.lo	LBB45_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, le
 	add	x20, x20, w8, uxtw #2
-	b	LBB45_11
 LBB45_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB45_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB45_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.gt	LBB45_11
-	b	LBB45_8
-LBB45_6:
-	lsr	x9, x19, #49
-	cbz	x9, LBB45_12
-; %bb.7:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.mi	LBB45_11
-LBB45_8:
-	add	x20, x20, #4
-	b	LBB45_11
-LBB45_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB45_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, gt
-LBB45_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB45_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB45_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB45_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.gt	LBB45_3
+	b	LBB45_9
+LBB45_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB45_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b.mi	LBB45_3
+LBB45_9:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB45_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB45_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, gt
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB45_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -3083,72 +3025,75 @@ LBB45_12:
 _vm_op_CmpGeDD:                         ; @vm_op_CmpGeDD
 	.cfi_startproc
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x19, [x21, w0, uxtw #3]
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x8, x9
-	b.lo	LBB46_3
+	ldr	x9, [x21, w1, uxtw #3]
+	ldr	x8, [x21, w0, uxtw #3]
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x9, x10
+	b.lo	LBB46_4
 ; %bb.1:
-	cmp	x19, x9
-	b.lo	LBB46_6
+	cmp	x8, x10
+	b.lo	LBB46_7
 ; %bb.2:
-	cmp	w8, w19
+	cmp	w9, w8
 	cset	w8, lt
 	add	x20, x20, w8, uxtw #2
-	b	LBB46_11
 LBB46_3:
-	lsr	x9, x8, #49
-	cbz	x9, LBB46_12
-; %bb.4:
-	mov	x9, #-562949953421312           ; =0xfffe000000000000
-	cmp	x19, x9
-	b.lo	LBB46_9
-; %bb.5:
-	mov	x0, x8
-	bl	_val_as_f64
-	scvtf	d1, w19
-	fcmp	d0, d1
-	b.ge	LBB46_11
-	b	LBB46_8
-LBB46_6:
-	lsr	x9, x19, #49
-	cbz	x9, LBB46_12
-; %bb.7:
-	scvtf	d8, w8
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d0, d8
-	b.ls	LBB46_11
-LBB46_8:
-	add	x20, x20, #4
-	b	LBB46_11
-LBB46_9:
-	lsr	x9, x19, #49
-	cbz	x9, LBB46_12
-; %bb.10:
-	mov	x0, x8
-	bl	_val_as_f64
-	fmov	d8, d0
-	mov	x0, x19
-	bl	_val_as_f64
-	fcmp	d8, d0
-	add	x8, x20, #4
-	csel	x20, x20, x8, ge
-LBB46_11:
 	ldrb	w8, [x20]
 	ldr	x2, [x23, x8, lsl #3]
 	ldrb	w1, [x20, #1]
 	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	br	x2
+LBB46_4:
+	lsr	x10, x9, #49
+	cbz	x10, LBB46_12
+; %bb.5:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	cmp	x8, x10
+	b.lo	LBB46_10
+; %bb.6:
+	add	x9, x9, x10
+	fmov	d0, x9
+	scvtf	d1, w8
+	fcmp	d0, d1
+	b.ge	LBB46_3
+	b	LBB46_9
+LBB46_7:
+	lsr	x10, x8, #49
+	cbz	x10, LBB46_12
+; %bb.8:
+	scvtf	d0, w9
+	mov	x9, #-562949953421312           ; =0xfffe000000000000
+	add	x8, x8, x9
+	fmov	d1, x8
+	fcmp	d1, d0
+	b.ls	LBB46_3
+LBB46_9:
+	ldrb	w8, [x20, #4]!
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	br	x2
+LBB46_10:
+	lsr	x10, x8, #49
+	cbz	x10, LBB46_12
+; %bb.11:
+	mov	x10, #-562949953421312          ; =0xfffe000000000000
+	add	x9, x9, x10
+	fmov	d0, x9
+	add	x8, x8, x10
+	fmov	d1, x8
+	fcmp	d0, d1
+	add	x8, x20, #4
+	csel	x20, x20, x8, ge
+	ldrb	w8, [x20]
+	ldr	x2, [x23, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
 	br	x2
 LBB46_12:
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_notanumber
 	.cfi_endproc
                                         ; -- End function
@@ -3291,9 +3236,9 @@ _notanumber:                            ; @notanumber
 	.cfi_startproc
 ; %bb.0:
 Lloh68:
-	adrp	x8, l_.str.19@PAGE
+	adrp	x8, l_.str.20@PAGE
 Lloh69:
-	add	x8, x8, l_.str.19@PAGEOFF
+	add	x8, x8, l_.str.20@PAGEOFF
 	str	x8, [x22, #64]
 	b	_panic
 	.loh AdrpAdd	Lloh68, Lloh69
@@ -3325,12 +3270,12 @@ _dispatch:
 	.quad	_vm_op_SubDI
 	.quad	_vm_op_MulDI
 	.quad	_vm_op_DivDI
-	.quad	_vm_op_ModDI
+	.quad	_vm_op_RemDI
 	.quad	_vm_op_AddDD
 	.quad	_vm_op_SubDD
 	.quad	_vm_op_MulDD
 	.quad	_vm_op_DivDD
-	.quad	_vm_op_ModDD
+	.quad	_vm_op_RemDD
 	.quad	_vm_op_NegD
 	.quad	_vm_op_SetCond
 	.quad	_vm_op_CmpNotF
@@ -3404,7 +3349,7 @@ l_.str.16:                              ; @.str.16
 l_.str.17:                              ; @.str.17
 	.asciz	"invalid layout"
 
-l_.str.19:                              ; @.str.19
+l_.str.20:                              ; @.str.20
 	.asciz	"not a number"
 
 .subsections_via_symbols
