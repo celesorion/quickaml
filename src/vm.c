@@ -14,12 +14,6 @@
 
 static opthread *const dispatch[];
 
-enum {
-  // Tags below this threshold are encoded directly as values by `mobj`.
-  // Heap-backed materialization is deferred until allocation/GC semantics land.
-  MOBJ_NON_ALLOC = 4,
-};
-
 [[gnu::noinline]]
 status_t vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
@@ -410,7 +404,7 @@ OP_DEFINITION(MObj) {
   ssz_t src = ARG3C;
   (void)src;
 
-  if (tag < MOBJ_NON_ALLOC) {
+  if (tag < TAG_INT) {
     bp[dst] = val_from_tag((uint8_t)tag);
     DISPATCH();
   }

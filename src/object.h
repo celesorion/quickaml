@@ -30,6 +30,18 @@ enum {
   OBJ_TAG_CLOSURE = 0xffff,
 };
 
+/* Bytecode-level type tags.  Must stay in sync with Tag in bytecode.rs.
+ * Tags below TAG_INT are encoded directly as values by `mobj`;
+ * tags >= TAG_INT require heap-backed materialization. */
+enum tag {
+  TAG_UNIT = 0,
+  TAG_TUPLE = 1,
+  TAG_FALSE = 2,
+  TAG_TRUE = 3,
+  TAG_INT = 4,
+  TAG_STR = 5,
+};
+
 /*
  * NuN-boxed value layout:
  * - low canonical 48-bit values are raw heap pointers

@@ -10,27 +10,30 @@ struct forwarded {
 };
 
 val_t val_from_tag(uint8_t tag) {
-  switch (tag) {
-  case 0:
+  switch ((enum tag)tag) {
+  case TAG_UNIT:
     return val_from_null();
-  case 1:
+  case TAG_TUPLE:
     return VAL_EMPTY;
-  case 2:
+  case TAG_FALSE:
     return val_from_bool(false);
-  case 3:
+  case TAG_TRUE:
     return val_from_bool(true);
+  case TAG_INT: // TODO: requires heap-backed materialization
+  case TAG_STR: // TODO: requires heap-backed materialization
   default:
+    assert(0 && "val_from_tag: unhandled tag");
     return VAL_EMPTY;
   }
 }
 
 uint8_t val_tag(val_t value) {
   if (val_is_null(value))
-    return 0;
+    return TAG_UNIT;
   if (val_is_empty(value))
-    return 1;
+    return TAG_TUPLE;
   if (val_is_bool(value))
-    return val_as_bool(value) ? 3 : 2;
+    return val_as_bool(value) ? TAG_TRUE : TAG_FALSE;
   if (val_is_ptr(value))
     return (uint8_t)obj_layout_tag(val_as_ptr(value));
   return 0xff;
@@ -48,8 +51,8 @@ void string_init(struct string *str, uint16_t tag, size_t len) {
 }
 
 void closure_init(struct closure *clos, struct function *fn, size_t nfree) {
-  clos->hd =
-      obj_meta_pack((uint32_t)closure_size(nfree), OBJ_TAG_CLOSURE, OBJ_CLOSURE, 0);
+  clos->hd = obj_meta_pack((uint32_t)closure_size(nfree), OBJ_TAG_CLOSURE,
+                           OBJ_CLOSURE, 0);
   clos->fn = fn;
   clos->nfree = (uint32_t)nfree;
   clos->pad = 0;
@@ -68,14 +71,14 @@ void *obj_forwardee(const void *ref) {
 }
 
 static const char *imm_name(uint8_t tag) {
-  switch (tag) {
-  case 0:
+  switch ((enum tag)tag) {
+  case TAG_UNIT:
     return "unit";
-  case 1:
+  case TAG_TUPLE:
     return "empty";
-  case 2:
+  case TAG_FALSE:
     return "false";
-  case 3:
+  case TAG_TRUE:
     return "true";
   default:
     return nullptr;
