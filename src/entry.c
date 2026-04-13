@@ -40,6 +40,13 @@ bool vm_const_from_i64(int64_t value, val_t *out) {
   return true;
 }
 
+bool vm_const_from_f64(double value, val_t *out) {
+  if (out == nullptr)
+    return false;
+  *out = val_from_f64(value);
+  return true;
+}
+
 bool vm_format_result(val_t value, char *buf, size_t len) {
   int n = 0;
 
