@@ -330,7 +330,7 @@ OP_DEFINITION(Retu) {
 }
 
 OP_DEFINITION(Ret) {
-  ssz_t rv = ARG2A;
+  ssz_t rv = ARG3A;
 
   frame_rv(bp) = bp[rv];
 

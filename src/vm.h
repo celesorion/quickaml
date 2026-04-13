@@ -180,3 +180,12 @@
 #define zero_extend(x, from, to) ((uint##to##_t)(uint##from##_t)(x))
 
 status_t vm_entry(struct state *state);
+status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
+                 size_t numobject, val_t *ctbl, size_t stack_slots,
+                 val_t *result);
+struct function *vm_alloc_function(const bc_t *ops, size_t nops);
+void vm_free_function(struct function *fn);
+struct function *vm_make_wrapper(size_t top_idx);
+bool vm_const_from_i64(int64_t value, val_t *out);
+bool vm_format_result(val_t value, char *buf, size_t len);
+const char *vm_status_name(status_t status);
