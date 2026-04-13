@@ -639,22 +639,12 @@ OP_DEFINITION(NegD) {
 
 #define SETCOND_ON_TRUE()                                                      \
   do {                                                                         \
-    if (mode < 0) {                                                            \
-      bp[dst] = val_from_bool(false);                                          \
-      ip++;                                                                    \
-    } else {                                                                   \
-      bp[dst] = val_from_bool(true);                                           \
-    }                                                                          \
+    bp[dst] = val_from_bool(mode >= 0);                                        \
   } while (0)
 
 #define SETCOND_ON_FALSE()                                                     \
   do {                                                                         \
-    if (mode > 0) {                                                            \
-      bp[dst] = val_from_bool(false);                                          \
-      ip++;                                                                    \
-    } else {                                                                   \
-      bp[dst] = val_from_bool(true);                                           \
-    }                                                                          \
+    bp[dst] = val_from_bool(mode < 0);                                         \
   } while (0)
 
 OP_DEFINITION(SetCond) {
@@ -736,25 +726,25 @@ OP_DEFINITION(SetCond) {
 }
 
 OP_DEFINITION(CmpNotF) {
-  if (!cmp_notf(bp[ARG2A], ARG2B))
+  if (cmp_notf(bp[ARG2A], ARG2B))
     ip++;
   DISPATCH();
 }
 
 OP_DEFINITION(CmpEqDI) {
-  CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ((void)0), ip++);
+  CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ip++, ((void)0));
   DISPATCH();
 }
 
 OP_DEFINITION(CmpNeDI) {
-  CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ((void)0), ip++);
+  CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ip++, ((void)0));
   DISPATCH();
 }
 
 #define DEFINE_OP_CMP_DC(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
-    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), ((void)0),   \
-            ip++);                                                             \
+    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), ip++,        \
+            ((void)0));                                                        \
     DISPATCH();                                                                \
   }
 
@@ -767,7 +757,7 @@ DEFINE_OP_CMP_DC(CmpGeDC, >=)
 
 #define DEFINE_OP_CMP_DD(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
-    CMP_NUM(op_, bp[ARG2A], bp[ARG2B], notanumber(ARGS), ((void)0), ip++);     \
+    CMP_NUM(op_, bp[ARG2A], bp[ARG2B], notanumber(ARGS), ip++, ((void)0));     \
     DISPATCH();                                                                \
   }
 
