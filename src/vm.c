@@ -637,93 +637,107 @@ OP_DEFINITION(NegD) {
   DISPATCH();
 }
 
+#define SETCOND_STORE(result_)                                                 \
+  do {                                                                         \
+    bp[dst] = val_from_bool(invert ? !(result_) : (result_));                  \
+  } while (0)
+
 #define SETCOND_ON_TRUE()                                                      \
   do {                                                                         \
-    bp[dst] = val_from_bool(mode >= 0);                                        \
+    SETCOND_STORE(true);                                                       \
   } while (0)
 
 #define SETCOND_ON_FALSE()                                                     \
   do {                                                                         \
-    bp[dst] = val_from_bool(mode < 0);                                         \
+    SETCOND_STORE(false);                                                      \
   } while (0)
 
-OP_DEFINITION(SetCond) {
-  ssz_t dst = ARG2A;
-  int16_t mode = cast_s(ARG2B, 16);
+#define SETCONDJ_ON_TRUE()                                                     \
+  do {                                                                         \
+    SETCOND_STORE(true);                                                       \
+    ip++;                                                                      \
+  } while (0)
 
-  FETCH_INSN();
-  DECODE_OP();
-  DECODE_A3A();
-  DECODE_A2SB();
-  INC_IP();
+#define SETCONDJ_ON_FALSE()                                                    \
+  do {                                                                         \
+    SETCOND_STORE(false);                                                      \
+  } while (0)
 
-  switch (op) {
-  case CmpNotF:
-    if (cmp_notf(bp[ARG2A], ARG2B))
-      SETCOND_ON_TRUE();
-    else
-      SETCOND_ON_FALSE();
-    DISPATCH();
-  case CmpEqDI:
-    CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), SETCOND_ON_TRUE(),
-           SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpNeDI:
-    CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), SETCOND_ON_TRUE(),
-           SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpEqDC:
-    CMP_NUM(==, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
-            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpNeDC:
-    CMP_NUM(!=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
-            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpLtDC:
-    CMP_NUM(<, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
-            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpLeDC:
-    CMP_NUM(<=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
-            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpGtDC:
-    CMP_NUM(>, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
-            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpGeDC:
-    CMP_NUM(>=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS),
-            SETCOND_ON_TRUE(), SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpEqDD:
-    CMP_NUM(==, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
-            SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpNeDD:
-    CMP_NUM(!=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
-            SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpLtDD:
-    CMP_NUM(<, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
-            SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpLeDD:
-    CMP_NUM(<=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
-            SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpGtDD:
-    CMP_NUM(>, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
-            SETCOND_ON_FALSE());
-    DISPATCH();
-  case CmpGeDD:
-    CMP_NUM(>=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), SETCOND_ON_TRUE(),
-            SETCOND_ON_FALSE());
-    DISPATCH();
-  default:
-    MUSTTAIL return unimplemented(ARGS);
+#define DEFINE_OP_SETCOND(name_, on_true_, on_false_)                          \
+  OP_DEFINITION(name_) {                                                       \
+    ssz_t dst = ARG2A;                                                         \
+    bool invert = ARG2B != 0;                                                  \
+                                                                               \
+    FETCH_INSN();                                                              \
+    DECODE_OP();                                                               \
+    DECODE_A3A();                                                              \
+    DECODE_A2SB();                                                             \
+    INC_IP();                                                                  \
+                                                                               \
+    switch (op) {                                                              \
+    case CmpNotF:                                                              \
+      if (cmp_notf(bp[ARG2A], ARG2B))                                          \
+        on_true_;                                                              \
+      else                                                                     \
+        on_false_;                                                             \
+      DISPATCH();                                                              \
+    case CmpEqDI:                                                              \
+      CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), on_true_,        \
+             on_false_);                                                       \
+      DISPATCH();                                                              \
+    case CmpNeDI:                                                              \
+      CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), on_true_,        \
+             on_false_);                                                       \
+      DISPATCH();                                                              \
+    case CmpEqDC:                                                              \
+      CMP_NUM(==, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
+              on_false_);                                                      \
+      DISPATCH();                                                              \
+    case CmpNeDC:                                                              \
+      CMP_NUM(!=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
+              on_false_);                                                      \
+      DISPATCH();                                                              \
+    case CmpLtDC:                                                              \
+      CMP_NUM(<, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,    \
+              on_false_);                                                      \
+      DISPATCH();                                                              \
+    case CmpLeDC:                                                              \
+      CMP_NUM(<=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
+              on_false_);                                                      \
+      DISPATCH();                                                              \
+    case CmpGtDC:                                                              \
+      CMP_NUM(>, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,    \
+              on_false_);                                                      \
+      DISPATCH();                                                              \
+    case CmpGeDC:                                                              \
+      CMP_NUM(>=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
+              on_false_);                                                      \
+      DISPATCH();                                                              \
+    case CmpEqDD:                                                              \
+      CMP_NUM(==, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      DISPATCH();                                                              \
+    case CmpNeDD:                                                              \
+      CMP_NUM(!=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      DISPATCH();                                                              \
+    case CmpLtDD:                                                              \
+      CMP_NUM(<, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_); \
+      DISPATCH();                                                              \
+    case CmpLeDD:                                                              \
+      CMP_NUM(<=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      DISPATCH();                                                              \
+    case CmpGtDD:                                                              \
+      CMP_NUM(>, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_); \
+      DISPATCH();                                                              \
+    case CmpGeDD:                                                              \
+      CMP_NUM(>=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      DISPATCH();                                                              \
+    default:                                                                   \
+      MUSTTAIL return unimplemented(ARGS);                                     \
+    }                                                                          \
   }
-}
+
+DEFINE_OP_SETCOND(SetCond, SETCOND_ON_TRUE(), SETCOND_ON_FALSE())
+DEFINE_OP_SETCOND(SetCondJ, SETCONDJ_ON_TRUE(), SETCONDJ_ON_FALSE())
 
 OP_DEFINITION(CmpNotF) {
   if (cmp_notf(bp[ARG2A], ARG2B))

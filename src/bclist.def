@@ -30,7 +30,8 @@
   _(DivDD     , "div.dd"    )\
   _(RemDD     , "rem.dd"    )\
   _(NegD      , "neg.d"     )\
-  _(SetCond   , "setcond"   )\
+  _(SetCond   , "setc"      )\
+  _(SetCondJ  , "setcj"     )\
   _(CmpNotF   , "cmp.not.f" )\
   _(CmpEqDI   , "cmp.eq.di" )\
   _(CmpNeDI   , "cmp.ne.di" )\
