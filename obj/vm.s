@@ -41,15 +41,17 @@ _vm_entry:                              ; @vm_entry
 	ldr	x8, [x0, #48]
 	ldp	x9, x24, [x0, #8]
 	stp	x9, xzr, [x8, #16]
-	ldrb	w10, [x9, #8]
-	ldrb	w1, [x9, #9]
-	ldrh	w0, [x9, #10]
+	ldr	x10, [x9, #8]
+	str	x10, [x0, #40]
+	ldrb	w10, [x9, #24]
+	ldrb	w1, [x9, #25]
+	ldrh	w0, [x9, #26]
 Lloh0:
 	adrp	x23, _dispatch@PAGE
 Lloh1:
 	add	x23, x23, _dispatch@PAGEOFF
 	ldr	x10, [x23, x10, lsl #3]
-	add	x20, x9, #12
+	add	x20, x9, #28
 	add	x21, x8, #32
 	blr	x10
 	mov	w0, #0                          ; =0x0
@@ -374,12 +376,14 @@ _vm_op_Apply:                           ; @vm_op_Apply
 	b.hs	LBB10_4
 ; %bb.2:
 	stp	x8, x20, [x21, #-16]
+	ldr	x10, [x8, #8]
+	str	x10, [x22, #40]
 	str	x9, [x21]
-	ldrb	w9, [x8, #8]
+	ldrb	w9, [x8, #24]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #9]
-	ldrh	w0, [x8, #10]
-	add	x20, x8, #12
+	ldrb	w1, [x8, #25]
+	ldrh	w0, [x8, #26]
+	add	x20, x8, #28
 	br	x2
 LBB10_3:
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
@@ -399,10 +403,10 @@ Lloh21:
 	adrp	x3, l_.str.13@PAGE
 Lloh22:
 	add	x3, x3, l_.str.13@PAGEOFF
-	mov	w2, #132                        ; =0x84
+	mov	w2, #142                        ; =0x8e
 	bl	___assert_rtn
 LBB10_4:
-	add	x20, x8, #8
+	add	x20, x8, #24
 	b	_stackoverflow
 	.loh AdrpAdd	Lloh21, Lloh22
 	.loh AdrpAdd	Lloh19, Lloh20
@@ -421,14 +425,16 @@ _vm_op_Call:                            ; @vm_op_Call
 	b.hs	LBB11_2
 ; %bb.1:
 	stp	x8, x20, [x21, #-16]
-	ldrb	w9, [x8, #8]
+	ldr	x9, [x8, #8]
+	str	x9, [x22, #40]
+	ldrb	w9, [x8, #24]
 	ldr	x2, [x23, x9, lsl #3]
-	ldrb	w1, [x8, #9]
-	ldrh	w0, [x8, #10]
-	add	x20, x8, #12
+	ldrb	w1, [x8, #25]
+	ldrh	w0, [x8, #26]
+	add	x20, x8, #28
 	br	x2
 LBB11_2:
-	add	x20, x8, #8
+	add	x20, x8, #24
 	b	_stackoverflow
 	.cfi_endproc
                                         ; -- End function
@@ -440,6 +446,9 @@ _vm_op_Retu:                            ; @vm_op_Retu
 	ldr	x8, [x21, #8]
 	ldurb	w9, [x8, #-3]
 	sub	x21, x21, x9, lsl #3
+	ldur	x9, [x21, #-16]
+	ldr	x9, [x9, #8]
+	str	x9, [x22, #40]
 	ldrb	w9, [x8]
 	ldr	x2, [x23, x9, lsl #3]
 	ldrb	w1, [x8, #1]
@@ -457,6 +466,9 @@ _vm_op_Ret:                             ; @vm_op_Ret
 	ldr	x8, [x21, #8]
 	ldurb	w9, [x8, #-3]
 	sub	x21, x21, x9, lsl #3
+	ldur	x9, [x21, #-16]
+	ldr	x9, [x9, #8]
+	str	x9, [x22, #40]
 	ldrb	w9, [x8]
 	ldr	x2, [x23, x9, lsl #3]
 	ldrb	w1, [x8, #1]
@@ -509,6 +521,9 @@ LBB14_7:                                ; =>This Inner Loop Header: Depth=1
 LBB14_8:
 	ldurb	w10, [x8, #-3]
 	sub	x21, x9, x10, lsl #3
+	ldur	x9, [x21, #-16]
+	ldr	x9, [x9, #8]
+	str	x9, [x22, #40]
 	ldrb	w9, [x8]
 	ldr	x2, [x23, x9, lsl #3]
 	ldrb	w1, [x8, #1]
@@ -570,7 +585,7 @@ Lloh27:
 	adrp	x3, l_.str.15@PAGE
 Lloh28:
 	add	x3, x3, l_.str.15@PAGEOFF
-	mov	w2, #126                        ; =0x7e
+	mov	w2, #136                        ; =0x88
 	bl	___assert_rtn
 LBB15_4:
 Lloh29:
@@ -585,7 +600,7 @@ Lloh33:
 	adrp	x3, l_.str.16@PAGE
 Lloh34:
 	add	x3, x3, l_.str.16@PAGEOFF
-	mov	w2, #127                        ; =0x7f
+	mov	w2, #137                        ; =0x89
 	bl	___assert_rtn
 	.loh AdrpAdd	Lloh27, Lloh28
 	.loh AdrpAdd	Lloh25, Lloh26
@@ -647,7 +662,7 @@ Lloh39:
 	adrp	x3, l_.str.15@PAGE
 Lloh40:
 	add	x3, x3, l_.str.15@PAGEOFF
-	mov	w2, #126                        ; =0x7e
+	mov	w2, #136                        ; =0x88
 	bl	___assert_rtn
 LBB16_4:
 	mov	w8, w26
@@ -724,7 +739,7 @@ Lloh45:
 	adrp	x3, l_.str.16@PAGE
 Lloh46:
 	add	x3, x3, l_.str.16@PAGEOFF
-	mov	w2, #127                        ; =0x7f
+	mov	w2, #137                        ; =0x89
 	bl	___assert_rtn
 	.loh AdrpAdd	Lloh39, Lloh40
 	.loh AdrpAdd	Lloh37, Lloh38

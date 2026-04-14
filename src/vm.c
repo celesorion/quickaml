@@ -20,6 +20,7 @@ status_t vm_entry(struct state *state) {
   val_t *bp = next_bp(state->stk, 2);
   frame_rv(bp) = ptr2val(state->entry);
   frame_ra(bp) = 0;
+  state->ctbl = state->entry->ctbl;
   struct function **fns = state->fns;
 
   [[maybe_unused]] uint8_t a3a, a3b, a3c;
@@ -289,6 +290,7 @@ OP_DEFINITION(Apply) {
 
   frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
+  state->ctbl = fn->ctbl;
 
   // copy closure to the first slot as arg 0
   bp[0] = val_from_ptr(clos);
@@ -312,6 +314,7 @@ OP_DEFINITION(Call) {
 
   frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
+  state->ctbl = fn->ctbl;
 
   DISPATCH();
 }
@@ -325,6 +328,7 @@ OP_DEFINITION(Retu) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
+  state->ctbl = ((struct function *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
@@ -340,6 +344,7 @@ OP_DEFINITION(Ret) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
+  state->ctbl = ((struct function *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
@@ -359,6 +364,7 @@ OP_DEFINITION(Retn) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
+  state->ctbl = ((struct function *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }

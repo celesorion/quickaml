@@ -14,10 +14,20 @@ struct state;
 
 struct function {
   bc_t *oplimit;
+  val_t *ctbl;
+  size_t nconst;
   bc_t ops[];
 };
 
-#define function_size(n) (sizeof(struct function) + (n) * sizeof(bc_t))
+INLINE size_t function_constants_offset(size_t nops) {
+  size_t ops_end = sizeof(struct function) + nops * sizeof(bc_t);
+  size_t align = _Alignof(val_t);
+  return (ops_end + align - 1) & ~(align - 1);
+}
+
+INLINE size_t function_size(size_t nops, size_t nconst) {
+  return function_constants_offset(nops) + nconst * sizeof(val_t);
+}
 
 enum obj_kind {
   OBJ_WORDS,

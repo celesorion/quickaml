@@ -9,14 +9,21 @@
 
 status_t exec(struct state *state) { return vm_entry(state); }
 
-struct function *vm_alloc_function(const bc_t *ops, size_t nops) {
-  struct function *fn = malloc(function_size(nops));
+struct function *vm_alloc_function(const bc_t *ops, size_t nops,
+                                   const val_t *ctbl, size_t nconst) {
+  struct function *fn = malloc(function_size(nops, nconst));
   if (fn == nullptr)
     return nullptr;
 
   fn->oplimit = fn->ops + nops;
+  fn->ctbl = nconst == 0 ? nullptr
+                         : (val_t *)((unsigned char *)fn +
+                                     function_constants_offset(nops));
+  fn->nconst = nconst;
   for (size_t i = 0; i < nops; i++)
     fn->ops[i] = ops[i];
+  for (size_t i = 0; i < nconst; i++)
+    fn->ctbl[i] = ctbl[i];
   return fn;
 }
 
@@ -30,7 +37,7 @@ struct function *vm_make_wrapper(size_t top_idx) {
       mk2(Call, 0, (uint16_t)top_idx),
       mk3(Trap, T_HALT, 0, 0),
   };
-  return vm_alloc_function(ops, sizeof(ops) / sizeof(ops[0]));
+  return vm_alloc_function(ops, sizeof(ops) / sizeof(ops[0]), nullptr, 0);
 }
 
 bool vm_const_from_i64(int64_t value, val_t *out) {
@@ -73,8 +80,7 @@ const char *vm_status_name(status_t status) {
 }
 
 status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
-                 size_t numobject, val_t *ctbl, size_t stack_slots,
-                 val_t *result) {
+                 size_t numobject, size_t stack_slots, val_t *result) {
   struct runtime_args rargs = {.align = 8,
                                .base_size = 1024 * 1024,
                                .descspace_size = 4 * 4 * 4096,
@@ -99,7 +105,7 @@ status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
   st.fns = fns;
   st.numfn = numfn;
   st.numobject = numobject;
-  st.ctbl = ctbl;
+  st.ctbl = entry->ctbl;
   st.stk = stk;
   st.stklimit = stk + stack_slots;
   st.msg = nullptr;

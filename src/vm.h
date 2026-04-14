@@ -181,9 +181,9 @@
 
 status_t vm_entry(struct state *state);
 status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
-                 size_t numobject, val_t *ctbl, size_t stack_slots,
-                 val_t *result);
-struct function *vm_alloc_function(const bc_t *ops, size_t nops);
+                 size_t numobject, size_t stack_slots, val_t *result);
+struct function *vm_alloc_function(const bc_t *ops, size_t nops,
+                                   const val_t *ctbl, size_t nconst);
 void vm_free_function(struct function *fn);
 struct function *vm_make_wrapper(size_t top_idx);
 bool vm_const_from_i64(int64_t value, val_t *out);
