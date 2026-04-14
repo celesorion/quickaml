@@ -78,10 +78,8 @@ struct object {
   val_t fields[];
 };
 
-struct string {
+struct str {
   metainfo hd;
-  uint32_t len;
-  uint32_t pad;
   char bytes[];
 };
 
@@ -215,8 +213,12 @@ INLINE size_t object_size(size_t nfields) {
   return object_align(sizeof(struct object) + nfields * sizeof(val_t));
 }
 
-INLINE size_t string_size(size_t len) {
-  return object_align(sizeof(struct string) + len + 1);
+INLINE size_t str_len(const void *ref) {
+  return obj_size(ref) - sizeof(struct str) - 1;
+}
+
+INLINE size_t str_size(size_t len) {
+  return object_align(sizeof(struct str) + len + 1);
 }
 
 INLINE size_t closure_size(size_t nfree) {
@@ -224,7 +226,7 @@ INLINE size_t closure_size(size_t nfree) {
 }
 
 void object_init(struct object *obj, uint16_t tag, size_t nfields);
-void string_init(struct string *str, uint16_t tag, size_t len);
+void str_init(struct str *str, uint16_t tag, size_t len);
 void closure_init(struct closure *clos, struct function *fn, size_t nfree);
 
 void obj_set_forward(void *from_ref, size_t size, void *to_ref);

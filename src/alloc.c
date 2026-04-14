@@ -62,7 +62,9 @@ static void worklist_init(struct heap *h) { h->scan = h->bump; }
 
 static bool worklist_is_empty(struct heap *h) { return h->scan == h->bump; }
 
-static size_t get_object_size(void *ref) { return obj_size(ref); }
+static size_t get_object_size(void *ref) {
+  return object_align(obj_size(ref));
+}
 
 static void *worklist_pop(struct heap *h) {
   void *ref = h->scan;

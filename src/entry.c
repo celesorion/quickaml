@@ -6,6 +6,7 @@
 #include "vm.h"
 
 #include <inttypes.h>
+#include <string.h>
 
 status_t exec(struct state *state) { return vm_entry(state); }
 
@@ -54,6 +55,17 @@ bool vm_const_from_f64(double value, val_t *out) {
   return true;
 }
 
+struct str *vm_alloc_str(const char *data, uint32_t len) {
+  struct str *s = aligned_alloc(8, str_size(len));
+  if (s == nullptr)
+    return nullptr;
+  str_init(s, TAG_STR, len);
+  memcpy(s->bytes, data, len);
+  return s;
+}
+
+void vm_free_str(struct str *s) { free(s); }
+
 bool vm_format_result(val_t value, char *buf, size_t len) {
   int n = 0;
 
@@ -68,7 +80,14 @@ bool vm_format_result(val_t value, char *buf, size_t len) {
     n = snprintf(buf, len, "%" PRId32, val_as_i32(value));
   else if (val_is_float(value))
     n = snprintf(buf, len, "%.17g", val_as_f64(value));
-  else
+  else if (val_is_cell(value) && !val_is_empty(value)) {
+    void *ref = val_as_ptr(value);
+    if (obj_kind_of(ref) == OBJ_STRING) {
+      struct str *s = ref;
+      n = snprintf(buf, len, "%.*s", (int)str_len(s), s->bytes);
+    } else
+      return false;
+  } else
     return false;
 
   return n >= 0 && (size_t)n < len;

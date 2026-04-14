@@ -43,10 +43,9 @@ void object_init(struct object *obj, uint16_t tag, size_t nfields) {
   obj->hd = obj_meta_pack((uint32_t)object_size(nfields), tag, OBJ_WORDS, 0);
 }
 
-void string_init(struct string *str, uint16_t tag, size_t len) {
-  str->hd = obj_meta_pack((uint32_t)string_size(len), tag, OBJ_STRING, 0);
-  str->len = (uint32_t)len;
-  str->pad = 0;
+void str_init(struct str *str, uint16_t tag, size_t len) {
+  str->hd =
+      obj_meta_pack((uint32_t)(sizeof(struct str) + len + 1), tag, OBJ_STRING, 0);
   str->bytes[len] = '\0';
 }
 
@@ -115,8 +114,8 @@ void obj_print(FILE *out, val_t value) {
     break;
   }
   case OBJ_STRING: {
-    struct string *str = ref;
-    fprintf(out, "<str len=%" PRIu32 " \"%s\">", str->len, str->bytes);
+    struct str *str = ref;
+    fprintf(out, "<str len=%zu \"%s\">", str_len(str), str->bytes);
     break;
   }
   case OBJ_CLOSURE: {
