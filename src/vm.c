@@ -25,6 +25,7 @@ status_t vm_entry(struct state *state) {
 
   [[maybe_unused]] uint8_t a3a, a3b, a3c;
   [[maybe_unused]] uint16_t a2b;
+  uint64_t ft = VAL_FLOAT_TAG;
 
   NONTAILDISPATCH();
   return S_OK;
@@ -86,6 +87,12 @@ void notanumber(PARAMS) {
 }
 
 THREADED
+void notaoffset(PARAMS) {
+  state->msg = "not a offset";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void diverge(PARAMS) {
   for (;;)
     ;
@@ -104,14 +111,14 @@ INLINE int32_t di_imm(uint8_t imm) { return sign_extend(imm, 8, 32); }
   do {                                                                         \
     val_t _lhs = (lhs_);                                                       \
     int32_t _imm = (imm_);                                                     \
-    if (val_is_int(_lhs)) {                                                    \
-      if (val_as_i32(_lhs) op_ _imm) {                                         \
+    if (val_is_int_macro(_lhs, ft)) {                                          \
+      if (val_as_i32_macro(_lhs, ft) op_ _imm) {                               \
         on_true_;                                                              \
       } else {                                                                 \
         on_false_;                                                             \
       }                                                                        \
-    } else if (val_is_number(_lhs)) {                                          \
-      if (val_as_f64(_lhs) op_(double) _imm) {                                 \
+    } else if (val_is_number_macro(_lhs, ft)) {                                \
+      if (val_as_f64_macro(_lhs, ft) op_(double) _imm) {                       \
         on_true_;                                                              \
       } else {                                                                 \
         on_false_;                                                             \
@@ -125,31 +132,18 @@ INLINE int32_t di_imm(uint8_t imm) { return sign_extend(imm, 8, 32); }
   do {                                                                         \
     val_t _lhs = (lhs_);                                                       \
     val_t _rhs = (rhs_);                                                       \
-    if (val_is_int(_lhs)) {                                                    \
-      if (val_is_int(_rhs)) {                                                  \
-        if (val_as_i32(_lhs) op_ val_as_i32(_rhs)) {                           \
+    if (val_is_int_macro(_lhs, ft)) {                                          \
+      if (val_is_int_macro(_rhs, ft)) {                                        \
+        if (val_as_i32_macro(_lhs, ft) op_ val_as_i32_macro(_rhs, ft)) {       \
           on_true_;                                                            \
         } else {                                                               \
           on_false_;                                                           \
         }                                                                      \
-      } else if (val_is_number(_rhs)) {                                        \
-        if ((double)val_as_i32(_lhs) op_ val_as_f64(_rhs)) {                   \
-          on_true_;                                                            \
-        } else {                                                               \
-          on_false_;                                                           \
-        }                                                                      \
-      } else {                                                                 \
+      } else                                                                   \
         MUSTTAIL return badret_;                                               \
-      }                                                                        \
-    } else if (val_is_number(_lhs)) {                                          \
-      if (val_is_int(_rhs)) {                                                  \
-        if (val_as_f64(_lhs) op_(double) val_as_i32(_rhs)) {                   \
-          on_true_;                                                            \
-        } else {                                                               \
-          on_false_;                                                           \
-        }                                                                      \
-      } else if (val_is_number(_rhs)) {                                        \
-        if (val_as_f64(_lhs) op_ val_as_f64(_rhs)) {                           \
+    } else if (val_is_number_macro(_lhs, ft)) {                                \
+      if (val_is_number_macro(_rhs, ft)) {                                     \
+        if (val_as_f64_macro(_lhs, ft) op_ val_as_f64_macro(_rhs, ft)) {       \
           on_true_;                                                            \
         } else {                                                               \
           on_false_;                                                           \
@@ -225,7 +219,7 @@ OP_DEFINITION(Exta) { MUSTTAIL return unusedexta(ARGS); }
 OP_DEFINITION(LoadI) {
   ssz_t dst = ARG2A;
 
-  bp[dst] = val_from_i32(sign_extend(ARG2B, 16, 32));
+  bp[dst] = val_from_i32_macro(sign_extend(ARG2B, 16, 32), ft);
 
   DISPATCH();
 }
@@ -233,7 +227,7 @@ OP_DEFINITION(LoadI) {
 OP_DEFINITION(LoaduI) {
   ssz_t dst = ARG2A;
 
-  bp[dst] = val_from_i32(zero_extend(ARG2B, 16, 32));
+  bp[dst] = val_from_i32_macro(zero_extend(ARG2B, 16, 32), ft);
 
   DISPATCH();
 }
@@ -436,12 +430,19 @@ OP_DEFINITION(Jmp) {
 
 OP_DEFINITION(Goto) {
   val_t src = ARG2A;
-  joff_t target =
-      val_is_int(bp[src]) ? (joff_t)val_as_i32(bp[src]) : val2off(bp[src]);
-
-  ip = add2ip(ip, target);
+  if (val_is_int_macro(bp[src], ft)) {
+    ip = add2ip(ip, val_as_i32_macro(bp[src], ft));
+  } else
+    MUSTTAIL return notaoffset(ARGS);
 
   DISPATCH();
+}
+
+THREADED void vm_op_arith_di_fallback(PARAMS) {
+  MUSTTAIL return notanumber(ARGS);
+}
+THREADED void vm_op_arith_dd_fallback(PARAMS) {
+  MUSTTAIL return notanumber(ARGS);
 }
 
 #define DEFINE_OP_ARITH_DI(name_, op_, overflow_)                              \
@@ -449,18 +450,18 @@ OP_DEFINITION(Goto) {
     ssz_t dst = ARG3X;                                                         \
     ssz_t o1 = ARG3Y;                                                          \
     int32_t imm = di_imm(ARG3Z);                                               \
-    if (val_is_int(bp[o1])) {                                                  \
-      int32_t lhs = val_as_i32(bp[o1]);                                        \
+    if (val_is_int_macro(bp[o1], ft)) {                                        \
+      int32_t lhs = val_as_i32_macro(bp[o1], ft);                              \
       int32_t out;                                                             \
       if (!(overflow_))                                                        \
-        bp[dst] = val_from_i32(out);                                           \
+        bp[dst] = val_from_i32_macro(out, ft);                                 \
       else                                                                     \
-        bp[dst] = val_from_f64((double)lhs op_(double) imm);                   \
-    } else if (val_is_float(bp[o1])) {                                         \
-      double lhs = val_as_f64(bp[o1]);                                         \
-      bp[dst] = val_from_f64(lhs op_(double) imm);                             \
+        MUSTTAIL return vm_op_arith_di_fallback(ARGS);                         \
+    } else if (val_is_number_macro(bp[o1], ft)) {                              \
+      double lhs = val_as_f64_macro(bp[o1], ft);                               \
+      bp[dst] = val_from_f64_macro(lhs op_(double) imm, ft);                   \
     } else {                                                                   \
-      MUSTTAIL return notanumber(ARGS);                                        \
+      MUSTTAIL return vm_op_arith_di_fallback(ARGS);                           \
     }                                                                          \
     DISPATCH();                                                                \
   }
@@ -475,21 +476,22 @@ OP_DEFINITION(DivDI) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   int32_t imm = di_imm(ARG3Z);
-  if (val_is_int(bp[o1])) {
-    int32_t lhs = val_as_i32(bp[o1]);
+  if (val_is_int_macro(bp[o1], ft)) {
+    int32_t lhs = val_as_i32_macro(bp[o1], ft);
     if (imm != 0 && !(lhs == INT32_MIN && imm == -1)) {
       int32_t q = lhs / imm;
       int32_t r = lhs % imm;
       if (r != 0 && ((lhs ^ imm) < 0))
         q -= 1;
-      bp[dst] = val_from_i32(q);
-    } else
-      bp[dst] = val_from_f64((double)lhs / (double)imm);
-  } else if (val_is_float(bp[o1])) {
-    double lhs = val_as_f64(bp[o1]);
-    bp[dst] = val_from_f64(lhs / (double)imm);
+      bp[dst] = val_from_i32_macro(q, ft);
+    } else {
+      MUSTTAIL return vm_op_arith_di_fallback(ARGS);
+    }
+  } else if (val_is_number_macro(bp[o1], ft)) {
+    double lhs = val_as_f64_macro(bp[o1], ft);
+    bp[dst] = val_from_f64_macro(lhs / (double)imm, ft);
   } else {
-    MUSTTAIL return notanumber(ARGS);
+    MUSTTAIL return vm_op_arith_di_fallback(ARGS);
   }
   DISPATCH();
 }
@@ -498,20 +500,21 @@ OP_DEFINITION(RemDI) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   int32_t imm = di_imm(ARG3Z);
-  if (val_is_int(bp[o1])) {
-    int32_t lhs = val_as_i32(bp[o1]);
+  if (val_is_int_macro(bp[o1], ft)) {
+    int32_t lhs = val_as_i32_macro(bp[o1], ft);
     if (imm != 0) {
       int32_t r = lhs % imm;
       if (r != 0 && ((lhs ^ imm) < 0))
         r += imm;
-      bp[dst] = val_from_i32(r);
-    } else
-      bp[dst] = val_from_f64(fmod((double)lhs, (double)imm));
-  } else if (val_is_float(bp[o1])) {
-    double lhs = val_as_f64(bp[o1]);
-    bp[dst] = val_from_f64(fmod(lhs, (double)imm));
+      bp[dst] = val_from_i32_macro(r, ft);
+    } else {
+      MUSTTAIL return vm_op_arith_di_fallback(ARGS);
+    }
+  } else if (val_is_number_macro(bp[o1], ft)) {
+    double lhs = val_as_f64_macro(bp[o1], ft);
+    bp[dst] = val_from_f64_macro(fmod(lhs, (double)imm), ft);
   } else {
-    MUSTTAIL return notanumber(ARGS);
+    MUSTTAIL return vm_op_arith_di_fallback(ARGS);
   }
   DISPATCH();
 }
@@ -521,32 +524,27 @@ OP_DEFINITION(RemDI) {
     ssz_t dst = ARG3X;                                                         \
     ssz_t o1 = ARG3Y;                                                          \
     ssz_t o2 = ARG3Z;                                                          \
-    if (val_is_int(bp[o1])) {                                                  \
-      if (val_is_int(bp[o2])) {                                                \
-        int32_t lhs = val_as_i32(bp[o1]);                                      \
-        int32_t rhs = val_as_i32(bp[o2]);                                      \
+    if (val_is_int_macro(bp[o1], ft)) {                                        \
+      if (val_is_int_macro(bp[o2], ft)) {                                      \
+        int32_t lhs = val_as_i32_macro(bp[o1], ft);                            \
+        int32_t rhs = val_as_i32_macro(bp[o2], ft);                            \
         int32_t out;                                                           \
         if (!(overflow_))                                                      \
-          bp[dst] = val_from_i32(out);                                         \
+          bp[dst] = val_from_i32_macro(out, ft);                               \
         else                                                                   \
-          bp[dst] = val_from_f64((double)lhs op_(double) rhs);                 \
-      } else if (val_is_number(bp[o2])) {                                      \
-        bp[dst] =                                                              \
-            val_from_f64((double)val_as_i32(bp[o1]) op_ val_as_f64(bp[o2]));   \
+          MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                       \
+      } else                                                                   \
+        MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                         \
+    } else if (val_is_number_macro(bp[o1], ft)) {                              \
+      if (val_is_number_macro(bp[o2], ft)) {                                   \
+        bp[dst] = val_from_f64_macro(val_as_f64_macro(bp[o1], ft)              \
+                                         op_ val_as_f64_macro(bp[o2], ft),     \
+                                     ft);                                      \
       } else {                                                                 \
-        MUSTTAIL return notanumber(ARGS);                                      \
-      }                                                                        \
-    } else if (val_is_number(bp[o1])) {                                        \
-      if (val_is_int(bp[o2])) {                                                \
-        bp[dst] =                                                              \
-            val_from_f64(val_as_f64(bp[o1]) op_(double) val_as_i32(bp[o2]));   \
-      } else if (val_is_number(bp[o2])) {                                      \
-        bp[dst] = val_from_f64(val_as_f64(bp[o1]) op_ val_as_f64(bp[o2]));     \
-      } else {                                                                 \
-        MUSTTAIL return notanumber(ARGS);                                      \
+        MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                         \
       }                                                                        \
     } else {                                                                   \
-      MUSTTAIL return notanumber(ARGS);                                        \
+      MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                           \
     }                                                                          \
     DISPATCH();                                                                \
   }
@@ -559,33 +557,31 @@ OP_DEFINITION(DivDD) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   ssz_t o2 = ARG3Z;
-  if (val_is_int(bp[o1])) {
-    if (val_is_int(bp[o2])) {
-      int32_t lhs = val_as_i32(bp[o1]);
-      int32_t rhs = val_as_i32(bp[o2]);
+  if (val_is_int_macro(bp[o1], ft)) {
+    if (val_is_int_macro(bp[o2], ft)) {
+      int32_t lhs = val_as_i32_macro(bp[o1], ft);
+      int32_t rhs = val_as_i32_macro(bp[o2], ft);
       if (rhs != 0 && !(lhs == INT32_MIN && rhs == -1)) {
         int32_t q = lhs / rhs;
         int32_t r = lhs % rhs;
         if (r != 0 && ((lhs ^ rhs) < 0))
           q -= 1;
-        bp[dst] = val_from_i32(q);
-      } else
-        bp[dst] = val_from_f64((double)lhs / (double)rhs);
-    } else if (val_is_number(bp[o2])) {
-      bp[dst] = val_from_f64((double)val_as_i32(bp[o1]) / val_as_f64(bp[o2]));
+        bp[dst] = val_from_i32_macro(q, ft);
+      } else {
+        MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
+      }
     } else {
-      MUSTTAIL return notanumber(ARGS);
+      MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
     }
-  } else if (val_is_number(bp[o1])) {
-    if (val_is_int(bp[o2])) {
-      bp[dst] = val_from_f64(val_as_f64(bp[o1]) / (double)val_as_i32(bp[o2]));
-    } else if (val_is_number(bp[o2])) {
-      bp[dst] = val_from_f64(val_as_f64(bp[o1]) / val_as_f64(bp[o2]));
+  } else if (val_is_number_macro(bp[o1], ft)) {
+    if (val_is_number_macro(bp[o2], ft)) {
+      bp[dst] = val_from_f64_macro(
+          val_as_f64_macro(bp[o1], ft) / val_as_f64_macro(bp[o2], ft), ft);
     } else {
-      MUSTTAIL return notanumber(ARGS);
+      MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
     }
   } else {
-    MUSTTAIL return notanumber(ARGS);
+    MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
   }
   DISPATCH();
 }
@@ -594,34 +590,30 @@ OP_DEFINITION(RemDD) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   ssz_t o2 = ARG3Z;
-  if (val_is_int(bp[o1])) {
-    if (val_is_int(bp[o2])) {
-      int32_t lhs = val_as_i32(bp[o1]);
-      int32_t rhs = val_as_i32(bp[o2]);
+  if (val_is_int_macro(bp[o1], ft)) {
+    if (val_is_int_macro(bp[o2], ft)) {
+      int32_t lhs = val_as_i32_macro(bp[o1], ft);
+      int32_t rhs = val_as_i32_macro(bp[o2], ft);
       if (rhs != 0) {
         int32_t r = lhs % rhs;
         if (r != 0 && ((lhs ^ rhs) < 0))
           r += rhs;
-        bp[dst] = val_from_i32(r);
-      } else
-        bp[dst] = val_from_f64(fmod((double)lhs, (double)rhs));
-    } else if (val_is_number(bp[o2])) {
-      bp[dst] =
-          val_from_f64(fmod((double)val_as_i32(bp[o1]), val_as_f64(bp[o2])));
+        bp[dst] = val_from_i32_macro(r, ft);
+      } else {
+        MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
+      }
     } else {
-      MUSTTAIL return notanumber(ARGS);
+      MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
     }
-  } else if (val_is_number(bp[o1])) {
-    if (val_is_int(bp[o2])) {
-      bp[dst] =
-          val_from_f64(fmod(val_as_f64(bp[o1]), (double)val_as_i32(bp[o2])));
-    } else if (val_is_number(bp[o2])) {
-      bp[dst] = val_from_f64(fmod(val_as_f64(bp[o1]), val_as_f64(bp[o2])));
+  } else if (val_is_number_macro(bp[o1], ft)) {
+    if (val_is_number_macro(bp[o2], ft)) {
+      bp[dst] = val_from_f64_macro(
+          fmod(val_as_f64_macro(bp[o1], ft), val_as_f64_macro(bp[o2], ft)), ft);
     } else {
-      MUSTTAIL return notanumber(ARGS);
+      MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
     }
   } else {
-    MUSTTAIL return notanumber(ARGS);
+    MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
   }
   DISPATCH();
 }
@@ -629,18 +621,28 @@ OP_DEFINITION(RemDD) {
 OP_DEFINITION(NegD) {
   ssz_t dst = ARG3X;
   ssz_t src = ARG3Y;
-  if (val_is_int(bp[src])) {
-    int32_t value = val_as_i32(bp[src]);
+  if (val_is_int_macro(bp[src], ft)) {
+    int32_t value = val_as_i32_macro(bp[src], ft);
     if (value != INT32_MIN)
-      bp[dst] = val_from_i32(-value);
+      bp[dst] = val_from_i32_macro(-value, ft);
     else
-      bp[dst] = val_from_f64(-(double)value);
-  } else if (val_is_number(bp[src])) {
-    bp[dst] = val_from_f64(-val_as_f64(bp[src]));
+      MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
+  } else if (val_is_number_macro(bp[src], ft)) {
+    bp[dst] = val_from_f64_macro(-val_as_f64_macro(bp[src], ft), ft);
   } else {
-    MUSTTAIL return notanumber(ARGS);
+    MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
   }
   DISPATCH();
+}
+
+THREADED void vm_op_compare_di_fallback(PARAMS) {
+  MUSTTAIL return notanumber(ARGS);
+}
+THREADED void vm_op_compare_dc_fallback(PARAMS) {
+  MUSTTAIL return notanumber(ARGS);
+}
+THREADED void vm_op_compare_dd_fallback(PARAMS) {
+  MUSTTAIL return notanumber(ARGS);
 }
 
 #define SETCOND_STORE(result_)                                                 \
@@ -688,54 +690,60 @@ OP_DEFINITION(NegD) {
         on_false_;                                                             \
       DISPATCH();                                                              \
     case CmpEqDI:                                                              \
-      CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), on_true_,        \
-             on_false_);                                                       \
+      CMP_DI(==, bp[ARG2A], (int32_t)ARG2B,                                   \
+             vm_op_compare_di_fallback(ARGS), on_true_, on_false_);            \
       DISPATCH();                                                              \
     case CmpNeDI:                                                              \
-      CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), on_true_,        \
-             on_false_);                                                       \
+      CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B,                                   \
+             vm_op_compare_di_fallback(ARGS), on_true_, on_false_);            \
       DISPATCH();                                                              \
     case CmpEqDC:                                                              \
-      CMP_NUM(==, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
-              on_false_);                                                      \
+      CMP_NUM(==, bp[ARG2A], state->ctbl[ARG2B],                              \
+              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpNeDC:                                                              \
-      CMP_NUM(!=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
-              on_false_);                                                      \
+      CMP_NUM(!=, bp[ARG2A], state->ctbl[ARG2B],                              \
+              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpLtDC:                                                              \
-      CMP_NUM(<, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,    \
-              on_false_);                                                      \
+      CMP_NUM(<, bp[ARG2A], state->ctbl[ARG2B],                               \
+              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpLeDC:                                                              \
-      CMP_NUM(<=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
-              on_false_);                                                      \
+      CMP_NUM(<=, bp[ARG2A], state->ctbl[ARG2B],                              \
+              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpGtDC:                                                              \
-      CMP_NUM(>, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,    \
-              on_false_);                                                      \
+      CMP_NUM(>, bp[ARG2A], state->ctbl[ARG2B],                               \
+              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpGeDC:                                                              \
-      CMP_NUM(>=, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), on_true_,   \
-              on_false_);                                                      \
+      CMP_NUM(>=, bp[ARG2A], state->ctbl[ARG2B],                              \
+              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpEqDD:                                                              \
-      CMP_NUM(==, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      CMP_NUM(==, bp[ARG2A], bp[ARG2B],                                       \
+              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpNeDD:                                                              \
-      CMP_NUM(!=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      CMP_NUM(!=, bp[ARG2A], bp[ARG2B],                                       \
+              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpLtDD:                                                              \
-      CMP_NUM(<, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_); \
+      CMP_NUM(<, bp[ARG2A], bp[ARG2B],                                        \
+              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpLeDD:                                                              \
-      CMP_NUM(<=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      CMP_NUM(<=, bp[ARG2A], bp[ARG2B],                                       \
+              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpGtDD:                                                              \
-      CMP_NUM(>, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_); \
+      CMP_NUM(>, bp[ARG2A], bp[ARG2B],                                        \
+              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     case CmpGeDD:                                                              \
-      CMP_NUM(>=, bp[ARG2A], bp[ARG2B], notanumber(ARGS), on_true_, on_false_);\
+      CMP_NUM(>=, bp[ARG2A], bp[ARG2B],                                       \
+              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
       DISPATCH();                                                              \
     default:                                                                   \
       MUSTTAIL return unimplemented(ARGS);                                     \
@@ -752,19 +760,21 @@ OP_DEFINITION(CmpNotF) {
 }
 
 OP_DEFINITION(CmpEqDI) {
-  CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ip++, ((void)0));
+  CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, vm_op_compare_di_fallback(ARGS), ip++,
+         ((void)0));
   DISPATCH();
 }
 
 OP_DEFINITION(CmpNeDI) {
-  CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, notanumber(ARGS), ip++, ((void)0));
+  CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, vm_op_compare_di_fallback(ARGS), ip++,
+         ((void)0));
   DISPATCH();
 }
 
 #define DEFINE_OP_CMP_DC(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
-    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B], notanumber(ARGS), ip++,        \
-            ((void)0));                                                        \
+    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B],                               \
+            vm_op_compare_dc_fallback(ARGS), ip++, ((void)0));                 \
     DISPATCH();                                                                \
   }
 
@@ -777,7 +787,8 @@ DEFINE_OP_CMP_DC(CmpGeDC, >=)
 
 #define DEFINE_OP_CMP_DD(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
-    CMP_NUM(op_, bp[ARG2A], bp[ARG2B], notanumber(ARGS), ip++, ((void)0));     \
+    CMP_NUM(op_, bp[ARG2A], bp[ARG2B],                                        \
+            vm_op_compare_dd_fallback(ARGS), ip++, ((void)0));                 \
     DISPATCH();                                                                \
   }
 

@@ -119,14 +119,21 @@ INLINE bool val_is_ptr(val_t value) {
   return val_is_cell(value) /* && !val_is_empty(value) */;
 }
 
-INLINE bool val_is_number(val_t value) { return value & VAL_FLOAT_TAG; }
+#define val_is_number_macro(value, tag) ((value) & (tag))
+
+INLINE bool val_is_number(val_t value) {
+  return val_is_number_macro(value, VAL_FLOAT_TAG);
+}
+
+#define val_is_int_macro(value, tag) (((value) & (tag)) == tag)
 
 INLINE bool val_is_int(val_t value) {
-  return (value & VAL_FLOAT_TAG) == VAL_FLOAT_TAG;
+  return val_is_int_macro(value, VAL_FLOAT_TAG);
 }
 
 INLINE bool val_is_float(val_t value) {
-  return val_is_number(value) && !val_is_int(value);
+  return val_is_number_macro(value, VAL_FLOAT_TAG) &&
+         !val_is_int_macro(value, VAL_FLOAT_TAG);
 }
 
 INLINE val_t val_from_ptr(void *ptr) {
@@ -141,11 +148,17 @@ INLINE void *val_as_ptr(val_t value) {
   return (void *)(uintptr_t)value;
 }
 
-INLINE val_t val_from_i32(int32_t num) { return VAL_FLOAT_TAG | (uint32_t)num; }
+#define val_from_i32_macro(num, tag) ((tag) | (uint32_t)num)
+
+INLINE val_t val_from_i32(int32_t num) {
+  return val_from_i32_macro(num, VAL_FLOAT_TAG);
+}
+
+#define val_as_i32_macro(value, _tag) ((int32_t)(uint32_t)(value))
 
 INLINE int32_t val_as_i32(val_t value) {
   assert(val_is_int(value));
-  return (int32_t)(uint32_t)value;
+  return val_as_i32_macro(value, VAL_FLOAT_TAG);
 }
 
 INLINE val_t val_from_bool(bool value) { return value ? VAL_TRUE : VAL_FALSE; }
@@ -169,13 +182,17 @@ INLINE double bitcast_val_to_f64(val_t raw) {
   return num;
 }
 
+#define val_from_f64_macro(num, tag) (bitcast_f64_to_val(num) - (tag))
+
 INLINE val_t val_from_f64(double num) {
-  return bitcast_f64_to_val(num) + VAL_NUN_BIAS;
+  return val_from_f64_macro(num, VAL_FLOAT_TAG);
 }
+
+#define val_as_f64_macro(value, tag) (bitcast_val_to_f64((value) + (tag)))
 
 INLINE double val_as_f64(val_t value) {
   assert(val_is_float(value));
-  return bitcast_val_to_f64(value - VAL_NUN_BIAS);
+  return val_as_f64_macro(value, VAL_FLOAT_TAG);
 }
 
 INLINE metainfo obj_meta_pack(uint32_t size, uint16_t tag, uint8_t kind,

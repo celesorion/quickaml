@@ -5,10 +5,10 @@ CC := clang
 CFLAGS := -DJUMP_MODE=0 -DDECODE_MODE=1
 
 # Compiler flags
-_CFLAGS := -Wall -Wextra -O3 -std=c2x
+_CFLAGS := -Wall -Wextra -O3 -std=c2x -DNDEBUG
 _LDFLAGS := 
 
-_CFLAGS_RELDBG := -Wall -Wextra -O3 -ggdb3 -std=c2x
+_CFLAGS_RELDBG := -Wall -Wextra -O3 -ggdb3 -std=c2x -DNDEBUG
 _LDFLAGS_RELDBG :=
 
 # Compiler flags for debugging

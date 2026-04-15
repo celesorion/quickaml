@@ -19,19 +19,21 @@
 #define PARAMS_IMPL_1                                                          \
   [[maybe_unused]] bc_t *restrict ip, [[maybe_unused]] uint16_t a2b,           \
       [[maybe_unused]] uint8_t a3a, [[maybe_unused]] val_t *restrict bp,       \
+      [[maybe_unused]] uint64_t ft,                                            \
       [[maybe_unused]] struct state *restrict state,                           \
       [[maybe_unused]] const void *restrict dispatch,                          \
       [[maybe_unused]] struct function *restrict fns[]
 
-#define ARGS_IMPL_1 ip, a2b, a3a, bp, state, dispatch, fns
+#define ARGS_IMPL_1 ip, a2b, a3a, bp, ft, state, dispatch, fns
 
 #define PARAMS_IMPL_2                                                          \
   [[maybe_unused]] bc_t *restrict ip, [[maybe_unused]] uint16_t a2b,           \
       [[maybe_unused]] uint8_t a3a, [[maybe_unused]] val_t *restrict bp,       \
+      [[maybe_unused]] uint64_t ft,                                            \
       [[maybe_unused]] struct state *restrict state,                           \
       [[maybe_unused]] const void *restrict dispatch,                          \
       [[maybe_unused]] struct function *restrict fns[]
-#define ARGS_IMPL_2 ip, a2b, a3a, bp, state, dispatch, fns
+#define ARGS_IMPL_2 ip, a2b, a3a, bp, ft, state, dispatch, fns
 
 #define REPLICATED_DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
 #define NONTAILDISPATCH()                                                      \
