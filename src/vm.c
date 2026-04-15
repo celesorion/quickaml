@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 static opthread *const dispatch[];
+static opthread *const dispatch_setc[];
 
 [[gnu::noinline]]
 status_t vm_entry(struct state *state) {
@@ -645,113 +646,105 @@ THREADED void vm_op_compare_dd_fallback(PARAMS) {
   MUSTTAIL return notanumber(ARGS);
 }
 
-#define SETCOND_STORE(result_)                                                 \
-  do {                                                                         \
-    bp[dst] = val_from_bool(invert ? !(result_) : (result_));                  \
-  } while (0)
+#define SC_STORE(dst_, inv_, r_)                                               \
+  bp[(dst_)] = val_from_bool(!!(inv_) ^ !!(r_))
 
-#define SETCOND_ON_TRUE()                                                      \
+#define SC_ON_TRUE                                                             \
   do {                                                                         \
-    SETCOND_STORE(true);                                                       \
+    SC_STORE(dst, invert, true);                                               \
+    ip += state->sc_jump;                                                      \
   } while (0)
+#define SC_ON_FALSE SC_STORE(dst, invert, false)
 
-#define SETCOND_ON_FALSE()                                                     \
-  do {                                                                         \
-    SETCOND_STORE(false);                                                      \
-  } while (0)
+THREADED void vm_op_setcond_bad_op(PARAMS) {
+  MUSTTAIL return unimplemented(ARGS);
+}
 
-#define SETCONDJ_ON_TRUE()                                                     \
-  do {                                                                         \
-    SETCOND_STORE(true);                                                       \
-    ip++;                                                                      \
-  } while (0)
-
-#define SETCONDJ_ON_FALSE()                                                    \
-  do {                                                                         \
-    SETCOND_STORE(false);                                                      \
-  } while (0)
-
-#define DEFINE_OP_SETCOND(name_, on_true_, on_false_)                          \
-  OP_DEFINITION(name_) {                                                       \
+#define DEFINE_SETC_NOTF(name_)                                                \
+  THREADED void name_(PARAMS) {                                                \
     ssz_t dst = ARG2A;                                                         \
     bool invert = ARG2B != 0;                                                  \
-                                                                               \
-    FETCH_INSN();                                                              \
-    DECODE_OP();                                                               \
-    DECODE_A3A();                                                              \
-    DECODE_A2SB();                                                             \
-    INC_IP();                                                                  \
-                                                                               \
-    switch (op) {                                                              \
-    case CmpNotF:                                                              \
-      if (cmp_notf(bp[ARG2A], ARG2B))                                          \
-        on_true_;                                                              \
-      else                                                                     \
-        on_false_;                                                             \
-      DISPATCH();                                                              \
-    case CmpEqDI:                                                              \
-      CMP_DI(==, bp[ARG2A], (int32_t)ARG2B,                                   \
-             vm_op_compare_di_fallback(ARGS), on_true_, on_false_);            \
-      DISPATCH();                                                              \
-    case CmpNeDI:                                                              \
-      CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B,                                   \
-             vm_op_compare_di_fallback(ARGS), on_true_, on_false_);            \
-      DISPATCH();                                                              \
-    case CmpEqDC:                                                              \
-      CMP_NUM(==, bp[ARG2A], state->ctbl[ARG2B],                              \
-              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpNeDC:                                                              \
-      CMP_NUM(!=, bp[ARG2A], state->ctbl[ARG2B],                              \
-              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpLtDC:                                                              \
-      CMP_NUM(<, bp[ARG2A], state->ctbl[ARG2B],                               \
-              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpLeDC:                                                              \
-      CMP_NUM(<=, bp[ARG2A], state->ctbl[ARG2B],                              \
-              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpGtDC:                                                              \
-      CMP_NUM(>, bp[ARG2A], state->ctbl[ARG2B],                               \
-              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpGeDC:                                                              \
-      CMP_NUM(>=, bp[ARG2A], state->ctbl[ARG2B],                              \
-              vm_op_compare_dc_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpEqDD:                                                              \
-      CMP_NUM(==, bp[ARG2A], bp[ARG2B],                                       \
-              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpNeDD:                                                              \
-      CMP_NUM(!=, bp[ARG2A], bp[ARG2B],                                       \
-              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpLtDD:                                                              \
-      CMP_NUM(<, bp[ARG2A], bp[ARG2B],                                        \
-              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpLeDD:                                                              \
-      CMP_NUM(<=, bp[ARG2A], bp[ARG2B],                                       \
-              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpGtDD:                                                              \
-      CMP_NUM(>, bp[ARG2A], bp[ARG2B],                                        \
-              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    case CmpGeDD:                                                              \
-      CMP_NUM(>=, bp[ARG2A], bp[ARG2B],                                       \
-              vm_op_compare_dd_fallback(ARGS), on_true_, on_false_);           \
-      DISPATCH();                                                              \
-    default:                                                                   \
-      MUSTTAIL return unimplemented(ARGS);                                     \
-    }                                                                          \
+    bc_t ci = ip[-1];                                                          \
+    if (cmp_notf(bp[g3A(ci)], g2B(ci)))                                        \
+      SC_ON_TRUE;                                                              \
+    else                                                                       \
+      SC_ON_FALSE;                                                             \
+    DISPATCH();                                                                \
   }
 
-DEFINE_OP_SETCOND(SetCond, SETCOND_ON_TRUE(), SETCOND_ON_FALSE())
-DEFINE_OP_SETCOND(SetCondJ, SETCONDJ_ON_TRUE(), SETCONDJ_ON_FALSE())
+#define DEFINE_SETC_DI(name_, op_)                                             \
+  THREADED void name_(PARAMS) {                                                \
+    ssz_t dst = ARG2A;                                                         \
+    bool invert = ARG2B != 0;                                                  \
+    bc_t ci = ip[-1];                                                          \
+    CMP_DI(op_, bp[g3A(ci)], (int32_t)g2B(ci),                                 \
+           vm_op_compare_di_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);          \
+    DISPATCH();                                                                \
+  }
+
+#define DEFINE_SETC_DC(name_, op_)                                             \
+  THREADED void name_(PARAMS) {                                                \
+    ssz_t dst = ARG2A;                                                         \
+    bool invert = ARG2B != 0;                                                  \
+    bc_t ci = ip[-1];                                                          \
+    CMP_NUM(op_, bp[g3A(ci)], state->ctbl[g2B(ci)],                            \
+            vm_op_compare_dc_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);         \
+    DISPATCH();                                                                \
+  }
+
+#define DEFINE_SETC_DD(name_, op_)                                             \
+  THREADED void name_(PARAMS) {                                                \
+    ssz_t dst = ARG2A;                                                         \
+    bool invert = ARG2B != 0;                                                  \
+    bc_t ci = ip[-1];                                                          \
+    CMP_NUM(op_, bp[g3A(ci)], bp[g2B(ci)], vm_op_compare_dd_fallback(ARGS),    \
+            SC_ON_TRUE, SC_ON_FALSE);                                          \
+    DISPATCH();                                                                \
+  }
+
+DEFINE_SETC_NOTF(vm_op_setc_CmpNotF)
+DEFINE_SETC_DI(vm_op_setc_CmpEqDI, ==)
+DEFINE_SETC_DI(vm_op_setc_CmpNeDI, !=)
+DEFINE_SETC_DC(vm_op_setc_CmpEqDC, ==)
+DEFINE_SETC_DC(vm_op_setc_CmpNeDC, !=)
+DEFINE_SETC_DC(vm_op_setc_CmpLtDC, <)
+DEFINE_SETC_DC(vm_op_setc_CmpLeDC, <=)
+DEFINE_SETC_DC(vm_op_setc_CmpGtDC, >)
+DEFINE_SETC_DC(vm_op_setc_CmpGeDC, >=)
+DEFINE_SETC_DD(vm_op_setc_CmpEqDD, ==)
+DEFINE_SETC_DD(vm_op_setc_CmpNeDD, !=)
+DEFINE_SETC_DD(vm_op_setc_CmpLtDD, <)
+DEFINE_SETC_DD(vm_op_setc_CmpLeDD, <=)
+DEFINE_SETC_DD(vm_op_setc_CmpGtDD, >)
+DEFINE_SETC_DD(vm_op_setc_CmpGeDD, >=)
+
+OP_DEFINITION(SetCond) {
+  state->sc_jump = 0;
+
+  FETCH_INSN();
+  DECODE_OP();
+  INC_IP();
+
+  op_t idx = op - CmpNotF;
+  if (unlikely(idx >= LIMIT - CmpNotF))
+    MUSTTAIL return vm_op_setcond_bad_op(ARGS);
+
+  MUSTTAIL return dispatch_setc[idx](ARGS);
+}
+
+OP_DEFINITION(SetCondJ) {
+  state->sc_jump = 1;
+
+  FETCH_INSN();
+  DECODE_OP();
+  INC_IP();
+
+  op_t idx = op - CmpNotF;
+  if (unlikely(idx >= LIMIT - CmpNotF))
+    MUSTTAIL return vm_op_setcond_bad_op(ARGS);
+
+  MUSTTAIL return dispatch_setc[idx](ARGS);
+}
 
 OP_DEFINITION(CmpNotF) {
   if (cmp_notf(bp[ARG2A], ARG2B))
@@ -773,7 +766,7 @@ OP_DEFINITION(CmpNeDI) {
 
 #define DEFINE_OP_CMP_DC(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
-    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B],                               \
+    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B],                                \
             vm_op_compare_dc_fallback(ARGS), ip++, ((void)0));                 \
     DISPATCH();                                                                \
   }
@@ -787,8 +780,8 @@ DEFINE_OP_CMP_DC(CmpGeDC, >=)
 
 #define DEFINE_OP_CMP_DD(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
-    CMP_NUM(op_, bp[ARG2A], bp[ARG2B],                                        \
-            vm_op_compare_dd_fallback(ARGS), ip++, ((void)0));                 \
+    CMP_NUM(op_, bp[ARG2A], bp[ARG2B], vm_op_compare_dd_fallback(ARGS), ip++,  \
+            ((void)0));                                                        \
     DISPATCH();                                                                \
   }
 
@@ -798,6 +791,14 @@ DEFINE_OP_CMP_DD(CmpLtDD, <)
 DEFINE_OP_CMP_DD(CmpLeDD, <=)
 DEFINE_OP_CMP_DD(CmpGtDD, >)
 DEFINE_OP_CMP_DD(CmpGeDD, >=)
+
+static opthread *const dispatch_setc[LIMIT - CmpNotF] = {
+    vm_op_setc_CmpNotF, vm_op_setc_CmpEqDI, vm_op_setc_CmpNeDI,
+    vm_op_setc_CmpEqDC, vm_op_setc_CmpNeDC, vm_op_setc_CmpLtDC,
+    vm_op_setc_CmpLeDC, vm_op_setc_CmpGtDC, vm_op_setc_CmpGeDC,
+    vm_op_setc_CmpEqDD, vm_op_setc_CmpNeDD, vm_op_setc_CmpLtDD,
+    vm_op_setc_CmpLeDD, vm_op_setc_CmpGtDD, vm_op_setc_CmpGeDD,
+};
 
 static opthread *const dispatch[] = {
 #define OPIMPLS(op, mnemonic) vm_op_##op,

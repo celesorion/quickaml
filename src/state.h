@@ -15,6 +15,7 @@ struct state {
   val_t *stklimit;
   const char *msg;
   struct runtime_args *rtargs;
+  bool sc_jump;
 };
 
 bool state_init(struct state *restrict s, struct heap *restrict heap,
