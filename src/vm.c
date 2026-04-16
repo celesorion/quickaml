@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static opthread *const dispatch[];
 static opthread *const dispatch_setc[];
@@ -143,7 +144,7 @@ INLINE int32_t di_imm(uint8_t imm) { return sign_extend(imm, 8, 32); }
       } else                                                                   \
         MUSTTAIL return badret_;                                               \
     } else if (val_is_number_macro(_lhs, ft)) {                                \
-      if (val_is_number_macro(_rhs, ft)) {                                     \
+      if (val_is_float_macro(_rhs, ft)) {                                      \
         if (val_as_f64_macro(_lhs, ft) op_ val_as_f64_macro(_rhs, ft)) {       \
           on_true_;                                                            \
         } else {                                                               \
@@ -439,11 +440,115 @@ OP_DEFINITION(Goto) {
   DISPATCH();
 }
 
-THREADED void vm_op_arith_di_fallback(PARAMS) {
-  MUSTTAIL return notanumber(ARGS);
+INLINE bool val_to_f64_pair(val_t lv, val_t rv, uint64_t ft, double *lhs,
+                            double *rhs) {
+  if (val_is_int_macro(lv, ft))
+    *lhs = (double)val_as_i32_macro(lv, ft);
+  else if (val_is_number_macro(lv, ft))
+    *lhs = val_as_f64_macro(lv, ft);
+  else
+    return false;
+  if (val_is_int_macro(rv, ft))
+    *rhs = (double)val_as_i32_macro(rv, ft);
+  else if (val_is_number_macro(rv, ft))
+    *rhs = val_as_f64_macro(rv, ft);
+  else
+    return false;
+  return true;
 }
+
+INLINE bool val_eq(val_t lhs, val_t rhs, uint64_t ft) {
+  if (lhs == rhs)
+    return true;
+  double l, r;
+  if (val_to_f64_pair(lhs, rhs, ft, &l, &r))
+    return l == r;
+  if (val_is_ptr(lhs) && val_is_ptr(rhs)) {
+    void *lp = val_as_ptr(lhs), *rp = val_as_ptr(rhs);
+    if (obj_kind_of(lp) == OBJ_STRING && obj_kind_of(rp) == OBJ_STRING) {
+      struct str *ls = lp, *rs = rp;
+      size_t ll = str_len(ls);
+      return ll == str_len(rs) && memcmp(ls->bytes, rs->bytes, ll) == 0;
+    }
+  }
+  return false;
+}
+
+INLINE bool cmp_f64(op_t op, double lhs, double rhs) {
+  switch (op) {
+  case CmpEqDC: case CmpEqDD: return lhs == rhs;
+  case CmpNeDC: case CmpNeDD: return lhs != rhs;
+  case CmpLtDC: case CmpLtDD: return lhs < rhs;
+  case CmpLeDC: case CmpLeDD: return lhs <= rhs;
+  case CmpGtDC: case CmpGtDD: return lhs > rhs;
+  case CmpGeDC: case CmpGeDD: return lhs >= rhs;
+  default: __builtin_unreachable();
+  }
+}
+
+INLINE bool cmp_is_eq(op_t op) {
+  return op == CmpEqDC || op == CmpEqDD;
+}
+
+INLINE bool cmp_is_ne(op_t op) {
+  return op == CmpNeDC || op == CmpNeDD;
+}
+
+THREADED void vm_op_arith_di_fallback(PARAMS) {
+  val_t v = bp[ARG3Y];
+  if (unlikely(!val_is_int_macro(v, ft)))
+    MUSTTAIL return notanumber(ARGS);
+  double lhs = (double)val_as_i32_macro(v, ft);
+  double rhs = (double)di_imm(ARG3Z);
+  double res;
+  switch (gOP(ip[-1])) {
+  case AddDI: res = lhs + rhs; break;
+  case SubDI: res = lhs - rhs; break;
+  case MulDI: res = lhs * rhs; break;
+  case DivDI: res = lhs / rhs; break;
+  case RemDI: res = fmod(lhs, rhs); break;
+  default: MUSTTAIL return notanumber(ARGS);
+  }
+  bp[ARG3X] = val_from_f64_macro(res, ft);
+  DISPATCH();
+}
+
 THREADED void vm_op_arith_dd_fallback(PARAMS) {
-  MUSTTAIL return notanumber(ARGS);
+  val_t lv = bp[ARG3Y];
+  double lhs;
+  if (val_is_int_macro(lv, ft))
+    lhs = (double)val_as_i32_macro(lv, ft);
+  else if (val_is_number_macro(lv, ft))
+    lhs = val_as_f64_macro(lv, ft);
+  else
+    MUSTTAIL return notanumber(ARGS);
+
+  op_t op = gOP(ip[-1]);
+  if (op == NegD) {
+    bp[ARG3X] = val_from_f64_macro(-lhs, ft);
+    DISPATCH();
+  }
+
+  val_t rv = bp[ARG3Z];
+  double rhs;
+  if (val_is_int_macro(rv, ft))
+    rhs = (double)val_as_i32_macro(rv, ft);
+  else if (val_is_number_macro(rv, ft))
+    rhs = val_as_f64_macro(rv, ft);
+  else
+    MUSTTAIL return notanumber(ARGS);
+
+  double res;
+  switch (op) {
+  case AddDD: res = lhs + rhs; break;
+  case SubDD: res = lhs - rhs; break;
+  case MulDD: res = lhs * rhs; break;
+  case DivDD: res = lhs / rhs; break;
+  case RemDD: res = fmod(lhs, rhs); break;
+  default: MUSTTAIL return notanumber(ARGS);
+  }
+  bp[ARG3X] = val_from_f64_macro(res, ft);
+  DISPATCH();
 }
 
 #define DEFINE_OP_ARITH_DI(name_, op_, overflow_)                              \
@@ -537,7 +642,7 @@ OP_DEFINITION(RemDI) {
       } else                                                                   \
         MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                         \
     } else if (val_is_number_macro(bp[o1], ft)) {                              \
-      if (val_is_number_macro(bp[o2], ft)) {                                   \
+      if (val_is_float_macro(bp[o2], ft)) {                                    \
         bp[dst] = val_from_f64_macro(val_as_f64_macro(bp[o1], ft)              \
                                          op_ val_as_f64_macro(bp[o2], ft),     \
                                      ft);                                      \
@@ -575,7 +680,7 @@ OP_DEFINITION(DivDD) {
       MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
     }
   } else if (val_is_number_macro(bp[o1], ft)) {
-    if (val_is_number_macro(bp[o2], ft)) {
+    if (val_is_float_macro(bp[o2], ft)) {
       bp[dst] = val_from_f64_macro(
           val_as_f64_macro(bp[o1], ft) / val_as_f64_macro(bp[o2], ft), ft);
     } else {
@@ -607,7 +712,7 @@ OP_DEFINITION(RemDD) {
       MUSTTAIL return vm_op_arith_dd_fallback(ARGS);
     }
   } else if (val_is_number_macro(bp[o1], ft)) {
-    if (val_is_number_macro(bp[o2], ft)) {
+    if (val_is_float_macro(bp[o2], ft)) {
       bp[dst] = val_from_f64_macro(
           fmod(val_as_f64_macro(bp[o1], ft), val_as_f64_macro(bp[o2], ft)), ft);
     } else {
@@ -639,15 +744,50 @@ OP_DEFINITION(NegD) {
 THREADED void vm_op_compare_di_fallback(PARAMS) {
   MUSTTAIL return notanumber(ARGS);
 }
+
 THREADED void vm_op_compare_dc_fallback(PARAMS) {
-  MUSTTAIL return notanumber(ARGS);
-}
-THREADED void vm_op_compare_dd_fallback(PARAMS) {
-  MUSTTAIL return notanumber(ARGS);
+  val_t lv = bp[ARG2A], rv = state->ctbl[ARG2B];
+  op_t op = gOP(ip[-1]);
+  if (cmp_is_eq(op)) {
+    if (val_eq(lv, rv, ft))
+      ip++;
+    DISPATCH();
+  }
+  if (cmp_is_ne(op)) {
+    if (!val_eq(lv, rv, ft))
+      ip++;
+    DISPATCH();
+  }
+  double lhs, rhs;
+  if (!val_to_f64_pair(lv, rv, ft, &lhs, &rhs))
+    MUSTTAIL return notanumber(ARGS);
+  if (cmp_f64(op, lhs, rhs))
+    ip++;
+  DISPATCH();
 }
 
-#define SC_STORE(dst_, inv_, r_)                                               \
-  bp[(dst_)] = val_from_bool(!!(inv_) ^ !!(r_))
+THREADED void vm_op_compare_dd_fallback(PARAMS) {
+  val_t lv = bp[ARG2A], rv = bp[ARG2B];
+  op_t op = gOP(ip[-1]);
+  if (cmp_is_eq(op)) {
+    if (val_eq(lv, rv, ft))
+      ip++;
+    DISPATCH();
+  }
+  if (cmp_is_ne(op)) {
+    if (!val_eq(lv, rv, ft))
+      ip++;
+    DISPATCH();
+  }
+  double lhs, rhs;
+  if (!val_to_f64_pair(lv, rv, ft, &lhs, &rhs))
+    MUSTTAIL return notanumber(ARGS);
+  if (cmp_f64(op, lhs, rhs))
+    ip++;
+  DISPATCH();
+}
+
+#define SC_STORE(dst_, inv_, r_) bp[(dst_)] = val_from_bool(!!(inv_) ^ !!(r_))
 
 #define SC_ON_TRUE                                                             \
   do {                                                                         \
@@ -655,6 +795,30 @@ THREADED void vm_op_compare_dd_fallback(PARAMS) {
     ip += state->sc_jump;                                                      \
   } while (0)
 #define SC_ON_FALSE SC_STORE(dst, invert, false)
+
+THREADED void vm_op_compare_setc_fallback(PARAMS) {
+  ssz_t dst = ARG2A;
+  bool invert = ARG2B != 0;
+  bc_t ci = ip[-1];
+  op_t op = gOP(ci);
+  val_t lv = bp[g3A(ci)];
+  val_t rv = (op >= CmpEqDD) ? bp[g2B(ci)] : state->ctbl[g2B(ci)];
+  bool r;
+  if (cmp_is_eq(op)) {
+    r = val_eq(lv, rv, ft);
+  } else if (cmp_is_ne(op)) {
+    r = !val_eq(lv, rv, ft);
+  } else {
+    double lhs, rhs;
+    if (!val_to_f64_pair(lv, rv, ft, &lhs, &rhs))
+      MUSTTAIL return notanumber(ARGS);
+    r = cmp_f64(op, lhs, rhs);
+  }
+  SC_STORE(dst, invert, r);
+  if (r)
+    ip += state->sc_jump;
+  DISPATCH();
+}
 
 THREADED void vm_op_setcond_bad_op(PARAMS) {
   MUSTTAIL return unimplemented(ARGS);
@@ -688,7 +852,7 @@ THREADED void vm_op_setcond_bad_op(PARAMS) {
     bool invert = ARG2B != 0;                                                  \
     bc_t ci = ip[-1];                                                          \
     CMP_NUM(op_, bp[g3A(ci)], state->ctbl[g2B(ci)],                            \
-            vm_op_compare_dc_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);         \
+            vm_op_compare_setc_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);       \
     DISPATCH();                                                                \
   }
 
@@ -697,8 +861,8 @@ THREADED void vm_op_setcond_bad_op(PARAMS) {
     ssz_t dst = ARG2A;                                                         \
     bool invert = ARG2B != 0;                                                  \
     bc_t ci = ip[-1];                                                          \
-    CMP_NUM(op_, bp[g3A(ci)], bp[g2B(ci)], vm_op_compare_dd_fallback(ARGS),    \
-            SC_ON_TRUE, SC_ON_FALSE);                                          \
+    CMP_NUM(op_, bp[g3A(ci)], bp[g2B(ci)],                                     \
+            vm_op_compare_setc_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);       \
     DISPATCH();                                                                \
   }
 

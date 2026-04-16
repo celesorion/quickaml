@@ -131,9 +131,11 @@ INLINE bool val_is_int(val_t value) {
   return val_is_int_macro(value, VAL_FLOAT_TAG);
 }
 
+#define val_is_float_macro(value, tag)                                         \
+  val_is_number_macro(value, tag) && !val_is_int_macro(value, tag)
+
 INLINE bool val_is_float(val_t value) {
-  return val_is_number_macro(value, VAL_FLOAT_TAG) &&
-         !val_is_int_macro(value, VAL_FLOAT_TAG);
+  return val_is_float_macro(value, VAL_FLOAT_TAG);
 }
 
 INLINE val_t val_from_ptr(void *ptr) {
