@@ -2,7 +2,7 @@
 CC := clang
 
 # Default CFLAGS
-CFLAGS := -DJUMP_MODE=0 -DDECODE_MODE=1
+CFLAGS := -DJUMP_MODE=0 -DDECODE_MODE=0
 
 # Compiler flags
 _CFLAGS := -Wall -Wextra -O3 -std=c2x -DNDEBUG
