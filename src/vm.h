@@ -78,14 +78,14 @@
 #define COND_NEXT_IP_CMOV(c, i)                                                \
   do {                                                                         \
     char *p = (char *)ip;                                                      \
-    p += c ? 0 : sizeof(bc_t) * JUMP_OFFSET(i);                                \
+    p += c ? 0 : sizeof(bc_t) * JUMP_OFFSET_OF(i);                             \
     ip = (bc_t *)p;                                                            \
   } while (0)
 
 #define COND_NEXT_IP_BR(c, i)                                                  \
   do {                                                                         \
     if (likely(!c))                                                            \
-      ip = add2ip(ip, JUMP_OFFSET(i));                                         \
+      ip = add2ip(ip, JUMP_OFFSET_OF(i));                                      \
   } while (0)
 
 #if !defined(JUMP_MODE) || defined(JUMP_MODE) && JUMP_MODE == 0
@@ -117,6 +117,7 @@
 #define ARG2A a3a
 #define ARG2B a2b
 #define JUMP_OFFSET (((int32_t)(int16_t)a2b << 8) | a3a)
+#define JUMP_OFFSET_OF(i) g1sA(i)
 #define GET_FO(fo)                                                             \
   bc_t prev_insn = ra[-1];                                                     \
   ssz_t fo = g3A(prev_insn)
@@ -142,6 +143,7 @@
 #define ARG2A a3a
 #define ARG2B a2b
 #define JUMP_OFFSET (((int32_t)(int16_t)a2b << 8) | a3a)
+#define JUMP_OFFSET_OF(i) gp1sA(i)
 #define GET_FO(fo)                                                             \
   bc_t *prev_insnp = ra - 1;                                                   \
   ssz_t fo = gp3A(prev_insnp)
