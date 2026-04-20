@@ -34,7 +34,6 @@ enum obj_kind {
   OBJ_WORDS,
   OBJ_STRING,
   OBJ_CLOSURE,
-  OBJ_FORWARD,
   OBJ_FREE,
 };
 
@@ -232,9 +231,9 @@ INLINE uint8_t obj_flags_of(const void *ref) {
   return (uint8_t)((obj->hd >> 56) & UINT64_C(0xff));
 }
 
-#define OBJ_FLAG_GC_MASK  (UINT64_C(0x03) << 56)
+#define OBJ_FLAG_GC_MASK (UINT64_C(0x03) << 56)
 #define OBJ_FLAG_GC_WHITE (UINT64_C(0x00) << 56)
-#define OBJ_FLAG_GC_GRAY  (UINT64_C(0x01) << 56)
+#define OBJ_FLAG_GC_GRAY (UINT64_C(0x01) << 56)
 #define OBJ_FLAG_GC_BLACK (UINT64_C(0x02) << 56)
 
 INLINE metainfo obj_gc_bits(const void *ref) {
@@ -261,8 +260,8 @@ INLINE void obj_set_gclist(void *ref, void *next) {
   gc->gclist = next;
 }
 
-val_t val_from_tag(uint8_t tag);
-uint8_t val_tag(val_t value);
+COLD_HELPER val_t val_from_tag(uint8_t tag);
+COLD_HELPER uint8_t val_tag(val_t value);
 
 INLINE size_t object_align(size_t n) { return (n + 7u) & ~7u; }
 
@@ -294,13 +293,9 @@ INLINE void free_block_init(struct free_block *blk, size_t size,
 }
 
 COLD_HELPER void object_init(struct object *obj, uint16_t tag, size_t nfields);
-void str_init(struct str *str, uint16_t tag, size_t len);
+COLD_HELPER void str_init(struct str *str, uint16_t tag, size_t len);
 COLD_HELPER void closure_init(struct closure *clos, struct function *fn,
-                               size_t nfree);
-
-void obj_set_forward(void *from_ref, size_t size, void *to_ref);
-void *obj_forwardee(const void *ref);
-
-void obj_print(FILE *out, val_t value);
+                              size_t nfree);
+COLD_HELPER void obj_print(FILE *out, val_t value);
 
 #endif

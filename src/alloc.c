@@ -94,7 +94,7 @@ static void gc_scan_roots(struct state *restrict st, struct heap *h,
   val_t *cur_bp = bp;
   val_t *stk_base = st->stk;
 
-  while (cur_bp > stk_base + 4) {
+  while (cur_bp > stk_base + 2 * FRAME_HEADER_SIZE) {
     val_t fn_val = frame_rv(cur_bp);
     struct function *fn = val2ptr(fn_val);
     uint8_t nregs = fn->nregs;
@@ -143,7 +143,6 @@ static void gc_scan_object(struct heap *h, void *ref) {
   }
   case OBJ_STRING:
   case OBJ_FREE:
-  case OBJ_FORWARD:
     break;
   }
 }

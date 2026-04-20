@@ -1,13 +1,13 @@
 #include "vm.h"
 #include "alloc.h"
 #include "bc.h"
+#include "def.h"
 #include "object.h"
 #include "state.h"
 #include "trap.h"
 
 #include <inttypes.h>
 #include <limits.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,9 +24,10 @@ INLINE double fast_fmod(double a, double b) {
 [[gnu::noinline]]
 status_t vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
-  val_t *bp = next_bp(state->stk, 2);
+  val_t *bp = next_bp(state->stk, FRAME_HEADER_SIZE);
   frame_rv(bp) = ptr2val(state->entry);
   frame_ra(bp) = 0;
+  frame_self(bp) = val_from_null();
   state->ctbl = state->entry->ctbl;
   struct function **fns = state->fns;
 
@@ -40,9 +41,8 @@ status_t vm_entry(struct state *state) {
 
 THREADED
 void panic(PARAMS) {
-  [[maybe_unused]] int r;
-  PCALL(r, fprintf, stderr, "panic: %s\n", state->msg);
-  PCALL_VOID(exit, 255);
+  fprintf(stderr, "panic: %s\n", state->msg);
+  exit(255);
 }
 
 THREADED
@@ -180,11 +180,10 @@ OP_DEFINITION(Trap) {
     ssz_t i2 = ARG3C;
 
     for (ssz_t i = i1; i < i2; i++) {
-      [[maybe_unused]] int r;
-      PCALL(r, fprintf, stderr,
-            tid == T_PRINTREGSX ? ("[%u] 0x%" PRIx64 "\n")
-                                : ("[%u] %" PRIu64 "\n"),
-            i, bp[i]);
+      fprintf(stderr,
+              tid == T_PRINTREGSX ? "[%u] 0x%" PRIx64 "\n"
+                                  : "[%u] %" PRIu64 "\n",
+              i, bp[i]);
     }
     break;
   }
@@ -193,23 +192,20 @@ OP_DEFINITION(Trap) {
     ssz_t i2 = ARG3C;
 
     if (bp[i1] != bp[i2]) {
-      [[maybe_unused]] int r;
-      PCALL(r, fprintf, stderr, "0x%" PRIx64 " != 0x%" PRIx64 "\n", bp[i1],
-            bp[i2]);
+      fprintf(stderr, "0x%" PRIx64 " != 0x%" PRIx64 "\n", bp[i1], bp[i2]);
       MUSTTAIL return assertionfailed(ARGS);
     }
     break;
   }
   case T_PRINTOBJ: {
     ssz_t o = ARG3B;
-    [[maybe_unused]] int r;
-    PCALL(r, fprintf, stderr, "r%u = ", o);
-    PCALL_VOID(obj_print, stderr, bp[o]);
-    PCALL(r, fprintf, stderr, "\n");
+    fprintf(stderr, "r%u = ", o);
+    obj_print(stderr, bp[o]);
+    fprintf(stderr, "\n");
     break;
   }
   case T_HEAPSTAT: {
-    PCALL_VOID(heap_stat_print, state->heap);
+    heap_stat_print(state->heap);
     break;
   }
   default:
@@ -277,7 +273,6 @@ OP_DEFINITION(Move) {
 
 OP_DEFINITION(Apply) {
   ssz_t iclos = ARG2A;
-  ssz_t nargs = ARG2B;
 
   struct closure *clos = val_as_ptr(bp[iclos]);
   struct function *fn = clos->fn;
@@ -285,7 +280,7 @@ OP_DEFINITION(Apply) {
   bc_t *oldip = ip;
   ip = fn->ops;
 
-  PCALL_VOID(gc_poll, state, state->heap, bp, 256);
+  gc_poll(state, state->heap, bp, 256);
 
   bp = next_bp(bp, iclos);
   if (unlikely(bp >= state->stklimit)) {
@@ -294,9 +289,8 @@ OP_DEFINITION(Apply) {
 
   frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
+  frame_self(bp) = val_from_ptr(clos);
   state->ctbl = fn->ctbl;
-
-  bp[0] = val_from_ptr(clos);
 
   DISPATCH();
 }
@@ -310,7 +304,7 @@ OP_DEFINITION(Call) {
   bc_t *oldip = ip;
   ip = fn->ops;
 
-  PCALL_VOID(gc_poll, state, state->heap, bp, 256);
+  gc_poll(state, state->heap, bp, 256);
 
   bp = next_bp(bp, dst);
   if (unlikely(bp >= state->stklimit)) {
@@ -319,6 +313,7 @@ OP_DEFINITION(Call) {
 
   frame_rv(bp) = ptr2val(fn);
   frame_ra(bp) = ptr2val(oldip);
+  frame_self(bp) = val_from_null();
   state->ctbl = fn->ctbl;
 
   DISPATCH();
@@ -378,13 +373,12 @@ OP_DEFINITION(Clos) {
   ssz_t dst = ARG2A;
   ssz_t fx = ARG2B;
 
-  struct closure *clos;
-  PCALL(clos, alloc_object, closure_size(0), state, bp);
+  struct closure *clos = alloc_object(closure_size(0), state, bp);
   closure_init(clos, fns[fx], 0);
 
-  PCALL_VOID(gc_publish_new_object, state->heap, clos, OBJ_CLOSURE);
+  gc_publish_new_object(state->heap, clos, OBJ_CLOSURE);
   bp[dst] = val_from_ptr(clos);
-  PCALL_VOID(gc_poll, state, state->heap, bp, closure_size(0));
+  gc_poll(state, state->heap, bp, closure_size(0));
 
   DISPATCH();
 }
@@ -398,15 +392,14 @@ OP_DEFINITION(WObj) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
-  struct object *obj;
-  PCALL(obj, alloc_object, object_size(len), state, bp);
+  struct object *obj = alloc_object(object_size(len), state, bp);
   object_init(obj, (uint16_t)tag, len);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
 
-  PCALL_VOID(gc_publish_new_object, state->heap, obj, OBJ_WORDS);
+  gc_publish_new_object(state->heap, obj, OBJ_WORDS);
   bp[fld] = val_from_ptr(obj);
-  PCALL_VOID(gc_poll, state, state->heap, bp, object_size(len));
+  gc_poll(state, state->heap, bp, object_size(len));
 
   DISPATCH();
 }
@@ -451,8 +444,8 @@ OP_DEFINITION(Goto) {
   DISPATCH();
 }
 
-INLINE bool val_to_f64_pair(val_t lv, val_t rv, uint64_t ft, double *lhs,
-                            double *rhs) {
+COLD_HELPER static bool val_to_f64_pair(val_t lv, val_t rv, uint64_t ft,
+                                        double *lhs, double *rhs) {
   if (val_is_int_macro(lv, ft))
     *lhs = (double)val_as_i32_macro(lv, ft);
   else if (val_is_number_macro(lv, ft))
@@ -468,7 +461,7 @@ INLINE bool val_to_f64_pair(val_t lv, val_t rv, uint64_t ft, double *lhs,
   return true;
 }
 
-INLINE bool val_eq(val_t lhs, val_t rhs, uint64_t ft) {
+COLD_HELPER static bool val_eq(val_t lhs, val_t rhs, uint64_t ft) {
   if (lhs == rhs)
     return true;
   double l, r;
@@ -485,25 +478,34 @@ INLINE bool val_eq(val_t lhs, val_t rhs, uint64_t ft) {
   return false;
 }
 
-INLINE bool cmp_f64(op_t op, double lhs, double rhs) {
+COLD_HELPER static bool cmp_f64(op_t op, double lhs, double rhs) {
   switch (op) {
-  case CmpEqDC: case CmpEqDD: return lhs == rhs;
-  case CmpNeDC: case CmpNeDD: return lhs != rhs;
-  case CmpLtDC: case CmpLtDD: return lhs < rhs;
-  case CmpLeDC: case CmpLeDD: return lhs <= rhs;
-  case CmpGtDC: case CmpGtDD: return lhs > rhs;
-  case CmpGeDC: case CmpGeDD: return lhs >= rhs;
-  default: __builtin_unreachable();
+  case CmpEqDC:
+  case CmpEqDD:
+    return lhs == rhs;
+  case CmpNeDC:
+  case CmpNeDD:
+    return lhs != rhs;
+  case CmpLtDC:
+  case CmpLtDD:
+    return lhs < rhs;
+  case CmpLeDC:
+  case CmpLeDD:
+    return lhs <= rhs;
+  case CmpGtDC:
+  case CmpGtDD:
+    return lhs > rhs;
+  case CmpGeDC:
+  case CmpGeDD:
+    return lhs >= rhs;
+  default:
+    __builtin_unreachable();
   }
 }
 
-INLINE bool cmp_is_eq(op_t op) {
-  return op == CmpEqDC || op == CmpEqDD;
-}
+INLINE bool cmp_is_eq(op_t op) { return op == CmpEqDC || op == CmpEqDD; }
 
-INLINE bool cmp_is_ne(op_t op) {
-  return op == CmpNeDC || op == CmpNeDD;
-}
+INLINE bool cmp_is_ne(op_t op) { return op == CmpNeDC || op == CmpNeDD; }
 
 THREADED void vm_op_arith_di_fallback(PARAMS) {
   val_t v = bp[ARG3Y];
@@ -513,12 +515,23 @@ THREADED void vm_op_arith_di_fallback(PARAMS) {
   double rhs = (double)di_imm(ARG3Z);
   double res;
   switch (gOP(ip[-1])) {
-  case AddDI: res = lhs + rhs; break;
-  case SubDI: res = lhs - rhs; break;
-  case MulDI: res = lhs * rhs; break;
-  case DivDI: res = lhs / rhs; break;
-  case RemDI: res = fast_fmod(lhs, rhs); break;
-  default: MUSTTAIL return notanumber(ARGS);
+  case AddDI:
+    res = lhs + rhs;
+    break;
+  case SubDI:
+    res = lhs - rhs;
+    break;
+  case MulDI:
+    res = lhs * rhs;
+    break;
+  case DivDI:
+    res = lhs / rhs;
+    break;
+  case RemDI:
+    res = fast_fmod(lhs, rhs);
+    break;
+  default:
+    MUSTTAIL return notanumber(ARGS);
   }
   bp[ARG3X] = val_from_f64_macro(res, ft);
   DISPATCH();
@@ -551,12 +564,23 @@ THREADED void vm_op_arith_dd_fallback(PARAMS) {
 
   double res;
   switch (op) {
-  case AddDD: res = lhs + rhs; break;
-  case SubDD: res = lhs - rhs; break;
-  case MulDD: res = lhs * rhs; break;
-  case DivDD: res = lhs / rhs; break;
-  case RemDD: res = fast_fmod(lhs, rhs); break;
-  default: MUSTTAIL return notanumber(ARGS);
+  case AddDD:
+    res = lhs + rhs;
+    break;
+  case SubDD:
+    res = lhs - rhs;
+    break;
+  case MulDD:
+    res = lhs * rhs;
+    break;
+  case DivDD:
+    res = lhs / rhs;
+    break;
+  case RemDD:
+    res = fast_fmod(lhs, rhs);
+    break;
+  default:
+    MUSTTAIL return notanumber(ARGS);
   }
   bp[ARG3X] = val_from_f64_macro(res, ft);
   DISPATCH();
@@ -656,9 +680,8 @@ OP_DEFINITION(RemDI) {
         MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                         \
     } else if (val_is_number_macro(v1, ft)) {                                  \
       if (val_is_float_macro(v2, ft)) {                                        \
-        bp[dst] = val_from_f64_macro(val_as_f64_macro(v1, ft)                  \
-                                         op_ val_as_f64_macro(v2, ft),         \
-                                     ft);                                      \
+        bp[dst] = val_from_f64_macro(                                          \
+            val_as_f64_macro(v1, ft) op_ val_as_f64_macro(v2, ft), ft);        \
       } else {                                                                 \
         MUSTTAIL return vm_op_arith_dd_fallback(ARGS);                         \
       }                                                                        \
@@ -844,7 +867,7 @@ THREADED void vm_op_setcond_bad_op(PARAMS) {
   MUSTTAIL return unimplemented(ARGS);
 }
 
-#define SETC_NOTF_OP_DEFINITION(name_)                                        \
+#define SETC_NOTF_OP_DEFINITION(name_)                                         \
   THREADED void vm_op_##name_(PARAMS) {                                        \
     ssz_t dst = ARG2A;                                                         \
     bool invert = ARG2B != 0;                                                  \
@@ -881,8 +904,8 @@ THREADED void vm_op_setcond_bad_op(PARAMS) {
     ssz_t dst = ARG2A;                                                         \
     bool invert = ARG2B != 0;                                                  \
     bc_t ci = ip[-1];                                                          \
-    CMP_NUM(op_, bp[g3A(ci)], bp[g2B(ci)],                                     \
-            vm_op_compare_setc_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);       \
+    CMP_NUM(op_, bp[g3A(ci)], bp[g2B(ci)], vm_op_compare_setc_fallback(ARGS),  \
+            SC_ON_TRUE, SC_ON_FALSE);                                          \
     DISPATCH();                                                                \
   }
 
@@ -969,9 +992,8 @@ DEFINE_OP_CMP_DC(CmpGeDC, >=)
 #define DEFINE_OP_CMP_DD(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
     NEXT_INSN(ji);                                                             \
-    CMP_NUM(op_, bp[ARG2A], bp[ARG2B],                                         \
-            vm_op_compare_dd_fallback(ARGS), ((void)0),                        \
-            COND_NEXT_IP(false, ji));                                          \
+    CMP_NUM(op_, bp[ARG2A], bp[ARG2B], vm_op_compare_dd_fallback(ARGS),        \
+            ((void)0), COND_NEXT_IP(false, ji));                               \
     DISPATCH();                                                                \
   }
 

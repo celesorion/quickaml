@@ -4,10 +4,12 @@
 
 #include <stdint.h>
 
-#define frame_rv(bp) ((bp)[-2])
-#define frame_ra(bp) ((bp)[-1])
-#define prev_bp(bp, fo) ((bp) - 2 - (fo))
-#define next_bp(bp, fo) ((bp) + 2 + (fo))
+#define FRAME_HEADER_SIZE 3
+#define frame_rv(bp) ((bp)[-3])
+#define frame_ra(bp) ((bp)[-2])
+#define frame_self(bp) ((bp)[-1])
+#define prev_bp(bp, fo) ((bp) - FRAME_HEADER_SIZE - (fo))
+#define next_bp(bp, fo) ((bp) + FRAME_HEADER_SIZE + (fo))
 #define add2ip(ip, off)                                                        \
   ((bc_t *)((unsigned char *)(ip) + (ptrdiff_t)off * sizeof(bc_t)))
 
@@ -152,29 +154,6 @@
 
 [[clang::preserve_none]] typedef void opthread(PARAMS);
 
-#define PCALL_INNER(o_, f_) o_ = f_
-#define PCALL_INNER_VOID(o_, f_) f_
-
-#define PCALL_AARCH64(i_, o_, f_, ...)                                         \
-  do {                                                                         \
-    unsigned long lr;                                                          \
-    __asm__("mov %0, lr" : "=r"(lr));                                          \
-    i_(o_, f_)(__VA_ARGS__);                                                   \
-    __asm__("mov lr, %0" : : "r"(lr) : "lr");                                  \
-  } while (0)
-
-#define PCALL_X86_64(i_, o_, f_, ...)                                          \
-  do {                                                                         \
-    i_(o_, f_)(__VA_ARGS__);                                                   \
-  } while (0)
-
-#if defined(__x86_64__) || defined(_M_X64)
-#define PCALL(o_, f_, ...) PCALL_X86_64(PCALL_INNER, o_, f_, __VA_ARGS__)
-#define PCALL_VOID(f_, ...) PCALL_X86_64(PCALL_INNER_VOID, 0, f_, __VA_ARGS__)
-#elif defined(__aarch64__) || defined(_M_ARM64)
-#define PCALL(o_, f_, ...) PCALL_AARCH64(PCALL_INNER, o_, f_, __VA_ARGS__)
-#define PCALL_VOID(f_, ...) PCALL_AARCH64(PCALL_INNER_VOID, 0, f_, __VA_ARGS__)
-#endif
 
 #define cast(x, t) ((t)(x))
 #define cast_u(x, width) ((uint##width##_t)(x))

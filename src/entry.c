@@ -134,7 +134,7 @@ status_t vm_exec_with_args(struct function *entry, struct function **fns,
 
   status_t status = vm_entry(&st);
   if (result != nullptr) {
-    val_t *bp = next_bp(st.stk, 2);
+    val_t *bp = next_bp(st.stk, FRAME_HEADER_SIZE);
     *result = bp[0];
   }
 

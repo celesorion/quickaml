@@ -1,4 +1,5 @@
 #include "object.h"
+#include "def.h"
 
 #include <assert.h>
 #include <inttypes.h>
@@ -9,7 +10,7 @@ struct forwarded {
   void *to_ref;
 };
 
-val_t val_from_tag(uint8_t tag) {
+COLD_HELPER val_t val_from_tag(uint8_t tag) {
   switch ((enum tag)tag) {
   case TAG_UNIT:
     return val_from_null();
@@ -27,7 +28,7 @@ val_t val_from_tag(uint8_t tag) {
   }
 }
 
-uint8_t val_tag(val_t value) {
+COLD_HELPER uint8_t val_tag(val_t value) {
   if (val_is_null(value))
     return TAG_UNIT;
   if (val_is_empty(value))
@@ -39,15 +40,14 @@ uint8_t val_tag(val_t value) {
   return 0xff;
 }
 
-COLD_HELPER void object_init(struct object *obj, uint16_t tag,
-                             size_t nfields) {
+COLD_HELPER void object_init(struct object *obj, uint16_t tag, size_t nfields) {
   obj->hd = obj_meta_pack((uint32_t)object_size(nfields), tag, OBJ_WORDS, 0);
   obj->gclist = nullptr;
 }
 
-void str_init(struct str *str, uint16_t tag, size_t len) {
-  str->hd =
-      obj_meta_pack((uint32_t)(sizeof(struct str) + len + 1), tag, OBJ_STRING, 0);
+COLD_HELPER void str_init(struct str *str, uint16_t tag, size_t len) {
+  str->hd = obj_meta_pack((uint32_t)(sizeof(struct str) + len + 1), tag,
+                          OBJ_STRING, 0);
   str->bytes[len] = '\0';
 }
 
@@ -59,18 +59,6 @@ COLD_HELPER void closure_init(struct closure *clos, struct function *fn,
   clos->fn = fn;
   clos->nfree = (uint32_t)nfree;
   clos->pad = 0;
-}
-
-void obj_set_forward(void *from_ref, size_t size, void *to_ref) {
-  struct forwarded *fwd = from_ref;
-  fwd->hd = obj_meta_pack((uint32_t)size, 0, OBJ_FORWARD, 0);
-  fwd->to_ref = to_ref;
-}
-
-void *obj_forwardee(const void *ref) {
-  const struct forwarded *fwd = ref;
-  assert(obj_kind_of(ref) == OBJ_FORWARD);
-  return fwd->to_ref;
 }
 
 static const char *imm_name(uint8_t tag) {
@@ -128,9 +116,6 @@ void obj_print(FILE *out, val_t value) {
             clos->nfree);
     break;
   }
-  case OBJ_FORWARD:
-    fprintf(out, "<forward %p>", obj_forwardee(ref));
-    break;
   case OBJ_FREE:
     fprintf(out, "<free size=%zu>", obj_size(ref));
     break;
