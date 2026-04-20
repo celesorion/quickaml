@@ -43,7 +43,7 @@ _vm_entry:                              ; @vm_entry
 	stp	x9, xzr, [x8, #16]
 	ldr	x10, [x9, #8]
 	str	x10, [x0, #40]
-	ldr	w10, [x9, #24]
+	ldr	w10, [x9, #28]
 	and	x11, x10, #0xff
 	ubfx	x0, x10, #16, #16
 Lloh0:
@@ -52,7 +52,7 @@ Lloh1:
 	add	x24, x24, _dispatch@PAGEOFF
 	ldr	x11, [x24, x11, lsl #3]
 	ubfx	w1, w10, #8, #8
-	add	x20, x9, #28
+	add	x20, x9, #32
 	add	x21, x8, #32
                                         ; kill: def $w0 killed $w0 killed $x0
 	mov	x22, #-562949953421312          ; =0xfffe000000000000
@@ -373,27 +373,49 @@ _vm_op_Move:                            ; @vm_op_Move
 _vm_op_Apply:                           ; @vm_op_Apply
 	.cfi_startproc
 ; %bb.0:
+	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
+	mov	x29, sp
+	.cfi_def_cfa w29, 16
+	.cfi_offset w30, -8
+	.cfi_offset w29, -16
+	mov	x2, x21
+	mov	x9, x1
+	mov	x10, x0
 	add	x21, x21, w1, uxtw #3
-	ldr	x9, [x21], #16
-	ldr	x8, [x9, #8]
-	ldr	x10, [x23, #56]
-	cmp	x21, x10
+	ldr	x12, [x21], #16
+	ldr	x11, [x12, #16]
+	; InlineAsm Start
+	mov	x13, x30
+	; InlineAsm End
+	ldr	x1, [x23]
+	mov	x0, x23
+	mov	w3, #256                        ; =0x100
+	bl	_gc_poll
+	; InlineAsm Start
+	mov	x30, x13
+	; InlineAsm End
+	ldr	x8, [x23, #56]
+	cmp	x21, x8
 	b.hs	LBB10_2
 ; %bb.1:
-	stp	x8, x20, [x21, #-16]
-	ldr	x10, [x8, #8]
-	str	x10, [x23, #40]
-	str	x9, [x21]
-	ldr	w9, [x8, #24]
-	and	x10, x9, #0xff
-	ldr	x2, [x24, x10, lsl #3]
-	ubfx	x0, x9, #16, #16
-	ubfx	w1, w9, #8, #8
-	add	x20, x8, #28
+	stp	x11, x20, [x21, #-16]
+	ldr	x8, [x11, #8]
+	str	x8, [x23, #40]
+	str	x12, [x21]
+	ldr	w8, [x11, #28]
+	and	x9, x8, #0xff
+	ldr	x2, [x24, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+	add	x20, x11, #32
                                         ; kill: def $w0 killed $w0 killed $x0
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
 LBB10_2:
-	add	x20, x8, #24
+	add	x20, x11, #28
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_stackoverflow
 	.cfi_endproc
                                         ; -- End function
@@ -401,26 +423,48 @@ LBB10_2:
 _vm_op_Call:                            ; @vm_op_Call
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x25, w0, uxtw #3]
-	add	x9, x21, w1, uxtw #3
-	add	x21, x9, #16
-	ldr	x9, [x23, #56]
-	cmp	x21, x9
+	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
+	mov	x29, sp
+	.cfi_def_cfa w29, 16
+	.cfi_offset w30, -8
+	.cfi_offset w29, -16
+	mov	x9, x1
+	mov	x10, x0
+	; InlineAsm Start
+	mov	x12, x30
+	; InlineAsm End
+	ldr	x1, [x23]
+	ldr	x11, [x25, w0, uxtw #3]
+	mov	x0, x23
+	mov	x2, x21
+	mov	w3, #256                        ; =0x100
+	bl	_gc_poll
+	; InlineAsm Start
+	mov	x30, x12
+	; InlineAsm End
+	add	x8, x21, w9, uxtw #3
+	add	x21, x8, #16
+	ldr	x8, [x23, #56]
+	cmp	x21, x8
 	b.hs	LBB11_2
 ; %bb.1:
-	stp	x8, x20, [x21, #-16]
-	ldr	x9, [x8, #8]
-	str	x9, [x23, #40]
-	ldr	w9, [x8, #24]
-	and	x10, x9, #0xff
-	ldr	x2, [x24, x10, lsl #3]
-	ubfx	x0, x9, #16, #16
-	ubfx	w1, w9, #8, #8
-	add	x20, x8, #28
+	stp	x11, x20, [x21, #-16]
+	ldr	x8, [x11, #8]
+	str	x8, [x23, #40]
+	ldr	w8, [x11, #28]
+	and	x9, x8, #0xff
+	ldr	x2, [x24, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+	add	x20, x11, #32
                                         ; kill: def $w0 killed $w0 killed $x0
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
 LBB11_2:
-	add	x20, x8, #24
+	add	x20, x11, #28
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_stackoverflow
 	.cfi_endproc
                                         ; -- End function
@@ -533,23 +577,38 @@ _vm_op_Clos:                            ; @vm_op_Clos
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	mov	x19, x1
-	mov	x26, x0
+	mov	x9, x1
+	mov	x10, x0
 	; InlineAsm Start
-	mov	x28, x30
+	mov	x12, x30
 	; InlineAsm End
-	mov	w0, #24                         ; =0x18
+	mov	w0, #32                         ; =0x20
 	mov	x1, x23
 	mov	x2, x21
 	bl	_alloc_object
-	mov	x27, x0
+	mov	x11, x0
 	; InlineAsm Start
-	mov	x30, x28
+	mov	x30, x12
 	; InlineAsm End
-	ldr	x1, [x25, w26, uxtw #3]
+	ldr	x1, [x25, w10, uxtw #3]
 	mov	x2, #0                          ; =0x0
 	bl	_closure_init
-	str	x27, [x21, w19, uxtw #3]
+	ldr	x0, [x23]
+	mov	x1, x11
+	mov	w2, #2                          ; =0x2
+	bl	_gc_publish_new_object
+	; InlineAsm Start
+	mov	x30, x12
+	; InlineAsm End
+	str	x11, [x21, w9, uxtw #3]
+	ldr	x1, [x23]
+	mov	x0, x23
+	mov	x2, x21
+	mov	w3, #32                         ; =0x20
+	bl	_gc_poll
+	; InlineAsm Start
+	mov	x30, x12
+	; InlineAsm End
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
 	ldr	x2, [x24, x9, lsl #3]
@@ -564,98 +623,107 @@ _vm_op_Clos:                            ; @vm_op_Clos
 _vm_op_WObj:                            ; @vm_op_WObj
 	.cfi_startproc
 ; %bb.0:
-	mov	x28, x0
-	and	w19, w0, #0xff
+	mov	x9, x1
+	mov	x12, x0
+	and	w13, w0, #0xff
 	ldr	x8, [x23, #32]
-	cmp	x8, x19
+	cmp	x8, x13
 	b.lo	LBB16_11
 ; %bb.1:
-	sub	sp, sp, #32
-	stp	x29, x30, [sp, #16]             ; 16-byte Folded Spill
-	add	x29, sp, #16
+	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
+	mov	x29, sp
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	stp	x23, x24, [sp]                  ; 16-byte Folded Spill
-	lsr	w27, w28, #8
-	mov	x26, x22
-	mov	x22, x25
+	lsr	w11, w12, #8
 	; InlineAsm Start
-	mov	x25, x30
+	mov	x14, x30
 	; InlineAsm End
-	lsl	w8, w27, #3
-	add	w8, w8, #15
-	and	x0, x8, #0xff8
-	mov	x24, x1
+	lsl	w8, w11, #3
+	add	w15, w8, #23
+	and	x0, x15, #0xff8
 	mov	x1, x23
 	mov	x2, x21
 	bl	_alloc_object
-	mov	x23, x0
+	mov	x10, x0
 	; InlineAsm Start
-	mov	x30, x25
+	mov	x30, x14
 	; InlineAsm End
-	mov	x25, x22
-	mov	x1, x19
-	mov	x2, x27
+	mov	x1, x13
+	mov	x2, x11
 	bl	_object_init
-	cmp	w28, #256
+	cmp	w12, #256
 	b.lo	LBB16_7
 ; %bb.2:
-	mov	w8, w24
-	cmp	w28, #2559
+	mov	w8, w9
+	cmp	w12, #2559
 	b.ls	LBB16_4
 ; %bb.3:
-	lsl	x9, x8, #3
-	add	x11, x9, x21
-	sub	x9, x23, x11
-	add	x9, x9, #8
-	cmp	x9, #64
+	lsl	x12, x8, #3
+	add	x16, x12, x21
+	sub	x12, x10, x16
+	add	x12, x12, #16
+	cmp	x12, #64
 	b.hs	LBB16_8
 LBB16_4:
-	mov	x9, #0                          ; =0x0
+	mov	x12, #0                         ; =0x0
 LBB16_5:
-	lsl	x10, x9, #3
-	add	x8, x10, x8, lsl #3
+	lsl	x13, x12, #3
+	add	x8, x13, x8, lsl #3
 	add	x8, x21, x8
-	add	x10, x10, x23
-	add	x10, x10, #8
-	sub	x9, x27, x9
+	add	x13, x13, x10
+	add	x13, x13, #16
+	sub	x11, x11, x12
 LBB16_6:                                ; =>This Inner Loop Header: Depth=1
-	ldr	x11, [x8], #8
-	str	x11, [x10], #8
-	subs	x9, x9, #1
+	ldr	x12, [x8], #8
+	str	x12, [x13], #8
+	subs	x11, x11, #1
 	b.ne	LBB16_6
 LBB16_7:
-	str	x23, [x21, w24, uxtw #3]
+	ldr	x0, [x23]
+	mov	x1, x10
+	mov	w2, #0                          ; =0x0
+	bl	_gc_publish_new_object
+	; InlineAsm Start
+	mov	x30, x14
+	; InlineAsm End
+	str	x10, [x21, w9, uxtw #3]
+	ldr	x1, [x23]
+	and	x3, x15, #0xff8
+	mov	x0, x23
+	mov	x2, x21
+	bl	_gc_poll
+	; InlineAsm Start
+	mov	x30, x14
+	; InlineAsm End
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
-	ldp	x23, x24, [sp]                  ; 16-byte Folded Reload
 	ldr	x2, [x24, x9, lsl #3]
 	ubfx	x0, x8, #16, #16
 	ubfx	w1, w8, #8, #8
                                         ; kill: def $w0 killed $w0 killed $x0
-	mov	x22, x26
-	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
-	add	sp, sp, #32
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
 LBB16_8:
-	and	x9, x27, #0xf8
-	add	x10, x23, #40
-	add	x11, x11, #32
-	mov	x12, x9
+	and	x12, x11, #0xf8
+	add	x13, x10, #64
+	add	x16, x16, #32
+	mov	x17, x12
 LBB16_9:                                ; =>This Inner Loop Header: Depth=1
-	ldp	q0, q1, [x11, #-32]
-	ldp	q2, q3, [x11], #64
-	stp	q0, q1, [x10, #-32]
-	stp	q2, q3, [x10], #64
-	subs	x12, x12, #8
+	ldp	q0, q1, [x16, #-32]
+	ldp	q2, q3, [x16], #64
+	stp	q0, q1, [x13, #-48]
+	stp	q2, q3, [x13, #-16]
+	add	x13, x13, #64
+	subs	x17, x17, #8
 	b.ne	LBB16_9
 ; %bb.10:
-	cmp	x9, x27
+	cmp	x12, x11
 	b.ne	LBB16_5
 	b	LBB16_7
 LBB16_11:
-	mov	x0, x28
+	mov	x0, x12
+	mov	x1, x9
 	b	_invalidlayout
 	.cfi_endproc
                                         ; -- End function

@@ -20,6 +20,7 @@ typedef uint64_t metainfo;
 #define val2off(v) ((joff_t)(v))
 
 #define INLINE [[gnu::always_inline]] static inline
+#define COLD_HELPER [[gnu::noinline, clang::preserve_all]]
 
 #define STATUS(_) \
   _(S_OK, "success")   \
@@ -69,6 +70,14 @@ struct runtime_args {
   size_t base_size;
   size_t align;
   size_t descspace_size;
+};
+
+struct gc_stats {
+  size_t mark_to_sweep_transitions;
+  size_t forced_finish_cycles;
+  size_t sweep_assist_steps;
+  size_t last_completed_live_bytes;
+  size_t last_completed_trigger_bytes;
 };
 
 static inline int exit_with_status(status_t status) {

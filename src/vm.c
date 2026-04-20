@@ -277,12 +277,15 @@ OP_DEFINITION(Move) {
 
 OP_DEFINITION(Apply) {
   ssz_t iclos = ARG2A;
+  ssz_t nargs = ARG2B;
 
   struct closure *clos = val_as_ptr(bp[iclos]);
   struct function *fn = clos->fn;
 
   bc_t *oldip = ip;
   ip = fn->ops;
+
+  PCALL_VOID(gc_poll, state, state->heap, bp, 256);
 
   bp = next_bp(bp, iclos);
   if (unlikely(bp >= state->stklimit)) {
@@ -293,7 +296,6 @@ OP_DEFINITION(Apply) {
   frame_ra(bp) = ptr2val(oldip);
   state->ctbl = fn->ctbl;
 
-  // copy closure to the first slot as arg 0
   bp[0] = val_from_ptr(clos);
 
   DISPATCH();
@@ -307,6 +309,8 @@ OP_DEFINITION(Call) {
 
   bc_t *oldip = ip;
   ip = fn->ops;
+
+  PCALL_VOID(gc_poll, state, state->heap, bp, 256);
 
   bp = next_bp(bp, dst);
   if (unlikely(bp >= state->stklimit)) {
@@ -378,7 +382,9 @@ OP_DEFINITION(Clos) {
   PCALL(clos, alloc_object, closure_size(0), state, bp);
   closure_init(clos, fns[fx], 0);
 
+  PCALL_VOID(gc_publish_new_object, state->heap, clos, OBJ_CLOSURE);
   bp[dst] = val_from_ptr(clos);
+  PCALL_VOID(gc_poll, state, state->heap, bp, closure_size(0));
 
   DISPATCH();
 }
@@ -392,15 +398,15 @@ OP_DEFINITION(WObj) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
-  /* TODO: len or size? */
-
   struct object *obj;
   PCALL(obj, alloc_object, object_size(len), state, bp);
   object_init(obj, (uint16_t)tag, len);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
 
+  PCALL_VOID(gc_publish_new_object, state->heap, obj, OBJ_WORDS);
   bp[fld] = val_from_ptr(obj);
+  PCALL_VOID(gc_poll, state, state->heap, bp, object_size(len));
 
   DISPATCH();
 }

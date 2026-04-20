@@ -16,6 +16,7 @@ struct function {
   bc_t *oplimit;
   val_t *ctbl;
   size_t nconst;
+  uint8_t nregs;
   bc_t ops[];
 };
 
@@ -34,6 +35,7 @@ enum obj_kind {
   OBJ_STRING,
   OBJ_CLOSURE,
   OBJ_FORWARD,
+  OBJ_FREE,
 };
 
 enum {
@@ -73,8 +75,14 @@ enum tag {
 static_assert(sizeof(val_t) == 8, "NuN boxing requires 64-bit values");
 static_assert(sizeof(metainfo) == 8, "object headers must stay 64-bit");
 
+struct gc_header {
+  metainfo hd;
+  void *gclist;
+};
+
 struct object {
   metainfo hd;
+  void *gclist;
   val_t fields[];
 };
 
@@ -85,6 +93,7 @@ struct str {
 
 struct closure {
   metainfo hd;
+  void *gclist;
   struct function *fn;
   uint32_t nfree;
   uint32_t pad;
@@ -223,6 +232,35 @@ INLINE uint8_t obj_flags_of(const void *ref) {
   return (uint8_t)((obj->hd >> 56) & UINT64_C(0xff));
 }
 
+#define OBJ_FLAG_GC_MASK  (UINT64_C(0x03) << 56)
+#define OBJ_FLAG_GC_WHITE (UINT64_C(0x00) << 56)
+#define OBJ_FLAG_GC_GRAY  (UINT64_C(0x01) << 56)
+#define OBJ_FLAG_GC_BLACK (UINT64_C(0x02) << 56)
+
+INLINE metainfo obj_gc_bits(const void *ref) {
+  const struct object *obj = ref;
+  return obj->hd & OBJ_FLAG_GC_MASK;
+}
+
+INLINE void obj_set_gc_bits(void *ref, metainfo bits) {
+  struct object *obj = (struct object *)ref;
+  obj->hd = (obj->hd & ~OBJ_FLAG_GC_MASK) | bits;
+}
+
+INLINE bool obj_has_gclist(enum obj_kind kind) {
+  return kind == OBJ_WORDS || kind == OBJ_CLOSURE;
+}
+
+INLINE void *obj_gclist(const void *ref) {
+  const struct gc_header *gc = ref;
+  return gc->gclist;
+}
+
+INLINE void obj_set_gclist(void *ref, void *next) {
+  struct gc_header *gc = ref;
+  gc->gclist = next;
+}
+
 val_t val_from_tag(uint8_t tag);
 uint8_t val_tag(val_t value);
 
@@ -244,9 +282,21 @@ INLINE size_t closure_size(size_t nfree) {
   return object_align(sizeof(struct closure) + nfree * sizeof(val_t));
 }
 
-void object_init(struct object *obj, uint16_t tag, size_t nfields);
+struct free_block {
+  metainfo hd;
+  struct free_block *next;
+};
+
+INLINE void free_block_init(struct free_block *blk, size_t size,
+                            struct free_block *next) {
+  blk->hd = obj_meta_pack((uint32_t)size, 0, OBJ_FREE, 0);
+  blk->next = next;
+}
+
+COLD_HELPER void object_init(struct object *obj, uint16_t tag, size_t nfields);
 void str_init(struct str *str, uint16_t tag, size_t len);
-void closure_init(struct closure *clos, struct function *fn, size_t nfree);
+COLD_HELPER void closure_init(struct closure *clos, struct function *fn,
+                               size_t nfree);
 
 void obj_set_forward(void *from_ref, size_t size, void *to_ref);
 void *obj_forwardee(const void *ref);

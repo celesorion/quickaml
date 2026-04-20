@@ -39,8 +39,10 @@ uint8_t val_tag(val_t value) {
   return 0xff;
 }
 
-void object_init(struct object *obj, uint16_t tag, size_t nfields) {
+COLD_HELPER void object_init(struct object *obj, uint16_t tag,
+                             size_t nfields) {
   obj->hd = obj_meta_pack((uint32_t)object_size(nfields), tag, OBJ_WORDS, 0);
+  obj->gclist = nullptr;
 }
 
 void str_init(struct str *str, uint16_t tag, size_t len) {
@@ -49,9 +51,11 @@ void str_init(struct str *str, uint16_t tag, size_t len) {
   str->bytes[len] = '\0';
 }
 
-void closure_init(struct closure *clos, struct function *fn, size_t nfree) {
+COLD_HELPER void closure_init(struct closure *clos, struct function *fn,
+                              size_t nfree) {
   clos->hd = obj_meta_pack((uint32_t)closure_size(nfree), OBJ_TAG_CLOSURE,
                            OBJ_CLOSURE, 0);
+  clos->gclist = nullptr;
   clos->fn = fn;
   clos->nfree = (uint32_t)nfree;
   clos->pad = 0;
@@ -126,6 +130,9 @@ void obj_print(FILE *out, val_t value) {
   }
   case OBJ_FORWARD:
     fprintf(out, "<forward %p>", obj_forwardee(ref));
+    break;
+  case OBJ_FREE:
+    fprintf(out, "<free size=%zu>", obj_size(ref));
     break;
   }
 }

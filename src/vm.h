@@ -186,8 +186,13 @@
 status_t vm_entry(struct state *state);
 status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
                  size_t numobject, size_t stack_slots, val_t *result);
+status_t vm_exec_with_args(struct function *entry, struct function **fns,
+                           size_t numfn, size_t numobject, size_t stack_slots,
+                           val_t *result, struct runtime_args *rargs,
+                           struct gc_stats *stats_out);
 struct function *vm_alloc_function(const bc_t *ops, size_t nops,
-                                   const val_t *ctbl, size_t nconst);
+                                   const val_t *ctbl, size_t nconst,
+                                   uint8_t nregs);
 void vm_free_function(struct function *fn);
 struct function *vm_make_wrapper(size_t top_idx);
 bool vm_const_from_i64(int64_t value, val_t *out);
@@ -195,4 +200,5 @@ bool vm_const_from_f64(double value, val_t *out);
 struct str *vm_alloc_str(const char *data, uint32_t len);
 void vm_free_str(struct str *s);
 bool vm_format_result(val_t value, char *buf, size_t len);
+size_t vm_object_size_for_fields(size_t nfields);
 const char *vm_status_name(status_t status);
