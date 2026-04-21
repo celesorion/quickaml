@@ -96,14 +96,14 @@ static void gc_scan_roots(struct state *restrict st, struct heap *h,
 
   while (cur_bp > stk_base + 2 * FRAME_HEADER_SIZE) {
     val_t fn_val = frame_rv(cur_bp);
-    struct function *fn = val2ptr(fn_val);
-    uint8_t nregs = fn->nregs;
+    struct thunk *thunk = val2ptr(fn_val);
+    uint8_t nregs = thunk->nregs;
 
     for (uint8_t i = 0; i < nregs; i++)
       shade_value(h, cur_bp[i]);
 
-    for (size_t i = 0; i < fn->nconst; i++)
-      shade_value(h, fn->ctbl[i]);
+    for (size_t i = 0; i < thunk->nconst; i++)
+      shade_value(h, thunk->ctbl[i]);
 
     bc_t *ra = val2ptr(frame_ra(cur_bp));
     bc_t prev_insn = ra[-1];
@@ -114,12 +114,12 @@ static void gc_scan_roots(struct state *restrict st, struct heap *h,
   if (cur_bp > stk_base) {
     val_t fn_val = frame_rv(cur_bp);
     if (fn_val) {
-      struct function *fn = val2ptr(fn_val);
-      uint8_t nregs = fn->nregs;
+      struct thunk *thunk = val2ptr(fn_val);
+      uint8_t nregs = thunk->nregs;
       for (uint8_t i = 0; i < nregs; i++)
         shade_value(h, cur_bp[i]);
-      for (size_t i = 0; i < fn->nconst; i++)
-        shade_value(h, fn->ctbl[i]);
+      for (size_t i = 0; i < thunk->nconst; i++)
+        shade_value(h, thunk->ctbl[i]);
     }
   }
 }
@@ -135,10 +135,12 @@ static void gc_scan_object(struct heap *h, void *ref) {
       shade_value(h, obj->fields[i]);
     break;
   }
-  case OBJ_CLOSURE: {
-    struct closure *clos = ref;
-    for (size_t i = 0; i < clos->nfree; i++)
-      shade_value(h, clos->freevars[i]);
+  case OBJ_THUNK: {
+    struct thunk *thunk = ref;
+    for (size_t i = 0; i < thunk->nconst; i++)
+      shade_value(h, thunk->ctbl[i]);
+    for (size_t i = 0; i < thunk->nfree; i++)
+      shade_value(h, thunk->freevars[i]);
     break;
   }
   case OBJ_STRING:

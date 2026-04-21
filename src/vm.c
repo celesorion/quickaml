@@ -29,7 +29,7 @@ status_t vm_entry(struct state *state) {
   frame_ra(bp) = 0;
   frame_self(bp) = val_from_null();
   state->ctbl = state->entry->ctbl;
-  struct function **fns = state->fns;
+  struct thunk **fns = state->fns;
 
   [[maybe_unused]] uint8_t a3a, a3b, a3c;
   [[maybe_unused]] uint16_t a2b;
@@ -272,25 +272,24 @@ OP_DEFINITION(Move) {
 }
 
 OP_DEFINITION(Apply) {
-  ssz_t iclos = ARG2A;
+  ssz_t ithunk = ARG2A;
 
-  struct closure *clos = val_as_ptr(bp[iclos]);
-  struct function *fn = clos->fn;
+  struct thunk *thunk = val_as_ptr(bp[ithunk]);
 
   bc_t *oldip = ip;
-  ip = fn->ops;
+  ip = thunk->ops;
 
   gc_poll(state, state->heap, bp, 256);
 
-  bp = next_bp(bp, iclos);
+  bp = next_bp(bp, ithunk);
   if (unlikely(bp >= state->stklimit)) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
-  frame_rv(bp) = ptr2val(fn);
+  frame_rv(bp) = ptr2val(thunk);
   frame_ra(bp) = ptr2val(oldip);
-  frame_self(bp) = val_from_ptr(clos);
-  state->ctbl = fn->ctbl;
+  frame_self(bp) = val_from_ptr(thunk);
+  state->ctbl = thunk->ctbl;
 
   DISPATCH();
 }
@@ -299,10 +298,10 @@ OP_DEFINITION(Call) {
   ssz_t dst = ARG2A;
   ssz_t fx = ARG2B;
 
-  struct function *fn = val2ptr(fns[fx]);
+  struct thunk *thunk = fns[fx];
 
   bc_t *oldip = ip;
-  ip = fn->ops;
+  ip = thunk->ops;
 
   gc_poll(state, state->heap, bp, 256);
 
@@ -311,10 +310,10 @@ OP_DEFINITION(Call) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
-  frame_rv(bp) = ptr2val(fn);
+  frame_rv(bp) = ptr2val(thunk);
   frame_ra(bp) = ptr2val(oldip);
   frame_self(bp) = val_from_null();
-  state->ctbl = fn->ctbl;
+  state->ctbl = thunk->ctbl;
 
   DISPATCH();
 }
@@ -328,7 +327,7 @@ OP_DEFINITION(Retu) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  state->ctbl = ((struct function *)val2ptr(frame_rv(bp)))->ctbl;
+  state->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
@@ -344,7 +343,7 @@ OP_DEFINITION(Ret) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  state->ctbl = ((struct function *)val2ptr(frame_rv(bp)))->ctbl;
+  state->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
@@ -364,22 +363,29 @@ OP_DEFINITION(Retn) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  state->ctbl = ((struct function *)val2ptr(frame_rv(bp)))->ctbl;
+  state->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
+}
+
+COLD_HELPER static struct thunk *
+thunk_alloc_instance(struct state *restrict state, struct thunk *template,
+                     val_t *restrict bp) {
+  size_t size = thunk_instance_size(template->nfree);
+  struct thunk *thunk = alloc_object(size, state, bp);
+  thunk_instance_init(thunk, template);
+  return thunk;
 }
 
 OP_DEFINITION(Clos) {
   ssz_t dst = ARG2A;
   ssz_t fx = ARG2B;
 
-  struct closure *clos = alloc_object(closure_size(0), state, bp);
-  closure_init(clos, fns[fx], 0);
+  struct thunk *thunk = thunk_alloc_instance(state, fns[fx], bp);
 
-  gc_publish_new_object(state->heap, clos, OBJ_CLOSURE);
-  bp[dst] = val_from_ptr(clos);
-  gc_poll(state, state->heap, bp, closure_size(0));
-
+  gc_publish_new_object(state->heap, thunk, OBJ_THUNK);
+  bp[dst] = val_from_ptr(thunk);
+  gc_poll(state, state->heap, bp, obj_size(thunk));
   DISPATCH();
 }
 

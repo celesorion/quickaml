@@ -12,33 +12,28 @@
 struct heap;
 struct state;
 
-struct function {
+struct thunk {
+  metainfo hd;
+  void *gclist;
+  bc_t *ops;
   bc_t *oplimit;
   val_t *ctbl;
   size_t nconst;
+  uint32_t nfree;
   uint8_t nregs;
-  bc_t ops[];
+  uint8_t pad[3];
+  val_t freevars[];
 };
-
-INLINE size_t function_constants_offset(size_t nops) {
-  size_t ops_end = sizeof(struct function) + nops * sizeof(bc_t);
-  size_t align = _Alignof(val_t);
-  return (ops_end + align - 1) & ~(align - 1);
-}
-
-INLINE size_t function_size(size_t nops, size_t nconst) {
-  return function_constants_offset(nops) + nconst * sizeof(val_t);
-}
 
 enum obj_kind {
   OBJ_WORDS,
   OBJ_STRING,
-  OBJ_CLOSURE,
+  OBJ_THUNK,
   OBJ_FREE,
 };
 
 enum {
-  OBJ_TAG_CLOSURE = 0xffff,
+  OBJ_TAG_THUNK = 0xffff,
 };
 
 /* Bytecode-level type tags.  Must stay in sync with Tag in bytecode.rs.
@@ -88,15 +83,6 @@ struct object {
 struct str {
   metainfo hd;
   char bytes[];
-};
-
-struct closure {
-  metainfo hd;
-  void *gclist;
-  struct function *fn;
-  uint32_t nfree;
-  uint32_t pad;
-  val_t freevars[];
 };
 
 INLINE bool val_is_empty(val_t value) { return value == VAL_EMPTY; }
@@ -247,7 +233,7 @@ INLINE void obj_set_gc_bits(void *ref, metainfo bits) {
 }
 
 INLINE bool obj_has_gclist(enum obj_kind kind) {
-  return kind == OBJ_WORDS || kind == OBJ_CLOSURE;
+  return kind == OBJ_WORDS || kind == OBJ_THUNK;
 }
 
 INLINE void *obj_gclist(const void *ref) {
@@ -265,6 +251,25 @@ COLD_HELPER uint8_t val_tag(val_t value);
 
 INLINE size_t object_align(size_t n) { return (n + 7u) & ~7u; }
 
+INLINE size_t thunk_instance_size(size_t nfree) {
+  return object_align(sizeof(struct thunk) + nfree * sizeof(val_t));
+}
+
+INLINE size_t thunk_ops_offset(size_t nfree) {
+  return thunk_instance_size(nfree);
+}
+
+INLINE size_t thunk_constants_offset(size_t nops, size_t nfree) {
+  size_t ops_end = thunk_ops_offset(nfree) + nops * sizeof(bc_t);
+  size_t align = _Alignof(val_t);
+  return (ops_end + align - 1) & ~(align - 1);
+}
+
+INLINE size_t thunk_size(size_t nops, size_t nconst, size_t nfree) {
+  return object_align(thunk_constants_offset(nops, nfree) +
+                      nconst * sizeof(val_t));
+}
+
 INLINE size_t object_size(size_t nfields) {
   return object_align(sizeof(struct object) + nfields * sizeof(val_t));
 }
@@ -275,10 +280,6 @@ INLINE size_t str_len(const void *ref) {
 
 INLINE size_t str_size(size_t len) {
   return object_align(sizeof(struct str) + len + 1);
-}
-
-INLINE size_t closure_size(size_t nfree) {
-  return object_align(sizeof(struct closure) + nfree * sizeof(val_t));
 }
 
 struct free_block {
@@ -294,8 +295,10 @@ INLINE void free_block_init(struct free_block *blk, size_t size,
 
 COLD_HELPER void object_init(struct object *obj, uint16_t tag, size_t nfields);
 COLD_HELPER void str_init(struct str *str, uint16_t tag, size_t len);
-COLD_HELPER void closure_init(struct closure *clos, struct function *fn,
-                              size_t nfree);
+COLD_HELPER void thunk_init(struct thunk *thunk, size_t nops, size_t nconst,
+                            uint8_t nregs, size_t nfree);
+COLD_HELPER void thunk_instance_init(struct thunk *thunk,
+                                     const struct thunk *template);
 COLD_HELPER void obj_print(FILE *out, val_t value);
 
 #endif

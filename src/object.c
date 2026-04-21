@@ -51,14 +51,41 @@ COLD_HELPER void str_init(struct str *str, uint16_t tag, size_t len) {
   str->bytes[len] = '\0';
 }
 
-COLD_HELPER void closure_init(struct closure *clos, struct function *fn,
-                              size_t nfree) {
-  clos->hd = obj_meta_pack((uint32_t)closure_size(nfree), OBJ_TAG_CLOSURE,
-                           OBJ_CLOSURE, 0);
-  clos->gclist = nullptr;
-  clos->fn = fn;
-  clos->nfree = (uint32_t)nfree;
-  clos->pad = 0;
+COLD_HELPER void thunk_init(struct thunk *thunk, size_t nops, size_t nconst,
+                            uint8_t nregs, size_t nfree) {
+  thunk->hd = obj_meta_pack((uint32_t)thunk_size(nops, nconst, nfree),
+                            OBJ_TAG_THUNK, OBJ_THUNK, 0);
+  thunk->gclist = nullptr;
+  thunk->ops = (bc_t *)((unsigned char *)thunk + thunk_ops_offset(nfree));
+  thunk->oplimit = thunk->ops + nops;
+  thunk->ctbl = nconst == 0 ? nullptr
+                            : (val_t *)((unsigned char *)thunk +
+                                        thunk_constants_offset(nops, nfree));
+  thunk->nconst = nconst;
+  thunk->nfree = (uint32_t)nfree;
+  thunk->nregs = nregs;
+  thunk->pad[0] = 0;
+  thunk->pad[1] = 0;
+  thunk->pad[2] = 0;
+}
+
+COLD_HELPER void thunk_instance_init(struct thunk *thunk,
+                                     const struct thunk *template) {
+  size_t nfree = template->nfree;
+  thunk->hd = obj_meta_pack((uint32_t)thunk_instance_size(nfree),
+                            OBJ_TAG_THUNK, OBJ_THUNK, 0);
+  thunk->gclist = nullptr;
+  thunk->ops = template->ops;
+  thunk->oplimit = template->oplimit;
+  thunk->ctbl = template->ctbl;
+  thunk->nconst = template->nconst;
+  thunk->nfree = template->nfree;
+  thunk->nregs = template->nregs;
+  thunk->pad[0] = 0;
+  thunk->pad[1] = 0;
+  thunk->pad[2] = 0;
+  for (size_t i = 0; i < nfree; i++)
+    thunk->freevars[i] = VAL_EMPTY;
 }
 
 static const char *imm_name(uint8_t tag) {
@@ -110,10 +137,10 @@ void obj_print(FILE *out, val_t value) {
     fprintf(out, "<str len=%zu \"%s\">", str_len(str), str->bytes);
     break;
   }
-  case OBJ_CLOSURE: {
-    struct closure *clos = ref;
-    fprintf(out, "<closure fn=%p free=%" PRIu32 ">", (void *)clos->fn,
-            clos->nfree);
+  case OBJ_THUNK: {
+    struct thunk *thunk = ref;
+    fprintf(out, "<thunk ops=%p free=%" PRIu32 ">", (void *)thunk->ops,
+            thunk->nfree);
     break;
   }
   case OBJ_FREE:

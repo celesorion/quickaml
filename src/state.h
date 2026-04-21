@@ -6,8 +6,8 @@
 
 struct state {
   struct heap *heap;
-  struct function *entry;
-  struct function **fns;
+  struct thunk *entry;
+  struct thunk **fns;
   size_t numfn;
   size_t numobject;
   val_t *ctbl;

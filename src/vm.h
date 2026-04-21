@@ -24,7 +24,7 @@
       [[maybe_unused]] uint64_t ft,                                            \
       [[maybe_unused]] struct state *restrict state,                           \
       [[maybe_unused]] const void *restrict dispatch,                          \
-      [[maybe_unused]] struct function *restrict fns[]
+      [[maybe_unused]] struct thunk *restrict fns[]
 
 #define ARGS_IMPL_1 ip, a2b, a3a, bp, ft, state, dispatch, fns
 
@@ -34,7 +34,7 @@
       [[maybe_unused]] uint64_t ft,                                            \
       [[maybe_unused]] struct state *restrict state,                           \
       [[maybe_unused]] const void *restrict dispatch,                          \
-      [[maybe_unused]] struct function *restrict fns[]
+      [[maybe_unused]] struct thunk *restrict fns[]
 #define ARGS_IMPL_2 ip, a2b, a3a, bp, ft, state, dispatch, fns
 
 #define REPLICATED_DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
@@ -163,17 +163,16 @@
 #define zero_extend(x, from, to) ((uint##to##_t)(uint##from##_t)(x))
 
 status_t vm_entry(struct state *state);
-status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
+status_t vm_exec(struct thunk *entry, struct thunk **fns, size_t numfn,
                  size_t numobject, size_t stack_slots, val_t *result);
-status_t vm_exec_with_args(struct function *entry, struct function **fns,
+status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            size_t numfn, size_t numobject, size_t stack_slots,
                            val_t *result, struct runtime_args *rargs,
                            struct gc_stats *stats_out);
-struct function *vm_alloc_function(const bc_t *ops, size_t nops,
-                                   const val_t *ctbl, size_t nconst,
-                                   uint8_t nregs);
-void vm_free_function(struct function *fn);
-struct function *vm_make_wrapper(size_t top_idx);
+struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
+                             size_t nconst, uint8_t nregs, size_t nfree);
+void vm_thunk_free(struct thunk *thunk);
+struct thunk *vm_thunk_make_wrapper(size_t top_idx);
 bool vm_const_from_i64(int64_t value, val_t *out);
 bool vm_const_from_f64(double value, val_t *out);
 struct str *vm_alloc_str(const char *data, uint32_t len);

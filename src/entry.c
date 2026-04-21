@@ -10,29 +10,29 @@
 
 status_t exec(struct state *state) { return vm_entry(state); }
 
-struct function *vm_alloc_function(const bc_t *ops, size_t nops,
-                                   const val_t *ctbl, size_t nconst,
-                                   uint8_t nregs) {
-  struct function *fn = malloc(function_size(nops, nconst));
-  if (fn == nullptr)
+struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
+                             size_t nconst, uint8_t nregs, size_t nfree) {
+  size_t size = thunk_size(nops, nconst, nfree);
+  if (nfree > UINT32_MAX || size > UINT32_MAX)
     return nullptr;
 
-  fn->oplimit = fn->ops + nops;
-  fn->ctbl = nconst == 0 ? nullptr
-                         : (val_t *)((unsigned char *)fn +
-                                     function_constants_offset(nops));
-  fn->nconst = nconst;
-  fn->nregs = nregs;
+  struct thunk *thunk = malloc(size);
+  if (thunk == nullptr)
+    return nullptr;
+
+  thunk_init(thunk, nops, nconst, nregs, nfree);
+  for (size_t i = 0; i < nfree; i++)
+    thunk->freevars[i] = VAL_EMPTY;
   for (size_t i = 0; i < nops; i++)
-    fn->ops[i] = ops[i];
+    thunk->ops[i] = ops[i];
   for (size_t i = 0; i < nconst; i++)
-    fn->ctbl[i] = ctbl[i];
-  return fn;
+    thunk->ctbl[i] = ctbl[i];
+  return thunk;
 }
 
-void vm_free_function(struct function *fn) { free(fn); }
+void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
-struct function *vm_make_wrapper(size_t top_idx) {
+struct thunk *vm_thunk_make_wrapper(size_t top_idx) {
   if (top_idx > UINT16_MAX)
     return nullptr;
 
@@ -40,7 +40,7 @@ struct function *vm_make_wrapper(size_t top_idx) {
       mk2(Call, 0, (uint16_t)top_idx),
       mk3(Trap, T_HALT, 0, 0),
   };
-  return vm_alloc_function(ops, sizeof(ops) / sizeof(ops[0]), nullptr, 0, 0);
+  return vm_thunk_alloc(ops, sizeof(ops) / sizeof(ops[0]), nullptr, 0, 0, 0);
 }
 
 bool vm_const_from_i64(int64_t value, val_t *out) {
@@ -104,7 +104,7 @@ const char *vm_status_name(status_t status) {
   return name ? name : "unknown";
 }
 
-status_t vm_exec_with_args(struct function *entry, struct function **fns,
+status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            size_t numfn, size_t numobject, size_t stack_slots,
                            val_t *result, struct runtime_args *rargs,
                            struct gc_stats *stats_out) {
@@ -146,7 +146,7 @@ status_t vm_exec_with_args(struct function *entry, struct function **fns,
   return status;
 }
 
-status_t vm_exec(struct function *entry, struct function **fns, size_t numfn,
+status_t vm_exec(struct thunk *entry, struct thunk **fns, size_t numfn,
                  size_t numobject, size_t stack_slots, val_t *result) {
   struct runtime_args rargs = {.align = 8,
                                .base_size = 1024 * 1024,
