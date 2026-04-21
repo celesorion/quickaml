@@ -247,9 +247,13 @@ OP_DEFINITION(LoadF) {
   ssz_t dst = ARG2A;
   val_t fidx = ARG2B;
 
-  (void)dst;
-  (void)fidx;
-  MUSTTAIL return unimplemented(ARGS);
+  if (fidx == 0) {
+    bp[dst] = frame_rv(bp);
+  } else {
+    MUSTTAIL return unimplemented(ARGS);
+  }
+
+  DISPATCH();
 }
 
 OP_DEFINITION(SetF) {

@@ -311,7 +311,19 @@ _vm_op_LoadC:                           ; @vm_op_LoadC
 _vm_op_LoadF:                           ; @vm_op_LoadF
 	.cfi_startproc
 ; %bb.0:
+	cbz	w0, LBB7_2
+; %bb.1:
 	b	_unimplemented
+LBB7_2:
+	ldur	x8, [x21, #-16]
+	str	x8, [x21, w1, uxtw #3]
+	ldr	w8, [x20], #4
+	and	x9, x8, #0xff
+	ldr	x2, [x24, x9, lsl #3]
+	ubfx	x0, x8, #16, #16
+	ubfx	w1, w8, #8, #8
+                                        ; kill: def $w0 killed $w0 killed $x0
+	br	x2
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_SetF
