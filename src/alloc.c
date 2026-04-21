@@ -98,6 +98,7 @@ static void gc_scan_roots(struct state *restrict st, struct heap *h,
     val_t fn_val = frame_rv(cur_bp);
     struct thunk *thunk = val2ptr(fn_val);
     uint8_t nregs = thunk->nregs;
+    shade_value(h, fn_val);
 
     for (uint8_t i = 0; i < nregs; i++)
       shade_value(h, cur_bp[i]);
@@ -116,6 +117,7 @@ static void gc_scan_roots(struct state *restrict st, struct heap *h,
     if (fn_val) {
       struct thunk *thunk = val2ptr(fn_val);
       uint8_t nregs = thunk->nregs;
+      shade_value(h, fn_val);
       for (uint8_t i = 0; i < nregs; i++)
         shade_value(h, cur_bp[i]);
       for (size_t i = 0; i < thunk->nconst; i++)

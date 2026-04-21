@@ -4,10 +4,9 @@
 
 #include <stdint.h>
 
-#define FRAME_HEADER_SIZE 3
-#define frame_rv(bp) ((bp)[-3])
-#define frame_ra(bp) ((bp)[-2])
-#define frame_self(bp) ((bp)[-1])
+#define FRAME_HEADER_SIZE 2
+#define frame_rv(bp) ((bp)[-2])
+#define frame_ra(bp) ((bp)[-1])
 #define prev_bp(bp, fo) ((bp) - FRAME_HEADER_SIZE - (fo))
 #define next_bp(bp, fo) ((bp) + FRAME_HEADER_SIZE + (fo))
 #define add2ip(ip, off)                                                        \

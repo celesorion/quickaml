@@ -25,9 +25,8 @@ INLINE double fast_fmod(double a, double b) {
 status_t vm_entry(struct state *state) {
   bc_t *ip = state->entry->ops;
   val_t *bp = next_bp(state->stk, FRAME_HEADER_SIZE);
-  frame_rv(bp) = ptr2val(state->entry);
+  frame_rv(bp) = val_from_ptr(state->entry);
   frame_ra(bp) = 0;
-  frame_self(bp) = val_from_null();
   state->ctbl = state->entry->ctbl;
   struct thunk **fns = state->fns;
 
@@ -286,9 +285,8 @@ OP_DEFINITION(Apply) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
-  frame_rv(bp) = ptr2val(thunk);
+  frame_rv(bp) = val_from_ptr(thunk);
   frame_ra(bp) = ptr2val(oldip);
-  frame_self(bp) = val_from_ptr(thunk);
   state->ctbl = thunk->ctbl;
 
   DISPATCH();
@@ -310,9 +308,8 @@ OP_DEFINITION(Call) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
-  frame_rv(bp) = ptr2val(thunk);
+  frame_rv(bp) = val_from_ptr(thunk);
   frame_ra(bp) = ptr2val(oldip);
-  frame_self(bp) = val_from_null();
   state->ctbl = thunk->ctbl;
 
   DISPATCH();
