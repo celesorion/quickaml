@@ -3337,70 +3337,31 @@ _val_eq:                                ; @val_eq
 	mov	w0, #1                          ; =0x1
 	ret
 LBB80_2:
-	sub	sp, sp, #496
-	stp	q31, q30, [sp, #16]             ; 32-byte Folded Spill
-	stp	q29, q28, [sp, #48]             ; 32-byte Folded Spill
-	stp	q27, q26, [sp, #80]             ; 32-byte Folded Spill
-	stp	q25, q24, [sp, #112]            ; 32-byte Folded Spill
-	stp	q23, q22, [sp, #144]            ; 32-byte Folded Spill
-	stp	q21, q20, [sp, #176]            ; 32-byte Folded Spill
-	stp	q19, q18, [sp, #208]            ; 32-byte Folded Spill
-	stp	q17, q16, [sp, #240]            ; 32-byte Folded Spill
-	stp	q15, q14, [sp, #272]            ; 32-byte Folded Spill
-	stp	q13, q12, [sp, #304]            ; 32-byte Folded Spill
-	stp	q11, q10, [sp, #336]            ; 32-byte Folded Spill
-	stp	q9, q8, [sp, #368]              ; 32-byte Folded Spill
-	str	x15, [sp, #400]                 ; 8-byte Folded Spill
-	stp	x14, x13, [sp, #416]            ; 16-byte Folded Spill
-	stp	x12, x11, [sp, #432]            ; 16-byte Folded Spill
-	stp	x10, x9, [sp, #448]             ; 16-byte Folded Spill
-	stp	x28, x27, [sp, #464]            ; 16-byte Folded Spill
-	stp	x29, x30, [sp, #480]            ; 16-byte Folded Spill
-	add	x29, sp, #480
+	sub	sp, sp, #96
+	str	x15, [sp, #16]                  ; 8-byte Folded Spill
+	stp	x14, x13, [sp, #32]             ; 16-byte Folded Spill
+	stp	x12, x11, [sp, #48]             ; 16-byte Folded Spill
+	stp	x10, x9, [sp, #64]              ; 16-byte Folded Spill
+	stp	x29, x30, [sp, #80]             ; 16-byte Folded Spill
+	add	x29, sp, #80
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	.cfi_offset w27, -24
-	.cfi_offset w28, -32
-	.cfi_offset w9, -40
-	.cfi_offset w10, -48
-	.cfi_offset w11, -56
-	.cfi_offset w12, -64
-	.cfi_offset w13, -72
-	.cfi_offset w14, -80
-	.cfi_offset w15, -96
-	.cfi_offset b8, -112
-	.cfi_offset b9, -128
-	.cfi_offset b10, -144
-	.cfi_offset b11, -160
-	.cfi_offset b12, -176
-	.cfi_offset b13, -192
-	.cfi_offset b14, -208
-	.cfi_offset b15, -224
-	.cfi_offset b16, -240
-	.cfi_offset b17, -256
-	.cfi_offset b18, -272
-	.cfi_offset b19, -288
-	.cfi_offset b20, -304
-	.cfi_offset b21, -320
-	.cfi_offset b22, -336
-	.cfi_offset b23, -352
-	.cfi_offset b24, -368
-	.cfi_offset b25, -384
-	.cfi_offset b26, -400
-	.cfi_offset b27, -416
-	.cfi_offset b28, -432
-	.cfi_offset b29, -448
-	.cfi_offset b30, -464
-	.cfi_offset b31, -480
+	.cfi_offset w9, -24
+	.cfi_offset w10, -32
+	.cfi_offset w11, -40
+	.cfi_offset w12, -48
+	.cfi_offset w13, -56
+	.cfi_offset w14, -64
+	.cfi_offset w15, -80
 	mov	x9, x1
 	mov	x10, x0
-	sub	x3, x29, #72
+	add	x3, sp, #24
 	add	x4, sp, #8
 	bl	_val_to_f64_pair
 	cbz	w0, LBB80_5
 ; %bb.3:
-	ldur	d0, [x29, #-72]
+	ldr	d0, [sp, #24]
 	ldr	d1, [sp, #8]
 	fcmp	d0, d1
 LBB80_4:
@@ -3437,25 +3398,12 @@ LBB80_5:
 LBB80_10:
 	mov	w0, #0                          ; =0x0
 LBB80_11:
-	ldp	x29, x30, [sp, #480]            ; 16-byte Folded Reload
-	ldp	x28, x27, [sp, #464]            ; 16-byte Folded Reload
-	ldp	x10, x9, [sp, #448]             ; 16-byte Folded Reload
-	ldp	x12, x11, [sp, #432]            ; 16-byte Folded Reload
-	ldp	x14, x13, [sp, #416]            ; 16-byte Folded Reload
-	ldr	x15, [sp, #400]                 ; 8-byte Folded Reload
-	ldp	q9, q8, [sp, #368]              ; 32-byte Folded Reload
-	ldp	q11, q10, [sp, #336]            ; 32-byte Folded Reload
-	ldp	q13, q12, [sp, #304]            ; 32-byte Folded Reload
-	ldp	q15, q14, [sp, #272]            ; 32-byte Folded Reload
-	ldp	q17, q16, [sp, #240]            ; 32-byte Folded Reload
-	ldp	q19, q18, [sp, #208]            ; 32-byte Folded Reload
-	ldp	q21, q20, [sp, #176]            ; 32-byte Folded Reload
-	ldp	q23, q22, [sp, #144]            ; 32-byte Folded Reload
-	ldp	q25, q24, [sp, #112]            ; 32-byte Folded Reload
-	ldp	q27, q26, [sp, #80]             ; 32-byte Folded Reload
-	ldp	q29, q28, [sp, #48]             ; 32-byte Folded Reload
-	ldp	q31, q30, [sp, #16]             ; 32-byte Folded Reload
-	add	sp, sp, #496
+	ldp	x29, x30, [sp, #80]             ; 16-byte Folded Reload
+	ldp	x10, x9, [sp, #64]              ; 16-byte Folded Reload
+	ldp	x12, x11, [sp, #48]             ; 16-byte Folded Reload
+	ldp	x14, x13, [sp, #32]             ; 16-byte Folded Reload
+	ldr	x15, [sp, #16]                  ; 8-byte Folded Reload
+	add	sp, sp, #96
 	ret
 	.cfi_endproc
                                         ; -- End function

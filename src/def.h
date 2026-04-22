@@ -20,7 +20,7 @@ typedef uint64_t metainfo;
 #define val2off(v) ((joff_t)(v))
 
 #define INLINE [[gnu::always_inline]] static inline
-#define COLD_HELPER [[gnu::noinline, clang::preserve_all]]
+#define COLD_HELPER [[gnu::noinline, clang::preserve_most]]
 
 #define STATUS(_) \
   _(S_OK, "success")   \
