@@ -298,8 +298,8 @@ static void gc_finish_cycle(struct state *restrict st, struct heap *h,
 
 /* ---------- gc poll (safepoint) ---------- */
 
-COLD_HELPER void gc_poll(struct state *restrict st, struct heap *h,
-                         val_t *restrict bp, size_t credit) {
+COLD_HELPER void gc_poll_slow(struct state *restrict st, struct heap *h,
+                              val_t *restrict bp, size_t credit) {
   if (h->phase == GC_IDLE) {
     if (h->allocated_bytes >= h->trigger_bytes) {
       gc_start_cycle(st, h, bp);

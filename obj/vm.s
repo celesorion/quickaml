@@ -357,23 +357,26 @@ _vm_op_Apply:                           ; @vm_op_Apply
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	mov	x2, x21
-	mov	x9, x1
-	mov	x10, x0
-	mov	x11, x20
-	add	x21, x21, w1, uxtw #3
-	ldr	x12, [x21], #16
-	ldr	x20, [x12, #16]
-	ldr	x1, [x23]
-	mov	x0, x23
-	mov	w3, #256                        ; =0x100
-	bl	_gc_poll
+	mov	x9, x20
+	mov	w11, w1
+	ldr	x10, [x21, w1, uxtw #3]
+	ldr	x20, [x10, #16]
+	ldr	x8, [x23]
+	ldr	w12, [x8, #40]
+	cbnz	w12, LBB10_4
+; %bb.1:
+	ldp	x12, x13, [x8, #48]
+	cmp	x12, x13
+	b.hs	LBB10_4
+; %bb.2:
+	add	x8, x21, x11, lsl #3
+	add	x21, x8, #16
 	ldr	x8, [x23, #56]
 	cmp	x21, x8
-	b.hs	LBB10_2
-; %bb.1:
-	stp	x12, x11, [x21, #-16]
-	ldr	x8, [x12, #32]
+	b.hs	LBB10_5
+LBB10_3:
+	stp	x10, x9, [x21, #-16]
+	ldr	x8, [x10, #32]
 	str	x8, [x23, #40]
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -383,9 +386,22 @@ _vm_op_Apply:                           ; @vm_op_Apply
                                         ; kill: def $w0 killed $w0 killed $x0
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB10_2:
-	mov	x0, x10
-	mov	x1, x9
+LBB10_4:
+	mov	x12, x0
+	mov	x0, x23
+	mov	x13, x1
+	mov	x1, x8
+	mov	x2, x21
+	mov	w3, #256                        ; =0x100
+	bl	_gc_poll_slow
+	mov	x0, x12
+	mov	x1, x13
+	add	x8, x21, x11, lsl #3
+	add	x21, x8, #16
+	ldr	x8, [x23, #56]
+	cmp	x21, x8
+	b.lo	LBB10_3
+LBB10_5:
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_stackoverflow
 	.cfi_endproc
@@ -399,24 +415,25 @@ _vm_op_Call:                            ; @vm_op_Call
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	mov	x9, x1
-	mov	x10, x0
-	mov	x11, x20
-	ldr	x12, [x25, w0, uxtw #3]
-	ldr	x20, [x12, #16]
-	ldr	x1, [x23]
-	mov	x0, x23
-	mov	x2, x21
-	mov	w3, #256                        ; =0x100
-	bl	_gc_poll
-	add	x8, x21, w9, uxtw #3
+	mov	x9, x20
+	ldr	x10, [x25, w0, uxtw #3]
+	ldr	x20, [x10, #16]
+	ldr	x8, [x23]
+	ldr	w11, [x8, #40]
+	cbnz	w11, LBB11_4
+; %bb.1:
+	ldp	x11, x12, [x8, #48]
+	cmp	x11, x12
+	b.hs	LBB11_4
+; %bb.2:
+	add	x8, x21, w1, uxtw #3
 	add	x21, x8, #16
 	ldr	x8, [x23, #56]
 	cmp	x21, x8
-	b.hs	LBB11_2
-; %bb.1:
-	stp	x12, x11, [x21, #-16]
-	ldr	x8, [x12, #32]
+	b.hs	LBB11_5
+LBB11_3:
+	stp	x10, x9, [x21, #-16]
+	ldr	x8, [x10, #32]
 	str	x8, [x23, #40]
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -426,9 +443,22 @@ _vm_op_Call:                            ; @vm_op_Call
                                         ; kill: def $w0 killed $w0 killed $x0
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB11_2:
-	mov	x0, x10
-	mov	x1, x9
+LBB11_4:
+	mov	x11, x0
+	mov	x0, x23
+	mov	x12, x1
+	mov	x1, x8
+	mov	x2, x21
+	mov	w3, #256                        ; =0x100
+	bl	_gc_poll_slow
+	mov	x0, x11
+	mov	x1, x12
+	add	x8, x21, w1, uxtw #3
+	add	x21, x8, #16
+	ldr	x8, [x23, #56]
+	cmp	x21, x8
+	b.lo	LBB11_3
+LBB11_5:
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_stackoverflow
 	.cfi_endproc
@@ -555,9 +585,13 @@ _vm_op_Clos:                            ; @vm_op_Clos
 	str	x10, [x21, w9, uxtw #3]
 	ldr	x1, [x23]
 	ldr	w3, [x10]
-	mov	x0, x23
-	mov	x2, x21
-	bl	_gc_poll
+	ldr	w8, [x1, #40]
+	cbnz	w8, LBB15_3
+; %bb.1:
+	ldp	x8, x9, [x1, #48]
+	cmp	x8, x9
+	b.hs	LBB15_3
+LBB15_2:
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
 	ldr	x2, [x24, x9, lsl #3]
@@ -566,6 +600,11 @@ _vm_op_Clos:                            ; @vm_op_Clos
                                         ; kill: def $w0 killed $w0 killed $x0
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
+LBB15_3:
+	mov	x0, x23
+	mov	x2, x21
+	bl	_gc_poll_slow
+	b	LBB15_2
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_WObj
@@ -577,7 +616,7 @@ _vm_op_WObj:                            ; @vm_op_WObj
 	and	w13, w0, #0xff
 	ldr	x8, [x23, #32]
 	cmp	x8, x13
-	b.lo	LBB16_11
+	b.lo	LBB16_13
 ; %bb.1:
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
 	mov	x29, sp
@@ -607,7 +646,7 @@ _vm_op_WObj:                            ; @vm_op_WObj
 	sub	x12, x10, x15
 	add	x12, x12, #16
 	cmp	x12, #64
-	b.hs	LBB16_8
+	b.hs	LBB16_10
 LBB16_4:
 	mov	x12, #0                         ; =0x0
 LBB16_5:
@@ -629,10 +668,13 @@ LBB16_7:
 	bl	_gc_publish_new_object
 	str	x10, [x21, w9, uxtw #3]
 	ldr	x1, [x23]
-	and	x3, x14, #0xff8
-	mov	x0, x23
-	mov	x2, x21
-	bl	_gc_poll
+	ldr	w8, [x1, #40]
+	cbnz	w8, LBB16_14
+; %bb.8:
+	ldp	x8, x9, [x1, #48]
+	cmp	x8, x9
+	b.hs	LBB16_14
+LBB16_9:
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
 	ldr	x2, [x24, x9, lsl #3]
@@ -641,27 +683,33 @@ LBB16_7:
                                         ; kill: def $w0 killed $w0 killed $x0
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-LBB16_8:
+LBB16_10:
 	and	x12, x11, #0xf8
 	add	x13, x10, #64
 	add	x15, x15, #32
 	mov	x16, x12
-LBB16_9:                                ; =>This Inner Loop Header: Depth=1
+LBB16_11:                               ; =>This Inner Loop Header: Depth=1
 	ldp	q0, q1, [x15, #-32]
 	ldp	q2, q3, [x15], #64
 	stp	q0, q1, [x13, #-48]
 	stp	q2, q3, [x13, #-16]
 	add	x13, x13, #64
 	subs	x16, x16, #8
-	b.ne	LBB16_9
-; %bb.10:
+	b.ne	LBB16_11
+; %bb.12:
 	cmp	x12, x11
 	b.ne	LBB16_5
 	b	LBB16_7
-LBB16_11:
+LBB16_13:
 	mov	x0, x12
 	mov	x1, x9
 	b	_invalidlayout
+LBB16_14:
+	and	x3, x14, #0xff8
+	mov	x0, x23
+	mov	x2, x21
+	bl	_gc_poll_slow
+	b	LBB16_9
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_MObj
