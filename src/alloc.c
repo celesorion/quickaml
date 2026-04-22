@@ -298,12 +298,15 @@ static void gc_finish_cycle(struct state *restrict st, struct heap *h,
 
 /* ---------- gc poll (safepoint) ---------- */
 
-COLD_HELPER void gc_poll_slow(struct state *restrict st, struct heap *h,
-                              val_t *restrict bp, size_t credit) {
+COLD_HELPER void gc_poll_slow(struct state *restrict st, val_t *restrict bp,
+                              size_t credit) {
+  struct heap *h = st->heap;
+
   if (h->phase == GC_IDLE) {
     if (h->allocated_bytes >= h->trigger_bytes) {
       gc_start_cycle(st, h, bp);
     } else {
+      gc_poll_refresh(st);
       return;
     }
   }
@@ -318,11 +321,14 @@ COLD_HELPER void gc_poll_slow(struct state *restrict st, struct heap *h,
       if (credit > 0)
         gc_sweep_step(h, credit);
     }
+    gc_poll_refresh(st);
     return;
   }
 
   if (h->phase == GC_SWEEP)
     gc_sweep_step(h, credit);
+
+  gc_poll_refresh(st);
 }
 
 /* ---------- heap init/deinit ---------- */
@@ -404,15 +410,21 @@ COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref,
   }
 }
 
-static void *gc_sweep_until_allocable(struct heap *h, size_t n) {
+static void *gc_sweep_until_allocable(struct state *restrict st, size_t n) {
+  struct heap *h = st->heap;
+
   while (h->phase == GC_SWEEP) {
     gc_sweep_step(h, 4096);
     h->stats.sweep_assist_steps++;
     void *p = freelist_alloc(h, n);
+    gc_poll_refresh(st);
     if (p)
       return p;
   }
-  return freelist_alloc(h, n);
+
+  void *p = freelist_alloc(h, n);
+  gc_poll_refresh(st);
+  return p;
 }
 
 [[gnu::noinline]] static void *alloc_object_fallback(struct state *restrict st,
@@ -420,20 +432,24 @@ static void *gc_sweep_until_allocable(struct heap *h, size_t n) {
   struct heap *heap = st->heap;
   heap->stats.forced_finish_cycles++;
   gc_finish_cycle(st, heap, bp);
-  return freelist_alloc(heap, n);
+  void *p = freelist_alloc(heap, n);
+  gc_poll_refresh(st);
+  return p;
 }
 
 COLD_HELPER void *alloc_object(size_t n, struct state *restrict st,
                                val_t *restrict bp) {
   n = object_align(n);
   void *p = freelist_alloc(st->heap, n);
-  if (p != nullptr)
+  if (p != nullptr) {
+    gc_poll_refresh(st);
     return p;
+  }
 
   trace(st, TRACE_0, "alloc_object: free list exhausted, collecting garbage");
 
   if (st->heap->phase == GC_SWEEP) {
-    p = gc_sweep_until_allocable(st->heap, n);
+    p = gc_sweep_until_allocable(st, n);
     if (p != nullptr)
       return p;
     return nullptr;

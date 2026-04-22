@@ -39,20 +39,24 @@ bool heap_init(struct heap *restrict h, struct runtime_args *restrict rargs);
 void heap_deinit(struct heap *restrict h);
 void heap_stat_print(struct heap *restrict h);
 
-COLD_HELPER void gc_poll_slow(struct state *restrict st, struct heap *h,
-                              val_t *restrict bp, size_t credit);
+COLD_HELPER void gc_poll_slow(struct state *restrict st, val_t *restrict bp,
+                              size_t credit);
 COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref, uint8_t kind);
 
 COLD_HELPER void gc_store_field_slow(struct heap *h, val_t value);
 
-INLINE bool gc_poll_required(struct heap *h) {
-  return unlikely(h->phase != GC_IDLE || h->allocated_bytes >= h->trigger_bytes);
+INLINE bool heap_gc_poll_not_required(struct heap *h) {
+  return h->phase == GC_IDLE && h->allocated_bytes < h->trigger_bytes;
 }
 
-INLINE void gc_poll(struct state *restrict st, struct heap *h,
-                    val_t *restrict bp, size_t credit) {
-  if (unlikely(gc_poll_required(h)))
-    gc_poll_slow(st, h, bp, credit);
+INLINE void gc_poll_refresh(struct state *restrict st) {
+  st->gc_poll_not_required = heap_gc_poll_not_required(st->heap);
+}
+
+INLINE void gc_poll(struct state *restrict st, val_t *restrict bp,
+                    size_t credit) {
+  if (unlikely(!st->gc_poll_not_required))
+    gc_poll_slow(st, bp, credit);
 }
 
 INLINE void gc_store_field(struct heap *h, void *container, val_t *slot,

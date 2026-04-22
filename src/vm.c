@@ -282,7 +282,7 @@ OP_DEFINITION(Apply) {
   bc_t *oldip = ip;
   ip = thunk->ops;
 
-  gc_poll(state, state->heap, bp, 256);
+  gc_poll(state, bp, 256);
 
   bp = next_bp(bp, ithunk);
   if (unlikely(bp >= state->stklimit)) {
@@ -305,7 +305,7 @@ OP_DEFINITION(Call) {
   bc_t *oldip = ip;
   ip = thunk->ops;
 
-  gc_poll(state, state->heap, bp, 256);
+  gc_poll(state, bp, 256);
 
   bp = next_bp(bp, dst);
   if (unlikely(bp >= state->stklimit)) {
@@ -386,7 +386,7 @@ OP_DEFINITION(Clos) {
 
   gc_publish_new_object(state->heap, thunk, OBJ_THUNK);
   bp[dst] = val_from_ptr(thunk);
-  gc_poll(state, state->heap, bp, obj_size(thunk));
+  gc_poll(state, bp, obj_size(thunk));
   DISPATCH();
 }
 
@@ -406,7 +406,7 @@ OP_DEFINITION(WObj) {
 
   gc_publish_new_object(state->heap, obj, OBJ_WORDS);
   bp[fld] = val_from_ptr(obj);
-  gc_poll(state, state->heap, bp, object_size(len));
+  gc_poll(state, bp, object_size(len));
 
   DISPATCH();
 }

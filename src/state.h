@@ -16,6 +16,7 @@ struct state {
   const char *msg;
   struct runtime_args *rtargs;
   bool sc_jump;
+  bool gc_poll_not_required;
 };
 
 bool state_init(struct state *restrict s, struct heap *restrict heap,
