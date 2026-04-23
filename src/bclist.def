@@ -19,11 +19,11 @@
   _(MObj      , "mobj"      )\
   _(Jmp       , "jmp"       )\
   _(Goto      , "goto"      )\
-  _(AddDI     , "add.di"    )\
-  _(SubDI     , "sub.di"    )\
-  _(MulDI     , "mul.di"    )\
-  _(DivDI     , "div.di"    )\
-  _(RemDI     , "rem.di"    )\
+  _(AddDC     , "add.dc"    )\
+  _(SubDC     , "sub.dc"    )\
+  _(MulDC     , "mul.dc"    )\
+  _(DivDC     , "div.dc"    )\
+  _(RemDC     , "rem.dc"    )\
   _(AddDD     , "add.dd"    )\
   _(SubDD     , "sub.dd"    )\
   _(MulDD     , "mul.dd"    )\

@@ -111,8 +111,6 @@ INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
   return flag == UINT16_MAX ? val_is_falsy(lhs) : !val_is_falsy(lhs);
 }
 
-INLINE int32_t di_imm(uint8_t imm) { return sign_extend(imm, 8, 32); }
-
 #define CMP_DI(op_, lhs_, imm_, badret_, on_true_, on_false_)                  \
   do {                                                                         \
     val_t _lhs = (lhs_);                                                       \
@@ -514,27 +512,38 @@ INLINE bool cmp_is_eq(op_t op) { return op == CmpEqDC || op == CmpEqDD; }
 
 INLINE bool cmp_is_ne(op_t op) { return op == CmpNeDC || op == CmpNeDD; }
 
-THREADED void vm_op_arith_di_fallback(PARAMS) {
-  val_t v = bp[ARG3Y];
-  if (unlikely(!val_is_int_macro(v, ft)))
+THREADED void vm_op_arith_dc_fallback(PARAMS) {
+  val_t lv = bp[ARG3Y];
+  double lhs;
+  if (val_is_int_macro(lv, ft))
+    lhs = (double)val_as_i32_macro(lv, ft);
+  else if (val_is_number_macro(lv, ft))
+    lhs = val_as_f64_macro(lv, ft);
+  else
     MUSTTAIL return notanumber(ARGS);
-  double lhs = (double)val_as_i32_macro(v, ft);
-  double rhs = (double)di_imm(ARG3Z);
+  val_t rv = state->ctbl[ARG3Z];
+  double rhs;
+  if (val_is_int_macro(rv, ft))
+    rhs = (double)val_as_i32_macro(rv, ft);
+  else if (val_is_number_macro(rv, ft))
+    rhs = val_as_f64_macro(rv, ft);
+  else
+    MUSTTAIL return notanumber(ARGS);
   double res;
   switch (gOP(ip[-1])) {
-  case AddDI:
+  case AddDC:
     res = lhs + rhs;
     break;
-  case SubDI:
+  case SubDC:
     res = lhs - rhs;
     break;
-  case MulDI:
+  case MulDC:
     res = lhs * rhs;
     break;
-  case DivDI:
+  case DivDC:
     res = lhs / rhs;
     break;
-  case RemDI:
+  case RemDC:
     res = fast_fmod(lhs, rhs);
     break;
   default:
@@ -593,76 +602,103 @@ THREADED void vm_op_arith_dd_fallback(PARAMS) {
   DISPATCH();
 }
 
-#define DEFINE_OP_ARITH_DI(name_, op_, overflow_)                              \
+#define DEFINE_OP_ARITH_DC(name_, op_, overflow_)                              \
   OP_DEFINITION(name_) {                                                       \
     ssz_t dst = ARG3X;                                                         \
     ssz_t o1 = ARG3Y;                                                          \
-    int32_t imm = di_imm(ARG3Z);                                               \
-    if (val_is_int_macro(bp[o1], ft)) {                                        \
-      int32_t lhs = val_as_i32_macro(bp[o1], ft);                              \
-      int32_t out;                                                             \
-      if (!(overflow_))                                                        \
-        bp[dst] = val_from_i32_macro(out, ft);                                 \
-      else                                                                     \
-        MUSTTAIL return vm_op_arith_di_fallback(ARGS);                         \
-    } else if (val_is_number_macro(bp[o1], ft)) {                              \
-      double lhs = val_as_f64_macro(bp[o1], ft);                               \
-      bp[dst] = val_from_f64_macro(lhs op_(double) imm, ft);                   \
+    val_t v1 = bp[o1];                                                         \
+    val_t v2 = state->ctbl[ARG3Z];                                             \
+    if (val_is_int_macro(v1, ft)) {                                            \
+      if (val_is_int_macro(v2, ft)) {                                          \
+        int32_t lhs = val_as_i32_macro(v1, ft);                                \
+        int32_t rhs = val_as_i32_macro(v2, ft);                                \
+        int32_t out;                                                           \
+        if (!(overflow_))                                                      \
+          bp[dst] = val_from_i32_macro(out, ft);                               \
+        else                                                                   \
+          MUSTTAIL return vm_op_arith_dc_fallback(ARGS);                       \
+      } else                                                                   \
+        MUSTTAIL return vm_op_arith_dc_fallback(ARGS);                         \
+    } else if (val_is_number_macro(v1, ft)) {                                  \
+      if (val_is_float_macro(v2, ft)) {                                        \
+        bp[dst] = val_from_f64_macro(                                          \
+            val_as_f64_macro(v1, ft) op_ val_as_f64_macro(v2, ft), ft);        \
+      } else {                                                                 \
+        MUSTTAIL return vm_op_arith_dc_fallback(ARGS);                         \
+      }                                                                        \
     } else {                                                                   \
-      MUSTTAIL return vm_op_arith_di_fallback(ARGS);                           \
+      MUSTTAIL return vm_op_arith_dc_fallback(ARGS);                           \
     }                                                                          \
     DISPATCH();                                                                \
   }
 
-#define ARITH_DI_INT_OVERFLOW(op_, overflow_)
+DEFINE_OP_ARITH_DC(AddDC, +, __builtin_add_overflow(lhs, rhs, &out))
+DEFINE_OP_ARITH_DC(SubDC, -, __builtin_sub_overflow(lhs, rhs, &out))
+DEFINE_OP_ARITH_DC(MulDC, *, __builtin_mul_overflow(lhs, rhs, &out))
 
-DEFINE_OP_ARITH_DI(AddDI, +, __builtin_add_overflow(lhs, imm, &out))
-DEFINE_OP_ARITH_DI(SubDI, -, __builtin_sub_overflow(lhs, imm, &out))
-DEFINE_OP_ARITH_DI(MulDI, *, __builtin_mul_overflow(lhs, imm, &out))
-
-OP_DEFINITION(DivDI) {
+OP_DEFINITION(DivDC) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
-  int32_t imm = di_imm(ARG3Z);
-  if (val_is_int_macro(bp[o1], ft)) {
-    int32_t lhs = val_as_i32_macro(bp[o1], ft);
-    if (imm != 0 && !(lhs == INT32_MIN && imm == -1)) {
-      int32_t q = lhs / imm;
-      int32_t r = lhs % imm;
-      if (r != 0 && ((lhs ^ imm) < 0))
-        q -= 1;
-      bp[dst] = val_from_i32_macro(q, ft);
+  val_t v1 = bp[o1];
+  val_t v2 = state->ctbl[ARG3Z];
+  if (val_is_int_macro(v1, ft)) {
+    if (val_is_int_macro(v2, ft)) {
+      int32_t lhs = val_as_i32_macro(v1, ft);
+      int32_t rhs = val_as_i32_macro(v2, ft);
+      if (rhs != 0 && !(lhs == INT32_MIN && rhs == -1)) {
+        int32_t q = lhs / rhs;
+        int32_t r = lhs % rhs;
+        if (r != 0 && ((lhs ^ rhs) < 0))
+          q -= 1;
+        bp[dst] = val_from_i32_macro(q, ft);
+      } else {
+        MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
+      }
     } else {
-      MUSTTAIL return vm_op_arith_di_fallback(ARGS);
+      MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
     }
-  } else if (val_is_number_macro(bp[o1], ft)) {
-    double lhs = val_as_f64_macro(bp[o1], ft);
-    bp[dst] = val_from_f64_macro(lhs / (double)imm, ft);
+  } else if (val_is_number_macro(v1, ft)) {
+    if (val_is_float_macro(v2, ft)) {
+      bp[dst] = val_from_f64_macro(
+          val_as_f64_macro(v1, ft) / val_as_f64_macro(v2, ft), ft);
+    } else {
+      MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
+    }
   } else {
-    MUSTTAIL return vm_op_arith_di_fallback(ARGS);
+    MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
   }
   DISPATCH();
 }
 
-OP_DEFINITION(RemDI) {
+OP_DEFINITION(RemDC) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
-  int32_t imm = di_imm(ARG3Z);
-  if (val_is_int_macro(bp[o1], ft)) {
-    int32_t lhs = val_as_i32_macro(bp[o1], ft);
-    if (imm != 0) {
-      int32_t r = lhs % imm;
-      if (r != 0 && ((lhs ^ imm) < 0))
-        r += imm;
-      bp[dst] = val_from_i32_macro(r, ft);
+  val_t v1 = bp[o1];
+  val_t v2 = state->ctbl[ARG3Z];
+  if (val_is_int_macro(v1, ft)) {
+    if (val_is_int_macro(v2, ft)) {
+      int32_t lhs = val_as_i32_macro(v1, ft);
+      int32_t rhs = val_as_i32_macro(v2, ft);
+      if (rhs != 0) {
+        int32_t r = lhs % rhs;
+        if (r != 0 && ((lhs ^ rhs) < 0))
+          r += rhs;
+        bp[dst] = val_from_i32_macro(r, ft);
+      } else {
+        MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
+      }
     } else {
-      MUSTTAIL return vm_op_arith_di_fallback(ARGS);
+      MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
     }
-  } else if (val_is_number_macro(bp[o1], ft)) {
-    double lhs = val_as_f64_macro(bp[o1], ft);
-    bp[dst] = val_from_f64_macro(fast_fmod(lhs, (double)imm), ft);
+  } else if (val_is_number_macro(v1, ft)) {
+    if (val_is_float_macro(v2, ft)) {
+      bp[dst] = val_from_f64_macro(
+          fast_fmod(val_as_f64_macro(v1, ft), val_as_f64_macro(v2, ft)), ft);
+    } else {
+      MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
+    }
   } else {
-    MUSTTAIL return vm_op_arith_di_fallback(ARGS);
+    MUSTTAIL return vm_op_arith_dc_fallback(ARGS);
   }
   DISPATCH();
 }
