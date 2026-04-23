@@ -1373,14 +1373,15 @@ _vm_op_CmpEqDI:                         ; @vm_op_CmpEqDI
 	cmp	x10, x22
 	b.ne	LBB34_2
 ; %bb.1:
-	cmp	w9, w0
+	cmp	w9, w0, sxth
 	b	LBB34_4
 LBB34_2:
 	cbz	x10, LBB34_5
 ; %bb.3:
 	add	x9, x9, x22
 	fmov	d0, x9
-	ucvtf	d1, w0
+	sxth	w9, w0
+	scvtf	d1, w9
 	fcmp	d0, d1
 LBB34_4:
 	asr	w8, w8, #8
@@ -1407,14 +1408,15 @@ _vm_op_CmpNeDI:                         ; @vm_op_CmpNeDI
 	cmp	x10, x22
 	b.ne	LBB35_2
 ; %bb.1:
-	cmp	w9, w0
+	cmp	w9, w0, sxth
 	b	LBB35_4
 LBB35_2:
 	cbz	x10, LBB35_5
 ; %bb.3:
 	add	x9, x9, x22
 	fmov	d0, x9
-	ucvtf	d1, w0
+	sxth	w9, w0
+	scvtf	d1, w9
 	fcmp	d0, d1
 LBB35_4:
 	asr	w8, w8, #8
@@ -2382,7 +2384,7 @@ _vm_op_setc_CmpEqDI:                    ; @vm_op_setc_CmpEqDI
 	ldur	w8, [x20, #-4]
 	ubfx	x9, x8, #8, #8
 	ldr	x9, [x21, x9, lsl #3]
-	ubfx	x8, x8, #16, #16
+	asr	w8, w8, #16
 	and	x10, x9, x22
 	cmp	x10, x22
 	b.ne	LBB64_3
@@ -2406,7 +2408,7 @@ LBB64_3:
 ; %bb.4:
 	add	x9, x9, x22
 	fmov	d0, x9
-	ucvtf	d1, w8
+	scvtf	d1, w8
 	fcmp	d0, d1
 	b.ne	LBB64_2
 LBB64_5:
@@ -2434,7 +2436,7 @@ _vm_op_setc_CmpNeDI:                    ; @vm_op_setc_CmpNeDI
 	ldur	w8, [x20, #-4]
 	ubfx	x9, x8, #8, #8
 	ldr	x9, [x21, x9, lsl #3]
-	ubfx	x8, x8, #16, #16
+	asr	w8, w8, #16
 	and	x10, x9, x22
 	cmp	x10, x22
 	b.ne	LBB65_3
@@ -2458,7 +2460,7 @@ LBB65_3:
 ; %bb.4:
 	add	x9, x9, x22
 	fmov	d0, x9
-	ucvtf	d1, w8
+	scvtf	d1, w8
 	fcmp	d0, d1
 	b.eq	LBB65_2
 LBB65_5:

@@ -891,7 +891,7 @@ THREADED void vm_op_setcond_bad_op(PARAMS) {
     ssz_t dst = ARG2A;                                                         \
     bool invert = ARG2B != 0;                                                  \
     bc_t ci = ip[-1];                                                          \
-    CMP_DI(op_, bp[g3A(ci)], (int32_t)g2B(ci),                                 \
+    CMP_DI(op_, bp[g3A(ci)], sign_extend(g2B(ci), 16, 32),                     \
            vm_op_compare_di_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);          \
     DISPATCH();                                                                \
   }
@@ -968,15 +968,15 @@ OP_DEFINITION(CmpNotF) {
 
 OP_DEFINITION(CmpEqDI) {
   NEXT_INSN(ji);
-  CMP_DI(==, bp[ARG2A], (int32_t)ARG2B, vm_op_compare_di_fallback(ARGS),
-         ((void)0), COND_NEXT_IP(false, ji));
+  CMP_DI(==, bp[ARG2A], sign_extend(ARG2B, 16, 32),
+         vm_op_compare_di_fallback(ARGS), ((void)0), COND_NEXT_IP(false, ji));
   DISPATCH();
 }
 
 OP_DEFINITION(CmpNeDI) {
   NEXT_INSN(ji);
-  CMP_DI(!=, bp[ARG2A], (int32_t)ARG2B, vm_op_compare_di_fallback(ARGS),
-         ((void)0), COND_NEXT_IP(false, ji));
+  CMP_DI(!=, bp[ARG2A], sign_extend(ARG2B, 16, 32),
+         vm_op_compare_di_fallback(ARGS), ((void)0), COND_NEXT_IP(false, ji));
   DISPATCH();
 }
 
