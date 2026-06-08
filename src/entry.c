@@ -1,8 +1,8 @@
 #include "alloc.h"
 #include "bc.h"
 #include "state.h"
-#include "trap.h"
 #include "trace.h"
+#include "trap.h"
 #include "vm.h"
 
 #include <inttypes.h>
@@ -13,8 +13,7 @@ status_t exec(struct state *state) {
   return S_BAD_OP;
 }
 
-static bool capture_locs_valid(const struct capture_loc *fvlocs,
-                               size_t nfree) {
+static bool capture_locs_valid(const struct capture_loc *fvlocs, size_t nfree) {
   if (nfree > UINT32_MAX)
     return false;
   if (nfree == 0)
@@ -94,6 +93,81 @@ size_t vm_object_size_for_fields(size_t nfields) {
   return object_size(nfields);
 }
 
+static bool result_put_escaped_byte(char *buf, size_t len, size_t *used,
+                                    unsigned char byte) {
+  char escaped = 0;
+
+  switch (byte) {
+  case '\n':
+    escaped = 'n';
+    break;
+  case '\r':
+    escaped = 'r';
+    break;
+  case '\t':
+    escaped = 't';
+    break;
+  case '\\':
+    escaped = '\\';
+    break;
+  case '"':
+    escaped = '"';
+    break;
+  case '\'':
+    escaped = '\'';
+    break;
+  default:
+    break;
+  }
+
+  if (escaped) {
+    if (*used + 2 >= len)
+      return false;
+    buf[(*used)++] = '\\';
+    buf[(*used)++] = escaped;
+    buf[*used] = '\0';
+    return true;
+  }
+
+  if (byte < 0x20 || byte == 0x7f) {
+    if (*used >= len)
+      return false;
+    int n = snprintf(buf + *used, len - *used, "\\x%02x", byte);
+    if (n < 0 || (size_t)n >= len - *used)
+      return false;
+    *used += (size_t)n;
+    return true;
+  }
+
+  if (*used + 1 >= len)
+    return false;
+  buf[(*used)++] = (char)byte;
+  buf[*used] = '\0';
+  return true;
+}
+
+static bool format_str_result(const struct str *s, char *buf, size_t len) {
+  size_t used = 0;
+  size_t slen = str_len(s);
+
+  buf[0] = '\0';
+  if (used + 1 >= len)
+    return false;
+  buf[used++] = '"';
+  buf[used] = '\0';
+
+  for (size_t i = 0; i < slen; i++) {
+    if (!result_put_escaped_byte(buf, len, &used, (unsigned char)s->bytes[i]))
+      return false;
+  }
+
+  if (used + 1 >= len)
+    return false;
+  buf[used++] = '"';
+  buf[used] = '\0';
+  return true;
+}
+
 bool vm_format_result(val_t value, char *buf, size_t len) {
   int n = 0;
 
@@ -112,7 +186,7 @@ bool vm_format_result(val_t value, char *buf, size_t len) {
     void *ref = val_as_ptr(value);
     if (obj_kind_of(ref) == OBJ_STRING) {
       struct str *s = ref;
-      n = snprintf(buf, len, "%.*s", (int)str_len(s), s->bytes);
+      return format_str_result(s, buf, len);
     } else
       return false;
   } else
