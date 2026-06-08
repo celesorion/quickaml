@@ -83,36 +83,80 @@ _vm_op_Trap:                            ; @vm_op_Trap
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
 	mov	x19, x0
-	cmp	w1, #3
-	b.le	LBB1_6
+	cmp	w1, #5
+	b.gt	LBB1_8
 ; %bb.1:
-	cmp	w1, #6
+	cmp	w1, #2
 	b.gt	LBB1_13
 ; %bb.2:
+	cbz	w1, LBB1_28
+; %bb.3:
+	cmp	w1, #1
+	b.eq	LBB1_35
+; %bb.4:
+	cmp	w1, #2
+	b.ne	LBB1_43
+; %bb.5:
+	adrp	x8, _vm_op_Trap.edit_file@PAGE
+	ldr	x0, [x8, _vm_op_Trap.edit_file@PAGEOFF]
+	cbz	x0, LBB1_46
+; %bb.6:
+	str	xzr, [x8, _vm_op_Trap.edit_file@PAGEOFF]
+	bl	_fclose
+	cbz	w0, LBB1_46
+; %bb.7:
+Lloh2:
+	adrp	x25, l_.str@PAGE
+Lloh3:
+	add	x25, x25, l_.str@PAGEOFF
+	mov	x0, x19
+	mov	w1, #2                          ; =0x2
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_8:
+	cmp	w1, #8
+	b.gt	LBB1_17
+; %bb.9:
+	cmp	w1, #6
+	b.eq	LBB1_29
+; %bb.10:
+	cmp	w1, #7
+	b.eq	LBB1_36
+; %bb.11:
+	cmp	w1, #8
+	b.ne	LBB1_43
+; %bb.12:
+	ldr	x8, [x23]
+	ldr	x0, [x8]
+	bl	_heap_stat_print
+	b	LBB1_37
+LBB1_13:
 	sub	w8, w1, #4
 	cmp	w8, #2
-	b.hs	LBB1_16
-; %bb.3:
+	b.hs	LBB1_26
+; %bb.14:
 	lsr	w27, w19, #8
 	cmp	w27, w19, uxtb
-	b.ls	LBB1_22
-; %bb.4:
-Lloh2:
-	adrp	x8, l_.str.2@PAGE
-Lloh3:
-	add	x8, x8, l_.str.2@PAGEOFF
+	b.ls	LBB1_37
+; %bb.15:
 Lloh4:
-	adrp	x9, l_.str@PAGE
+	adrp	x8, l_.str.3@PAGE
 Lloh5:
-	add	x9, x9, l_.str@PAGEOFF
+	add	x8, x8, l_.str.3@PAGEOFF
+Lloh6:
+	adrp	x9, l_.str.2@PAGE
+Lloh7:
+	add	x9, x9, l_.str.2@PAGEOFF
 	cmp	w1, #5
 	csel	x26, x9, x8, eq
+                                        ; kill: def $w19 killed $w19 killed $x19 def $x19
 	and	x19, x19, #0xff
-Lloh6:
+Lloh8:
 	adrp	x28, ___stderrp@GOTPAGE
-Lloh7:
+Lloh9:
 	ldr	x28, [x28, ___stderrp@GOTPAGEOFF]
-LBB1_5:                                 ; =>This Inner Loop Header: Depth=1
+LBB1_16:                                ; =>This Inner Loop Header: Depth=1
 	ldr	x0, [x28]
 	ldr	x8, [x21, x19, lsl #3]
 	stp	x19, x8, [sp]
@@ -120,93 +164,129 @@ LBB1_5:                                 ; =>This Inner Loop Header: Depth=1
 	bl	_fprintf
 	add	x19, x19, #1
 	cmp	x27, x19
-	b.ne	LBB1_5
-	b	LBB1_22
-LBB1_6:
-	cmp	w1, #1
-	b.gt	LBB1_10
-; %bb.7:
-	cbz	w1, LBB1_19
-; %bb.8:
-	cmp	w1, #1
-	b.ne	LBB1_23
-; %bb.9:
+	b.ne	LBB1_16
+	b	LBB1_37
+LBB1_17:
+	cmp	w1, #9
+	b.eq	LBB1_31
+; %bb.18:
+	cmp	w1, #10
+	b.eq	LBB1_38
+; %bb.19:
+	cmp	w1, #11
+	b.ne	LBB1_43
+; %bb.20:
+	adrp	x27, _vm_op_Trap.edit_file@PAGE
+	ldr	x0, [x27, _vm_op_Trap.edit_file@PAGEOFF]
+	cbz	x0, LBB1_47
+; %bb.21:
+	and	w8, w19, #0xff
+	ldr	x8, [x21, w8, uxtw #3]
+	bics	xzr, x22, x8
+	b.ne	LBB1_48
+; %bb.22:
+	lsr	w9, w19, #8
+	ldr	x26, [x21, w9, uxtw #3]
+	bics	xzr, x22, x26
+	b.ne	LBB1_49
+; %bb.23:
+	tbnz	w8, #31, LBB1_54
+; %bb.24:
+	cmp	w26, #256
+	b.lo	LBB1_55
+; %bb.25:
+Lloh10:
+	adrp	x25, l_.str.18@PAGE
+Lloh11:
+	add	x25, x25, l_.str.18@PAGEOFF
 	mov	x0, x19
+	mov	w1, #11                         ; =0xb
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
-	b	_diverge
-LBB1_10:
-	cmp	w1, #2
-	b.eq	LBB1_20
-; %bb.11:
+	b	_panic
+LBB1_26:
 	cmp	w1, #3
-	b.ne	LBB1_23
-; %bb.12:
+	b.ne	LBB1_43
+; %bb.27:
 	mov	x0, x19
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	b	_unusedexta
-LBB1_13:
-	cmp	w1, #7
-	b.eq	LBB1_21
-; %bb.14:
-	cmp	w1, #8
-	b.ne	LBB1_23
-; %bb.15:
-	ldr	x8, [x23]
-	ldr	x0, [x8]
-	bl	_heap_stat_print
-	b	LBB1_22
-LBB1_16:
-	cmp	w1, #6
-	b.ne	LBB1_23
-; %bb.17:
+LBB1_28:
+	mov	x0, x19
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_undefined
+LBB1_29:
 	and	w8, w19, #0xff
 	lsr	w9, w19, #8
 	ldr	x8, [x21, w8, uxtw #3]
 	ldr	x9, [x21, w9, uxtw #3]
 	cmp	x8, x9
-	b.eq	LBB1_22
-; %bb.18:
-Lloh8:
+	b.eq	LBB1_37
+; %bb.30:
+Lloh12:
 	adrp	x10, ___stderrp@GOTPAGE
-Lloh9:
+Lloh13:
 	ldr	x10, [x10, ___stderrp@GOTPAGEOFF]
-Lloh10:
+Lloh14:
 	ldr	x0, [x10]
 	stp	x8, x9, [sp]
-Lloh11:
-	adrp	x1, l_.str.3@PAGE
-Lloh12:
-	add	x1, x1, l_.str.3@PAGEOFF
+Lloh15:
+	adrp	x1, l_.str.4@PAGE
+Lloh16:
+	add	x1, x1, l_.str.4@PAGEOFF
 	bl	_fprintf
 	mov	x0, x19
 	mov	w1, #6                          ; =0x6
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	b	_assertionfailed
-LBB1_19:
+LBB1_31:
+	and	w8, w19, #0xff
+	ldr	x28, [x21, w8, uxtw #3]
+	and	x8, x28, #0xfffffffffffffffe
+	and	x8, x8, #0xfffe000000000003
+	cmp	x28, #0
+	ccmp	x8, #0, #0, ne
+	b.ne	LBB1_44
+; %bb.32:
+	ldrb	w8, [x28, #6]
+	mov	x9, #281474976710656            ; =0x1000000000000
+	cmp	x9, x8, lsl #48
+	b.ne	LBB1_44
+; %bb.33:
+	adrp	x27, _vm_op_Trap.edit_file@PAGE
+	ldr	x8, [x27, _vm_op_Trap.edit_file@PAGEOFF]
+	cbz	x8, LBB1_50
+; %bb.34:
+Lloh17:
+	adrp	x25, l_.str.8@PAGE
+Lloh18:
+	add	x25, x25, l_.str.8@PAGEOFF
+	mov	x0, x19
+	mov	w1, #9                          ; =0x9
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_35:
 	mov	x0, x19
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
-	b	_undefined
-LBB1_20:
-	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
-	add	sp, sp, #32
-	ret
-LBB1_21:
+	b	_diverge
+LBB1_36:
                                         ; kill: def $w19 killed $w19 killed $x19 def $x19
-Lloh13:
+Lloh19:
 	adrp	x26, ___stderrp@GOTPAGE
-Lloh14:
+Lloh20:
 	ldr	x26, [x26, ___stderrp@GOTPAGEOFF]
 	ldr	x0, [x26]
 	and	x19, x19, #0xff
 	str	x19, [sp]
-Lloh15:
-	adrp	x1, l_.str.4@PAGE
-Lloh16:
-	add	x1, x1, l_.str.4@PAGEOFF
+Lloh21:
+	adrp	x1, l_.str.5@PAGE
+Lloh22:
+	add	x1, x1, l_.str.5@PAGEOFF
 	bl	_fprintf
 	ldr	x0, [x26]
 	ldr	x1, [x21, x19, lsl #3]
@@ -214,7 +294,7 @@ Lloh16:
 	ldr	x1, [x26]
 	mov	w0, #10                         ; =0xa
 	bl	_fputc
-LBB1_22:
+LBB1_37:
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
 	ldr	x2, [x24, x9, lsl #3]
@@ -224,18 +304,261 @@ LBB1_22:
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	br	x2
-LBB1_23:
+LBB1_38:
+	and	x8, x19, #0xff
+	ldr	x8, [x21, x8, lsl #3]
+	and	x9, x8, #0xfffffffffffffffe
+	and	x9, x9, #0xfffe000000000003
+	cmp	x8, #0
+	ccmp	x9, #0, #0, ne
+	b.ne	LBB1_45
+; %bb.39:
+	ldrb	w8, [x8, #6]
+	mov	x9, #281474976710656            ; =0x1000000000000
+	cmp	x9, x8, lsl #48
+	b.ne	LBB1_45
+; %bb.40:
+	adrp	x8, _vm_op_Trap.edit_file@PAGE
+	ldr	x0, [x8, _vm_op_Trap.edit_file@PAGEOFF]
+	cbz	x0, LBB1_53
+; %bb.41:
+	str	xzr, [x8, _vm_op_Trap.edit_file@PAGEOFF]
+	bl	_fclose
+	cbz	w0, LBB1_37
+; %bb.42:
+Lloh23:
+	adrp	x25, l_.str@PAGE
+Lloh24:
+	add	x25, x25, l_.str@PAGEOFF
+	mov	x0, x19
+	mov	w1, #10                         ; =0xa
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_43:
 	mov	x0, x19
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	b	_invalidtrap
-	.loh AdrpLdrGot	Lloh6, Lloh7
-	.loh AdrpAdd	Lloh4, Lloh5
+LBB1_44:
+Lloh25:
+	adrp	x25, l_.str.7@PAGE
+Lloh26:
+	add	x25, x25, l_.str.7@PAGEOFF
+	mov	x0, x19
+	mov	w1, #9                          ; =0x9
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_45:
+Lloh27:
+	adrp	x25, l_.str.7@PAGE
+Lloh28:
+	add	x25, x25, l_.str.7@PAGEOFF
+	mov	x0, x19
+	mov	w1, #10                         ; =0xa
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_46:
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	ret
+LBB1_47:
+Lloh29:
+	adrp	x25, l_.str.14@PAGE
+Lloh30:
+	add	x25, x25, l_.str.14@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_48:
+Lloh31:
+	adrp	x25, l_.str.15@PAGE
+Lloh32:
+	add	x25, x25, l_.str.15@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_49:
+Lloh33:
+	adrp	x25, l_.str.16@PAGE
+Lloh34:
+	add	x25, x25, l_.str.16@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_50:
+	bl	___error
+	str	wzr, [x0]
+Lloh35:
+	adrp	x1, l_.str.9@PAGE
+Lloh36:
+	add	x1, x1, l_.str.9@PAGEOFF
+	add	x0, x28, #8
+	bl	_fopen
+	cbz	x0, LBB1_57
+LBB1_51:
+	mov	x26, x0
+	mov	x1, #0                          ; =0x0
+	mov	w2, #2                          ; =0x2
+	bl	_fseek
+	cbz	w0, LBB1_60
+; %bb.52:
+	mov	x0, x26
+	bl	_fclose
+Lloh37:
+	adrp	x25, l_.str.12@PAGE
+Lloh38:
+	add	x25, x25, l_.str.12@PAGEOFF
+	mov	x0, x19
+	mov	w1, #9                          ; =0x9
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_53:
+Lloh39:
+	adrp	x25, l_.str.14@PAGE
+Lloh40:
+	add	x25, x25, l_.str.14@PAGEOFF
+	mov	x0, x19
+	mov	w1, #10                         ; =0xa
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_54:
+Lloh41:
+	adrp	x25, l_.str.17@PAGE
+Lloh42:
+	add	x25, x25, l_.str.17@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_55:
+	and	x1, x8, #0x7fffffff
+	mov	w2, #0                          ; =0x0
+	bl	_fseek
+	cbz	w0, LBB1_62
+; %bb.56:
+Lloh43:
+	adrp	x25, l_.str.12@PAGE
+Lloh44:
+	add	x25, x25, l_.str.12@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_57:
+	bl	___error
+	ldr	w8, [x0]
+	cmp	w8, #2
+	b.ne	LBB1_59
+; %bb.58:
+Lloh45:
+	adrp	x1, l_.str.10@PAGE
+Lloh46:
+	add	x1, x1, l_.str.10@PAGEOFF
+	add	x0, x28, #8
+	bl	_fopen
+	cbnz	x0, LBB1_51
+LBB1_59:
+Lloh47:
+	adrp	x25, l_.str.11@PAGE
+Lloh48:
+	add	x25, x25, l_.str.11@PAGEOFF
+	mov	x0, x19
+	mov	w1, #9                          ; =0x9
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_60:
+	mov	x0, x26
+	bl	_ftell
+	lsr	x8, x0, #31
+	cbz	x8, LBB1_65
+; %bb.61:
+	mov	x0, x26
+	bl	_fclose
+Lloh49:
+	adrp	x25, l_.str.13@PAGE
+Lloh50:
+	add	x25, x25, l_.str.13@PAGEOFF
+	mov	x0, x19
+	mov	w1, #9                          ; =0x9
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_62:
+	ldr	x1, [x27, _vm_op_Trap.edit_file@PAGEOFF]
+	mov	x0, x26
+	bl	_fputc
+	cmn	w0, #1
+	b.eq	LBB1_66
+; %bb.63:
+	ldr	x0, [x27, _vm_op_Trap.edit_file@PAGEOFF]
+	bl	_fflush
+	cbz	w0, LBB1_37
+; %bb.64:
+Lloh51:
+	adrp	x25, l_.str.20@PAGE
+Lloh52:
+	add	x25, x25, l_.str.20@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
+LBB1_65:
+	lsr	w8, w19, #8
+	str	x26, [x27, _vm_op_Trap.edit_file@PAGEOFF]
+	orr	x9, x0, #0xfffe000000000000
+	str	x9, [x21, w8, uxtw #3]
+	b	LBB1_37
+LBB1_66:
+Lloh53:
+	adrp	x25, l_.str.19@PAGE
+Lloh54:
+	add	x25, x25, l_.str.19@PAGEOFF
+	mov	x0, x19
+	mov	w1, #11                         ; =0xb
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_panic
 	.loh AdrpAdd	Lloh2, Lloh3
-	.loh AdrpAdd	Lloh11, Lloh12
-	.loh AdrpLdrGotLdr	Lloh8, Lloh9, Lloh10
+	.loh AdrpLdrGot	Lloh8, Lloh9
+	.loh AdrpAdd	Lloh6, Lloh7
+	.loh AdrpAdd	Lloh4, Lloh5
+	.loh AdrpAdd	Lloh10, Lloh11
 	.loh AdrpAdd	Lloh15, Lloh16
-	.loh AdrpLdrGot	Lloh13, Lloh14
+	.loh AdrpLdrGotLdr	Lloh12, Lloh13, Lloh14
+	.loh AdrpAdd	Lloh17, Lloh18
+	.loh AdrpAdd	Lloh21, Lloh22
+	.loh AdrpLdrGot	Lloh19, Lloh20
+	.loh AdrpAdd	Lloh23, Lloh24
+	.loh AdrpAdd	Lloh25, Lloh26
+	.loh AdrpAdd	Lloh27, Lloh28
+	.loh AdrpAdd	Lloh29, Lloh30
+	.loh AdrpAdd	Lloh31, Lloh32
+	.loh AdrpAdd	Lloh33, Lloh34
+	.loh AdrpAdd	Lloh35, Lloh36
+	.loh AdrpAdd	Lloh37, Lloh38
+	.loh AdrpAdd	Lloh39, Lloh40
+	.loh AdrpAdd	Lloh41, Lloh42
+	.loh AdrpAdd	Lloh43, Lloh44
+	.loh AdrpAdd	Lloh45, Lloh46
+	.loh AdrpAdd	Lloh47, Lloh48
+	.loh AdrpAdd	Lloh49, Lloh50
+	.loh AdrpAdd	Lloh51, Lloh52
+	.loh AdrpAdd	Lloh53, Lloh54
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_Nop
@@ -1397,15 +1720,15 @@ _vm_op_SetCond:                         ; @vm_op_SetCond
 	cmp	w8, #15
 	b.hs	LBB31_2
 ; %bb.1:
-Lloh17:
+Lloh55:
 	adrp	x9, _dispatch_setc@PAGE
-Lloh18:
+Lloh56:
 	add	x9, x9, _dispatch_setc@PAGEOFF
 	ldr	x2, [x9, w8, uxtw #3]
 	br	x2
 LBB31_2:
 	b	_vm_op_setcond_bad_op
-	.loh AdrpAdd	Lloh17, Lloh18
+	.loh AdrpAdd	Lloh55, Lloh56
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_SetCondJ
@@ -1419,15 +1742,15 @@ _vm_op_SetCondJ:                        ; @vm_op_SetCondJ
 	cmp	w8, #15
 	b.hs	LBB32_2
 ; %bb.1:
-Lloh19:
+Lloh57:
 	adrp	x9, _dispatch_setc@PAGE
-Lloh20:
+Lloh58:
 	add	x9, x9, _dispatch_setc@PAGEOFF
 	ldr	x2, [x9, w8, uxtw #3]
 	br	x2
 LBB32_2:
 	b	_vm_op_setcond_bad_op
-	.loh AdrpAdd	Lloh19, Lloh20
+	.loh AdrpAdd	Lloh57, Lloh58
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_CmpNotF
@@ -2094,12 +2417,12 @@ LBB47_7:
 _undefined:                             ; @undefined
 	.cfi_startproc
 ; %bb.0:
-Lloh21:
-	adrp	x25, l_.str.6@PAGE
-Lloh22:
-	add	x25, x25, l_.str.6@PAGEOFF
+Lloh59:
+	adrp	x25, l_.str.21@PAGE
+Lloh60:
+	add	x25, x25, l_.str.21@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh21, Lloh22
+	.loh AdrpAdd	Lloh59, Lloh60
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function diverge
@@ -2108,42 +2431,6 @@ _diverge:                               ; @diverge
 ; %bb.0:
 LBB49_1:                                ; =>This Inner Loop Header: Depth=1
 	b	LBB49_1
-	.cfi_endproc
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function unusedexta
-_unusedexta:                            ; @unusedexta
-	.cfi_startproc
-; %bb.0:
-Lloh23:
-	adrp	x25, l_.str.8@PAGE
-Lloh24:
-	add	x25, x25, l_.str.8@PAGEOFF
-	b	_panic
-	.loh AdrpAdd	Lloh23, Lloh24
-	.cfi_endproc
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function assertionfailed
-_assertionfailed:                       ; @assertionfailed
-	.cfi_startproc
-; %bb.0:
-Lloh25:
-	adrp	x25, l_.str.9@PAGE
-Lloh26:
-	add	x25, x25, l_.str.9@PAGEOFF
-	b	_panic
-	.loh AdrpAdd	Lloh25, Lloh26
-	.cfi_endproc
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function invalidtrap
-_invalidtrap:                           ; @invalidtrap
-	.cfi_startproc
-; %bb.0:
-Lloh27:
-	adrp	x25, l_.str.10@PAGE
-Lloh28:
-	add	x25, x25, l_.str.10@PAGEOFF
-	b	_panic
-	.loh AdrpAdd	Lloh27, Lloh28
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function panic
@@ -2156,58 +2443,94 @@ _panic:                                 ; @panic
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-Lloh29:
+Lloh61:
 	adrp	x8, ___stderrp@GOTPAGE
-Lloh30:
+Lloh62:
 	ldr	x8, [x8, ___stderrp@GOTPAGEOFF]
-Lloh31:
+Lloh63:
 	ldr	x0, [x8]
 	str	x25, [sp]
-Lloh32:
-	adrp	x1, l_.str.7@PAGE
-Lloh33:
-	add	x1, x1, l_.str.7@PAGEOFF
+Lloh64:
+	adrp	x1, l_.str.22@PAGE
+Lloh65:
+	add	x1, x1, l_.str.22@PAGEOFF
 	bl	_fprintf
 	mov	w0, #255                        ; =0xff
 	bl	_exit
-	.loh AdrpAdd	Lloh32, Lloh33
-	.loh AdrpLdrGotLdr	Lloh29, Lloh30, Lloh31
+	.loh AdrpAdd	Lloh64, Lloh65
+	.loh AdrpLdrGotLdr	Lloh61, Lloh62, Lloh63
+	.cfi_endproc
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function unusedexta
+_unusedexta:                            ; @unusedexta
+	.cfi_startproc
+; %bb.0:
+Lloh66:
+	adrp	x25, l_.str.23@PAGE
+Lloh67:
+	add	x25, x25, l_.str.23@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh66, Lloh67
+	.cfi_endproc
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function assertionfailed
+_assertionfailed:                       ; @assertionfailed
+	.cfi_startproc
+; %bb.0:
+Lloh68:
+	adrp	x25, l_.str.24@PAGE
+Lloh69:
+	add	x25, x25, l_.str.24@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh68, Lloh69
+	.cfi_endproc
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function invalidtrap
+_invalidtrap:                           ; @invalidtrap
+	.cfi_startproc
+; %bb.0:
+Lloh70:
+	adrp	x25, l_.str.25@PAGE
+Lloh71:
+	add	x25, x25, l_.str.25@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh70, Lloh71
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function badop
 _badop:                                 ; @badop
 	.cfi_startproc
 ; %bb.0:
-Lloh34:
-	adrp	x25, l_.str.11@PAGE
-Lloh35:
-	add	x25, x25, l_.str.11@PAGEOFF
+Lloh72:
+	adrp	x25, l_.str.26@PAGE
+Lloh73:
+	add	x25, x25, l_.str.26@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh34, Lloh35
+	.loh AdrpAdd	Lloh72, Lloh73
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function unimplemented
 _unimplemented:                         ; @unimplemented
 	.cfi_startproc
 ; %bb.0:
-Lloh36:
-	adrp	x25, l_.str.12@PAGE
-Lloh37:
-	add	x25, x25, l_.str.12@PAGEOFF
+Lloh74:
+	adrp	x25, l_.str.27@PAGE
+Lloh75:
+	add	x25, x25, l_.str.27@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh36, Lloh37
+	.loh AdrpAdd	Lloh74, Lloh75
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function stackoverflow
 _stackoverflow:                         ; @stackoverflow
 	.cfi_startproc
 ; %bb.0:
-Lloh38:
-	adrp	x25, l_.str.13@PAGE
-Lloh39:
-	add	x25, x25, l_.str.13@PAGEOFF
+Lloh76:
+	adrp	x25, l_.str.28@PAGE
+Lloh77:
+	add	x25, x25, l_.str.28@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh38, Lloh39
+	.loh AdrpAdd	Lloh76, Lloh77
 	.cfi_endproc
                                         ; -- End function
 	.p2align	2                               ; -- Begin function thunk_alloc_instance
@@ -2282,24 +2605,24 @@ LBB58_9:
 _invalidlayout:                         ; @invalidlayout
 	.cfi_startproc
 ; %bb.0:
-Lloh40:
-	adrp	x25, l_.str.14@PAGE
-Lloh41:
-	add	x25, x25, l_.str.14@PAGEOFF
+Lloh78:
+	adrp	x25, l_.str.29@PAGE
+Lloh79:
+	add	x25, x25, l_.str.29@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh40, Lloh41
+	.loh AdrpAdd	Lloh78, Lloh79
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function notaoffset
 _notaoffset:                            ; @notaoffset
 	.cfi_startproc
 ; %bb.0:
-Lloh42:
-	adrp	x25, l_.str.15@PAGE
-Lloh43:
-	add	x25, x25, l_.str.15@PAGEOFF
+Lloh80:
+	adrp	x25, l_.str.30@PAGE
+Lloh81:
+	add	x25, x25, l_.str.30@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh42, Lloh43
+	.loh AdrpAdd	Lloh80, Lloh81
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_arith_dc_fallback
@@ -2393,12 +2716,12 @@ LBB61_18:
 _notanumber:                            ; @notanumber
 	.cfi_startproc
 ; %bb.0:
-Lloh44:
-	adrp	x25, l_.str.16@PAGE
-Lloh45:
-	add	x25, x25, l_.str.16@PAGEOFF
+Lloh82:
+	adrp	x25, l_.str.31@PAGE
+Lloh83:
+	add	x25, x25, l_.str.31@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh44, Lloh45
+	.loh AdrpAdd	Lloh82, Lloh83
 	.cfi_endproc
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_arith_dd_fallback
@@ -3910,50 +4233,96 @@ _dispatch:
 	.quad	_vm_op_CmpGtDD
 	.quad	_vm_op_CmpGeDD
 
+.zerofill __DATA,__bss,_vm_op_Trap.edit_file,8,3 ; @vm_op_Trap.edit_file
 	.section	__TEXT,__cstring,cstring_literals
 l_.str:                                 ; @.str
-	.asciz	"[%u] 0x%llx\n"
+	.asciz	"file close failed"
 
 l_.str.2:                               ; @.str.2
-	.asciz	"[%u] %llu\n"
+	.asciz	"[%u] 0x%llx\n"
 
 l_.str.3:                               ; @.str.3
-	.asciz	"0x%llx != 0x%llx\n"
+	.asciz	"[%u] %llu\n"
 
 l_.str.4:                               ; @.str.4
+	.asciz	"0x%llx != 0x%llx\n"
+
+l_.str.5:                               ; @.str.5
 	.asciz	"r%u = "
 
-l_.str.6:                               ; @.str.6
-	.asciz	"invalid bytecode"
-
 l_.str.7:                               ; @.str.7
-	.asciz	"panic: %s\n"
+	.asciz	"file path is not a string"
 
 l_.str.8:                               ; @.str.8
-	.asciz	"unused extra arguments"
+	.asciz	"file already open"
 
 l_.str.9:                               ; @.str.9
-	.asciz	"assertion failed"
+	.asciz	"r+b"
 
 l_.str.10:                              ; @.str.10
-	.asciz	"invalid trap id"
+	.asciz	"w+b"
 
 l_.str.11:                              ; @.str.11
-	.asciz	"bad opcode"
+	.asciz	"file open failed"
 
 l_.str.12:                              ; @.str.12
-	.asciz	"unimplemented"
+	.asciz	"file seek failed"
 
 l_.str.13:                              ; @.str.13
-	.asciz	"stack overflow"
+	.asciz	"file offset out of range"
 
 l_.str.14:                              ; @.str.14
-	.asciz	"invalid layout"
+	.asciz	"no open file"
 
 l_.str.15:                              ; @.str.15
-	.asciz	"not a offset"
+	.asciz	"file offset is not an int"
 
 l_.str.16:                              ; @.str.16
+	.asciz	"file byte is not an int"
+
+l_.str.17:                              ; @.str.17
+	.asciz	"file offset is negative"
+
+l_.str.18:                              ; @.str.18
+	.asciz	"file byte out of range"
+
+l_.str.19:                              ; @.str.19
+	.asciz	"file write failed"
+
+l_.str.20:                              ; @.str.20
+	.asciz	"file flush failed"
+
+l_.str.21:                              ; @.str.21
+	.asciz	"invalid bytecode"
+
+l_.str.22:                              ; @.str.22
+	.asciz	"panic: %s\n"
+
+l_.str.23:                              ; @.str.23
+	.asciz	"unused extra arguments"
+
+l_.str.24:                              ; @.str.24
+	.asciz	"assertion failed"
+
+l_.str.25:                              ; @.str.25
+	.asciz	"invalid trap id"
+
+l_.str.26:                              ; @.str.26
+	.asciz	"bad opcode"
+
+l_.str.27:                              ; @.str.27
+	.asciz	"unimplemented"
+
+l_.str.28:                              ; @.str.28
+	.asciz	"stack overflow"
+
+l_.str.29:                              ; @.str.29
+	.asciz	"invalid layout"
+
+l_.str.30:                              ; @.str.30
+	.asciz	"not a offset"
+
+l_.str.31:                              ; @.str.31
 	.asciz	"not a number"
 
 	.section	__DATA,__const
