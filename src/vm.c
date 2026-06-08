@@ -72,6 +72,12 @@ void invalidlayout(PARAMS) {
 }
 
 THREADED
+void badop(PARAMS) {
+  fns = (struct thunk **)(void *)"bad opcode";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void assertionfailed(PARAMS) {
   fns = (struct thunk **)(void *)"assertion failed";
   MUSTTAIL return panic(ARGS);
@@ -248,11 +254,15 @@ OP_DEFINITION(LoadC) {
 OP_DEFINITION(LoadF) {
   ssz_t dst = ARG2A;
   val_t fidx = ARG2B;
+  struct thunk *thunk = val_as_ptr(frame_rv(bp));
 
   if (fidx == 0) {
     bp[dst] = frame_rv(bp);
   } else {
-    MUSTTAIL return unimplemented(ARGS);
+    if (unlikely(fidx > thunk->nfree)) {
+      MUSTTAIL return badop(ARGS);
+    }
+    bp[dst] = thunk->freevars[fidx - 1];
   }
 
   DISPATCH();
@@ -380,12 +390,46 @@ thunk_alloc_instance(struct fiber_segment *restrict fiber,
   return thunk;
 }
 
+COLD_HELPER static bool capture_loc_resolve(val_t loc, val_t *restrict bp,
+                                            val_t *restrict out) {
+  struct thunk *current = val_as_ptr(frame_rv(bp));
+  uint16_t kind = capture_loc_kind(loc);
+  uint16_t index = capture_loc_index(loc);
+
+  switch (kind) {
+  case CAPTURE_LOC_SLOT:
+    if (unlikely(index >= current->nregs))
+      return false;
+    *out = bp[index];
+    return true;
+  case CAPTURE_LOC_FREEVAR:
+    if (index == 0) {
+      *out = frame_rv(bp);
+      return true;
+    }
+    if (unlikely(index > current->nfree))
+      return false;
+    *out = current->freevars[index - 1];
+    return true;
+  default:
+    return false;
+  }
+}
+
 OP_DEFINITION(Clos) {
   struct state *state = fiber->state;
   ssz_t dst = ARG2A;
   ssz_t fx = ARG2B;
+  struct thunk *template = fns[fx];
 
-  struct thunk *thunk = thunk_alloc_instance(fiber, fns[fx], bp);
+  struct thunk *thunk = thunk_alloc_instance(fiber, template, bp);
+  for (size_t i = 0; i < template->nfree; i++) {
+    val_t value;
+    if (unlikely(!capture_loc_resolve(template->freevars[i], bp, &value))) {
+      MUSTTAIL return badop(ARGS);
+    }
+    thunk->freevars[i] = value;
+  }
 
   gc_publish_new_object(state->heap, thunk, OBJ_THUNK);
   bp[dst] = val_from_ptr(thunk);

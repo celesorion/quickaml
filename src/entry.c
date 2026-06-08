@@ -13,10 +13,28 @@ status_t exec(struct state *state) {
   return S_BAD_OP;
 }
 
+static bool capture_locs_valid(const struct capture_loc *fvlocs,
+                               size_t nfree) {
+  if (nfree > UINT32_MAX)
+    return false;
+  if (nfree == 0)
+    return true;
+  if (fvlocs == nullptr)
+    return false;
+  for (size_t i = 0; i < nfree; i++)
+    if (fvlocs[i].kind > CAPTURE_LOC_FREEVAR)
+      return false;
+  return true;
+}
+
 struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
-                             size_t nconst, uint8_t nregs, size_t nfree) {
+                             size_t nconst, uint8_t nregs,
+                             const struct capture_loc *fvlocs, size_t nfree) {
+  if (!capture_locs_valid(fvlocs, nfree))
+    return nullptr;
+
   size_t size = thunk_size(nops, nconst, nfree);
-  if (nfree > UINT32_MAX || size > UINT32_MAX)
+  if (size > UINT32_MAX)
     return nullptr;
 
   struct thunk *thunk = malloc(size);
@@ -25,7 +43,7 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
 
   thunk_init(thunk, nops, nconst, nregs, nfree);
   for (size_t i = 0; i < nfree; i++)
-    thunk->freevars[i] = VAL_EMPTY;
+    thunk->freevars[i] = capture_loc_pack(fvlocs[i]);
   for (size_t i = 0; i < nops; i++)
     thunk->ops[i] = ops[i];
   for (size_t i = 0; i < nconst; i++)
@@ -43,7 +61,8 @@ struct thunk *vm_thunk_make_wrapper(size_t top_idx) {
       mk2(Call, 0, (uint16_t)top_idx),
       mk3(Trap, T_HALT, 0, 0),
   };
-  return vm_thunk_alloc(ops, sizeof(ops) / sizeof(ops[0]), nullptr, 0, 0, 0);
+  return vm_thunk_alloc(ops, sizeof(ops) / sizeof(ops[0]), nullptr, 0, 0,
+                        nullptr, 0);
 }
 
 bool vm_const_from_i64(int64_t value, val_t *out) {

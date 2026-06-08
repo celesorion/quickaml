@@ -12,6 +12,24 @@
 struct heap;
 struct state;
 
+enum capture_loc_kind {
+  CAPTURE_LOC_SLOT = 0,
+  CAPTURE_LOC_FREEVAR = 1,
+};
+
+struct capture_loc {
+  uint16_t kind;
+  uint16_t index;
+};
+
+INLINE val_t capture_loc_pack(struct capture_loc loc) {
+  return ((val_t)loc.kind << 16) | loc.index;
+}
+
+INLINE uint16_t capture_loc_kind(val_t loc) { return (uint16_t)(loc >> 16); }
+
+INLINE uint16_t capture_loc_index(val_t loc) { return (uint16_t)loc; }
+
 struct thunk {
   metainfo hd;
   void *gclist;

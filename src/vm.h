@@ -169,7 +169,8 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            val_t *result, struct runtime_args *rargs,
                            struct gc_stats *stats_out);
 struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
-                             size_t nconst, uint8_t nregs, size_t nfree);
+                             size_t nconst, uint8_t nregs,
+                             const struct capture_loc *fvlocs, size_t nfree);
 void vm_thunk_free(struct thunk *thunk);
 struct thunk *vm_thunk_make_wrapper(size_t top_idx);
 bool vm_const_from_i64(int64_t value, val_t *out);
