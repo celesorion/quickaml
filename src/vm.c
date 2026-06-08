@@ -41,71 +41,63 @@ status_t vm_entry(struct fiber_segment *fiber) {
 
 THREADED
 void panic(PARAMS) {
-  struct state *state = fiber->state;
-  fprintf(stderr, "panic: %s\n", state->msg);
+  fprintf(stderr, "panic: %s\n", (const char *)(void *)fns);
   exit(255);
 }
 
+// Panic handlers no longer need fns as the function table, so reuse it for the
+// message. Keep dispatch as the dispatch table; it is not recoverable from state.
 THREADED
 void stackoverflow(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "stack overflow";
+  fns = (struct thunk **)(void *)"stack overflow";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void unimplemented(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "unimplemented";
+  fns = (struct thunk **)(void *)"unimplemented";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void undefined(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "invalid bytecode";
+  fns = (struct thunk **)(void *)"invalid bytecode";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void invalidlayout(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "invalid layout";
+  fns = (struct thunk **)(void *)"invalid layout";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void assertionfailed(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "assertion failed";
+  fns = (struct thunk **)(void *)"assertion failed";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void invalidtrap(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "invalid trap id";
+  fns = (struct thunk **)(void *)"invalid trap id";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void unusedexta(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "unused extra arguments";
+  fns = (struct thunk **)(void *)"unused extra arguments";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void notanumber(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "not a number";
+  fns = (struct thunk **)(void *)"not a number";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void notaoffset(PARAMS) {
-  struct state *state = fiber->state;
-  state->msg = "not a offset";
+  fns = (struct thunk **)(void *)"not a offset";
   MUSTTAIL return panic(ARGS);
 }
 

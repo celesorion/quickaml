@@ -134,7 +134,6 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
   st.fns = fns;
   st.numfn = numfn;
   st.numobject = numobject;
-  st.msg = nullptr;
 
   fiber->state = &st;
   fiber->parent = nullptr;

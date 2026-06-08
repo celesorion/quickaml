@@ -33,7 +33,6 @@ struct state {
   struct thunk **fns;
   size_t numfn;
   size_t numobject;
-  const char *msg;
   struct runtime_args *rtargs;
 };
 

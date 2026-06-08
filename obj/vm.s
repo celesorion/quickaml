@@ -2059,12 +2059,10 @@ LBB47_7:
 _undefined:                             ; @undefined
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh21:
-	adrp	x9, l_.str.6@PAGE
+	adrp	x25, l_.str.6@PAGE
 Lloh22:
-	add	x9, x9, l_.str.6@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.6@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh21, Lloh22
 	.cfi_endproc
@@ -2081,12 +2079,10 @@ LBB49_1:                                ; =>This Inner Loop Header: Depth=1
 _unusedexta:                            ; @unusedexta
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh23:
-	adrp	x9, l_.str.8@PAGE
+	adrp	x25, l_.str.8@PAGE
 Lloh24:
-	add	x9, x9, l_.str.8@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.8@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh23, Lloh24
 	.cfi_endproc
@@ -2095,12 +2091,10 @@ Lloh24:
 _assertionfailed:                       ; @assertionfailed
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh25:
-	adrp	x9, l_.str.9@PAGE
+	adrp	x25, l_.str.9@PAGE
 Lloh26:
-	add	x9, x9, l_.str.9@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.9@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh25, Lloh26
 	.cfi_endproc
@@ -2109,12 +2103,10 @@ Lloh26:
 _invalidtrap:                           ; @invalidtrap
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh27:
-	adrp	x9, l_.str.10@PAGE
+	adrp	x25, l_.str.10@PAGE
 Lloh28:
-	add	x9, x9, l_.str.10@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.10@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh27, Lloh28
 	.cfi_endproc
@@ -2129,15 +2121,13 @@ _panic:                                 ; @panic
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
-	ldr	x8, [x23]
 Lloh29:
-	adrp	x9, ___stderrp@GOTPAGE
+	adrp	x8, ___stderrp@GOTPAGE
 Lloh30:
-	ldr	x9, [x9, ___stderrp@GOTPAGEOFF]
+	ldr	x8, [x8, ___stderrp@GOTPAGEOFF]
 Lloh31:
-	ldr	x0, [x9]
-	ldr	x8, [x8, #40]
-	str	x8, [sp]
+	ldr	x0, [x8]
+	str	x25, [sp]
 Lloh32:
 	adrp	x1, l_.str.7@PAGE
 Lloh33:
@@ -2153,12 +2143,10 @@ Lloh33:
 _unimplemented:                         ; @unimplemented
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh34:
-	adrp	x9, l_.str.11@PAGE
+	adrp	x25, l_.str.11@PAGE
 Lloh35:
-	add	x9, x9, l_.str.11@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.11@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh34, Lloh35
 	.cfi_endproc
@@ -2167,12 +2155,10 @@ Lloh35:
 _stackoverflow:                         ; @stackoverflow
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh36:
-	adrp	x9, l_.str.12@PAGE
+	adrp	x25, l_.str.12@PAGE
 Lloh37:
-	add	x9, x9, l_.str.12@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.12@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh36, Lloh37
 	.cfi_endproc
@@ -2209,12 +2195,10 @@ _thunk_alloc_instance:                  ; @thunk_alloc_instance
 _invalidlayout:                         ; @invalidlayout
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh38:
-	adrp	x9, l_.str.13@PAGE
+	adrp	x25, l_.str.13@PAGE
 Lloh39:
-	add	x9, x9, l_.str.13@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.13@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh38, Lloh39
 	.cfi_endproc
@@ -2223,12 +2207,10 @@ Lloh39:
 _notaoffset:                            ; @notaoffset
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh40:
-	adrp	x9, l_.str.14@PAGE
+	adrp	x25, l_.str.14@PAGE
 Lloh41:
-	add	x9, x9, l_.str.14@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.14@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh40, Lloh41
 	.cfi_endproc
@@ -2324,12 +2306,10 @@ LBB59_18:
 _notanumber:                            ; @notanumber
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23]
 Lloh42:
-	adrp	x9, l_.str.15@PAGE
+	adrp	x25, l_.str.15@PAGE
 Lloh43:
-	add	x9, x9, l_.str.15@PAGEOFF
-	str	x9, [x8, #40]
+	add	x25, x25, l_.str.15@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh42, Lloh43
 	.cfi_endproc
