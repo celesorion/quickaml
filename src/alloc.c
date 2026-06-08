@@ -89,10 +89,11 @@ COLD_HELPER void gc_store_field_slow(struct heap *h, val_t value) {
 
 /* ---------- root scanning ---------- */
 
-static void gc_scan_roots(struct state *restrict st, struct heap *h,
-                          val_t *restrict bp) {
+static void gc_scan_stack_roots(struct heap *h,
+                                struct fiber_segment *restrict fiber,
+                                val_t *restrict bp) {
   val_t *cur_bp = bp;
-  val_t *stk_base = st->stk;
+  val_t *stk_base = fiber->stk;
 
   while (cur_bp > stk_base + 2 * FRAME_HEADER_SIZE) {
     val_t fn_val = frame_rv(cur_bp);
@@ -123,6 +124,17 @@ static void gc_scan_roots(struct state *restrict st, struct heap *h,
       for (size_t i = 0; i < thunk->nconst; i++)
         shade_value(h, thunk->ctbl[i]);
     }
+  }
+}
+
+static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
+                          val_t *restrict bp) {
+  gc_scan_stack_roots(h, fiber, bp);
+
+  for (struct fiber_segment *parent = fiber->parent; parent != nullptr;
+       parent = parent->parent) {
+    val_t *parent_bp = parent->stk + parent->stklimit.inactive.used_slots;
+    gc_scan_stack_roots(h, parent, parent_bp);
   }
 }
 
@@ -260,16 +272,16 @@ static void gc_sweep_to_fixpoint(struct heap *h) {
     gc_sweep_step(h, SIZE_MAX);
 }
 
-static void gc_start_cycle(struct state *restrict st, struct heap *h,
+static void gc_start_cycle(struct fiber_segment *restrict fiber, struct heap *h,
                            val_t *restrict bp) {
   h->phase = GC_MARK;
   h->gray = nullptr;
-  gc_scan_roots(st, h, bp);
+  gc_scan_roots(fiber, h, bp);
 }
 
-static void gc_finish_mark(struct state *restrict st, struct heap *h,
+static void gc_finish_mark(struct fiber_segment *restrict fiber, struct heap *h,
                            val_t *restrict bp) {
-  gc_scan_roots(st, h, bp);
+  gc_scan_roots(fiber, h, bp);
   gc_mark_to_fixpoint(h);
   gc_begin_sweep(h);
 }
@@ -278,16 +290,16 @@ static void gc_finish_sweep(struct heap *h) {
   gc_sweep_to_fixpoint(h);
 }
 
-static void gc_finish_cycle(struct state *restrict st, struct heap *h,
+static void gc_finish_cycle(struct fiber_segment *restrict fiber, struct heap *h,
                             val_t *restrict bp) {
   switch (h->phase) {
   case GC_IDLE:
-    gc_start_cycle(st, h, bp);
-    gc_finish_mark(st, h, bp);
+    gc_start_cycle(fiber, h, bp);
+    gc_finish_mark(fiber, h, bp);
     gc_finish_sweep(h);
     break;
   case GC_MARK:
-    gc_finish_mark(st, h, bp);
+    gc_finish_mark(fiber, h, bp);
     gc_finish_sweep(h);
     break;
   case GC_SWEEP:
@@ -298,21 +310,22 @@ static void gc_finish_cycle(struct state *restrict st, struct heap *h,
 
 /* ---------- gc poll (safepoint) ---------- */
 
-COLD_HELPER void gc_poll_slow(struct state *restrict st, val_t *restrict bp,
-                              size_t credit) {
+COLD_HELPER void gc_poll_slow(struct fiber_segment *restrict fiber,
+                              val_t *restrict bp, size_t credit) {
+  struct state *st = fiber->state;
   struct heap *h = st->heap;
 
   if (h->phase == GC_IDLE) {
     if (h->allocated_bytes >= h->trigger_bytes) {
-      gc_start_cycle(st, h, bp);
+      gc_start_cycle(fiber, h, bp);
     } else {
-      gc_poll_refresh(st);
+      gc_poll_refresh(st, fiber);
       return;
     }
   }
 
   if (h->phase == GC_MARK) {
-    gc_scan_roots(st, h, bp);
+    gc_scan_roots(fiber, h, bp);
     size_t work = gc_mark_step(h, credit);
     credit = work < credit ? credit - work : 0;
 
@@ -321,14 +334,14 @@ COLD_HELPER void gc_poll_slow(struct state *restrict st, val_t *restrict bp,
       if (credit > 0)
         gc_sweep_step(h, credit);
     }
-    gc_poll_refresh(st);
+    gc_poll_refresh(st, fiber);
     return;
   }
 
   if (h->phase == GC_SWEEP)
     gc_sweep_step(h, credit);
 
-  gc_poll_refresh(st);
+  gc_poll_refresh(st, fiber);
 }
 
 /* ---------- heap init/deinit ---------- */
@@ -410,50 +423,55 @@ COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref,
   }
 }
 
-static void *gc_sweep_until_allocable(struct state *restrict st, size_t n) {
+static void *gc_sweep_until_allocable(struct state *restrict st,
+                                      struct fiber_segment *restrict fiber,
+                                      size_t n) {
   struct heap *h = st->heap;
 
   while (h->phase == GC_SWEEP) {
     gc_sweep_step(h, 4096);
     h->stats.sweep_assist_steps++;
     void *p = freelist_alloc(h, n);
-    gc_poll_refresh(st);
+    gc_poll_refresh(st, fiber);
     if (p)
       return p;
   }
 
   void *p = freelist_alloc(h, n);
-  gc_poll_refresh(st);
+  gc_poll_refresh(st, fiber);
   return p;
 }
 
-[[gnu::noinline]] static void *alloc_object_fallback(struct state *restrict st,
-                                                     size_t n, val_t *bp) {
+[[gnu::noinline]] static void *
+alloc_object_fallback(struct state *restrict st,
+                      struct fiber_segment *restrict fiber, size_t n,
+                      val_t *bp) {
   struct heap *heap = st->heap;
   heap->stats.forced_finish_cycles++;
-  gc_finish_cycle(st, heap, bp);
+  gc_finish_cycle(fiber, heap, bp);
   void *p = freelist_alloc(heap, n);
-  gc_poll_refresh(st);
+  gc_poll_refresh(st, fiber);
   return p;
 }
 
-COLD_HELPER void *alloc_object(size_t n, struct state *restrict st,
+COLD_HELPER void *alloc_object(size_t n, struct fiber_segment *restrict fiber,
                                val_t *restrict bp) {
+  struct state *st = fiber->state;
   n = object_align(n);
   void *p = freelist_alloc(st->heap, n);
   if (p != nullptr) {
-    gc_poll_refresh(st);
+    gc_poll_refresh(st, fiber);
     return p;
   }
 
   trace(st, TRACE_0, "alloc_object: free list exhausted, collecting garbage");
 
   if (st->heap->phase == GC_SWEEP) {
-    p = gc_sweep_until_allocable(st, n);
+    p = gc_sweep_until_allocable(st, fiber, n);
     if (p != nullptr)
       return p;
     return nullptr;
   }
 
-  return alloc_object_fallback(st, n, bp);
+  return alloc_object_fallback(st, fiber, n, bp);
 }

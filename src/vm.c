@@ -22,12 +22,13 @@ INLINE double fast_fmod(double a, double b) {
 }
 
 [[gnu::noinline]]
-status_t vm_entry(struct state *state) {
+status_t vm_entry(struct fiber_segment *fiber) {
+  struct state *state = fiber->state;
   bc_t *ip = state->entry->ops;
-  val_t *bp = next_bp(state->stk, FRAME_HEADER_SIZE);
+  val_t *bp = next_bp(fiber->stk, FRAME_HEADER_SIZE);
   frame_rv(bp) = val_from_ptr(state->entry);
   frame_ra(bp) = 0;
-  state->ctbl = state->entry->ctbl;
+  fiber->ctbl = state->entry->ctbl;
   struct thunk **fns = state->fns;
 
   [[maybe_unused]] uint8_t a3a, a3b, a3c;
@@ -40,60 +41,70 @@ status_t vm_entry(struct state *state) {
 
 THREADED
 void panic(PARAMS) {
+  struct state *state = fiber->state;
   fprintf(stderr, "panic: %s\n", state->msg);
   exit(255);
 }
 
 THREADED
 void stackoverflow(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "stack overflow";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void unimplemented(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "unimplemented";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void undefined(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "invalid bytecode";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void invalidlayout(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "invalid layout";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void assertionfailed(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "assertion failed";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void invalidtrap(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "invalid trap id";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void unusedexta(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "unused extra arguments";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void notanumber(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "not a number";
   MUSTTAIL return panic(ARGS);
 }
 
 THREADED
 void notaoffset(PARAMS) {
+  struct state *state = fiber->state;
   state->msg = "not a offset";
   MUSTTAIL return panic(ARGS);
 }
@@ -161,6 +172,7 @@ INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
   } while (0)
 
 OP_DEFINITION(Trap) {
+  struct state *state = fiber->state;
   ssz_t tid = ARG3A;
   switch (tid) {
   case T_UNDEFINED:
@@ -236,7 +248,7 @@ OP_DEFINITION(LoadC) {
   ssz_t dst = ARG2A;
   val_t cidx = ARG2B;
 
-  bp[dst] = state->ctbl[cidx];
+  bp[dst] = fiber->ctbl[cidx];
 
   DISPATCH();
 }
@@ -280,16 +292,16 @@ OP_DEFINITION(Apply) {
   bc_t *oldip = ip;
   ip = thunk->ops;
 
-  gc_poll(state, bp, 256);
+  gc_poll(fiber, bp, 256);
 
   bp = next_bp(bp, ithunk);
-  if (unlikely(bp >= state->stklimit)) {
+  if (unlikely(bp >= fiber->stklimit.active)) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
   frame_rv(bp) = val_from_ptr(thunk);
   frame_ra(bp) = ptr2val(oldip);
-  state->ctbl = thunk->ctbl;
+  fiber->ctbl = thunk->ctbl;
 
   DISPATCH();
 }
@@ -303,16 +315,16 @@ OP_DEFINITION(Call) {
   bc_t *oldip = ip;
   ip = thunk->ops;
 
-  gc_poll(state, bp, 256);
+  gc_poll(fiber, bp, 256);
 
   bp = next_bp(bp, dst);
-  if (unlikely(bp >= state->stklimit)) {
+  if (unlikely(bp >= fiber->stklimit.active)) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
   frame_rv(bp) = val_from_ptr(thunk);
   frame_ra(bp) = ptr2val(oldip);
-  state->ctbl = thunk->ctbl;
+  fiber->ctbl = thunk->ctbl;
 
   DISPATCH();
 }
@@ -326,7 +338,7 @@ OP_DEFINITION(Retu) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  state->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
+  fiber->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
@@ -342,7 +354,7 @@ OP_DEFINITION(Ret) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  state->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
+  fiber->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
@@ -362,33 +374,35 @@ OP_DEFINITION(Retn) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  state->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
+  fiber->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
 
   DISPATCH();
 }
 
 COLD_HELPER static struct thunk *
-thunk_alloc_instance(struct state *restrict state, struct thunk *template,
-                     val_t *restrict bp) {
+thunk_alloc_instance(struct fiber_segment *restrict fiber,
+                     struct thunk *template, val_t *restrict bp) {
   size_t size = thunk_instance_size(template->nfree);
-  struct thunk *thunk = alloc_object(size, state, bp);
+  struct thunk *thunk = alloc_object(size, fiber, bp);
   thunk_instance_init(thunk, template);
   return thunk;
 }
 
 OP_DEFINITION(Clos) {
+  struct state *state = fiber->state;
   ssz_t dst = ARG2A;
   ssz_t fx = ARG2B;
 
-  struct thunk *thunk = thunk_alloc_instance(state, fns[fx], bp);
+  struct thunk *thunk = thunk_alloc_instance(fiber, fns[fx], bp);
 
   gc_publish_new_object(state->heap, thunk, OBJ_THUNK);
   bp[dst] = val_from_ptr(thunk);
-  gc_poll(state, bp, obj_size(thunk));
+  gc_poll(fiber, bp, obj_size(thunk));
   DISPATCH();
 }
 
 OP_DEFINITION(WObj) {
+  struct state *state = fiber->state;
   ssz_t fld = ARG3A;
   ssz_t tag = ARG3B;
   ssz_t len = ARG3C;
@@ -397,19 +411,20 @@ OP_DEFINITION(WObj) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
-  struct object *obj = alloc_object(object_size(len), state, bp);
+  struct object *obj = alloc_object(object_size(len), fiber, bp);
   object_init(obj, (uint16_t)tag, len);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
 
   gc_publish_new_object(state->heap, obj, OBJ_WORDS);
   bp[fld] = val_from_ptr(obj);
-  gc_poll(state, bp, object_size(len));
+  gc_poll(fiber, bp, object_size(len));
 
   DISPATCH();
 }
 
 OP_DEFINITION(MObj) {
+  struct state *state = fiber->state;
   ssz_t dst = ARG3A;
   ssz_t tag = ARG3B;
   ssz_t src = ARG3C;
@@ -521,7 +536,7 @@ THREADED void vm_op_arith_dc_fallback(PARAMS) {
     lhs = val_as_f64_macro(lv, ft);
   else
     MUSTTAIL return notanumber(ARGS);
-  val_t rv = state->ctbl[ARG3Z];
+  val_t rv = fiber->ctbl[ARG3Z];
   double rhs;
   if (val_is_int_macro(rv, ft))
     rhs = (double)val_as_i32_macro(rv, ft);
@@ -607,7 +622,7 @@ THREADED void vm_op_arith_dd_fallback(PARAMS) {
     ssz_t dst = ARG3X;                                                         \
     ssz_t o1 = ARG3Y;                                                          \
     val_t v1 = bp[o1];                                                         \
-    val_t v2 = state->ctbl[ARG3Z];                                             \
+    val_t v2 = fiber->ctbl[ARG3Z];                                             \
     if (val_is_int_macro(v1, ft)) {                                            \
       if (val_is_int_macro(v2, ft)) {                                          \
         int32_t lhs = val_as_i32_macro(v1, ft);                                \
@@ -640,7 +655,7 @@ OP_DEFINITION(DivDC) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   val_t v1 = bp[o1];
-  val_t v2 = state->ctbl[ARG3Z];
+  val_t v2 = fiber->ctbl[ARG3Z];
   if (val_is_int_macro(v1, ft)) {
     if (val_is_int_macro(v2, ft)) {
       int32_t lhs = val_as_i32_macro(v1, ft);
@@ -674,7 +689,7 @@ OP_DEFINITION(RemDC) {
   ssz_t dst = ARG3X;
   ssz_t o1 = ARG3Y;
   val_t v1 = bp[o1];
-  val_t v2 = state->ctbl[ARG3Z];
+  val_t v2 = fiber->ctbl[ARG3Z];
   if (val_is_int_macro(v1, ft)) {
     if (val_is_int_macro(v2, ft)) {
       int32_t lhs = val_as_i32_macro(v1, ft);
@@ -831,7 +846,7 @@ THREADED void vm_op_compare_di_fallback(PARAMS) {
 
 THREADED void vm_op_compare_dc_fallback(PARAMS) {
   ip--;
-  val_t lv = bp[ARG2A], rv = state->ctbl[ARG2B];
+  val_t lv = bp[ARG2A], rv = fiber->ctbl[ARG2B];
   op_t op = gOP(ip[-1]);
   if (cmp_is_eq(op)) {
     if (val_eq(lv, rv, ft))
@@ -878,7 +893,7 @@ THREADED void vm_op_compare_dd_fallback(PARAMS) {
 #define SC_ON_TRUE                                                             \
   do {                                                                         \
     SC_STORE(dst, invert, true);                                               \
-    ip += state->sc_jump;                                                      \
+    ip += fiber->sc_jump;                                                      \
   } while (0)
 #define SC_ON_FALSE SC_STORE(dst, invert, false)
 
@@ -888,7 +903,7 @@ THREADED void vm_op_compare_setc_fallback(PARAMS) {
   bc_t ci = ip[-1];
   op_t op = gOP(ci);
   val_t lv = bp[g3A(ci)];
-  val_t rv = (op >= CmpEqDD) ? bp[g2B(ci)] : state->ctbl[g2B(ci)];
+  val_t rv = (op >= CmpEqDD) ? bp[g2B(ci)] : fiber->ctbl[g2B(ci)];
   bool r;
   if (cmp_is_eq(op)) {
     r = val_eq(lv, rv, ft);
@@ -902,7 +917,7 @@ THREADED void vm_op_compare_setc_fallback(PARAMS) {
   }
   SC_STORE(dst, invert, r);
   if (r)
-    ip += state->sc_jump;
+    ip += fiber->sc_jump;
   DISPATCH();
 }
 
@@ -937,7 +952,7 @@ THREADED void vm_op_setcond_bad_op(PARAMS) {
     ssz_t dst = ARG2A;                                                         \
     bool invert = ARG2B != 0;                                                  \
     bc_t ci = ip[-1];                                                          \
-    CMP_NUM(op_, bp[g3A(ci)], state->ctbl[g2B(ci)],                            \
+    CMP_NUM(op_, bp[g3A(ci)], fiber->ctbl[g2B(ci)],                            \
             vm_op_compare_setc_fallback(ARGS), SC_ON_TRUE, SC_ON_FALSE);       \
     DISPATCH();                                                                \
   }
@@ -969,7 +984,7 @@ SETC_DD_OP_DEFINITION(setc_CmpGtDD, >)
 SETC_DD_OP_DEFINITION(setc_CmpGeDD, >=)
 
 OP_DEFINITION(SetCond) {
-  state->sc_jump = 0;
+  fiber->sc_jump = 0;
 
   FETCH_INSN();
   DECODE_OP();
@@ -983,7 +998,7 @@ OP_DEFINITION(SetCond) {
 }
 
 OP_DEFINITION(SetCondJ) {
-  state->sc_jump = 1;
+  fiber->sc_jump = 1;
 
   FETCH_INSN();
   DECODE_OP();
@@ -1019,7 +1034,7 @@ OP_DEFINITION(CmpNeDI) {
 #define DEFINE_OP_CMP_DC(name_, op_)                                           \
   OP_DEFINITION(name_) {                                                       \
     NEXT_INSN(ji);                                                             \
-    CMP_NUM(op_, bp[ARG2A], state->ctbl[ARG2B],                                \
+    CMP_NUM(op_, bp[ARG2A], fiber->ctbl[ARG2B],                                \
             vm_op_compare_dc_fallback(ARGS), ((void)0),                        \
             COND_NEXT_IP(false, ji));                                          \
     DISPATCH();                                                                \

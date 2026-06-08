@@ -21,20 +21,20 @@
   [[maybe_unused]] bc_t *restrict ip, [[maybe_unused]] uint16_t a2b,           \
       [[maybe_unused]] uint8_t a3a, [[maybe_unused]] val_t *restrict bp,       \
       [[maybe_unused]] uint64_t ft,                                            \
-      [[maybe_unused]] struct state *restrict state,                           \
+      [[maybe_unused]] struct fiber_segment *restrict fiber,                   \
       [[maybe_unused]] const void *restrict dispatch,                          \
       [[maybe_unused]] struct thunk *restrict fns[]
 
-#define ARGS_IMPL_1 ip, a2b, a3a, bp, ft, state, dispatch, fns
+#define ARGS_IMPL_1 ip, a2b, a3a, bp, ft, fiber, dispatch, fns
 
 #define PARAMS_IMPL_2                                                          \
   [[maybe_unused]] bc_t *restrict ip, [[maybe_unused]] uint16_t a2b,           \
       [[maybe_unused]] uint8_t a3a, [[maybe_unused]] val_t *restrict bp,       \
       [[maybe_unused]] uint64_t ft,                                            \
-      [[maybe_unused]] struct state *restrict state,                           \
+      [[maybe_unused]] struct fiber_segment *restrict fiber,                   \
       [[maybe_unused]] const void *restrict dispatch,                          \
       [[maybe_unused]] struct thunk *restrict fns[]
-#define ARGS_IMPL_2 ip, a2b, a3a, bp, ft, state, dispatch, fns
+#define ARGS_IMPL_2 ip, a2b, a3a, bp, ft, fiber, dispatch, fns
 
 #define REPLICATED_DISPATCH() MUSTTAIL return DP(dispatch, op)(ARGS)
 #define NONTAILDISPATCH()                                                      \
@@ -161,7 +161,7 @@
   ((int##to##_t)(int##from##_t)(uint##from##_t)(x))
 #define zero_extend(x, from, to) ((uint##to##_t)(uint##from##_t)(x))
 
-status_t vm_entry(struct state *state);
+status_t vm_entry(struct fiber_segment *fiber);
 status_t vm_exec(struct thunk *entry, struct thunk **fns, size_t numfn,
                  size_t numobject, size_t stack_slots, val_t *result);
 status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,

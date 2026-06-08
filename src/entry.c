@@ -8,7 +8,10 @@
 #include <inttypes.h>
 #include <string.h>
 
-status_t exec(struct state *state) { return vm_entry(state); }
+status_t exec(struct state *state) {
+  (void)state;
+  return S_BAD_OP;
+}
 
 struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
                              size_t nconst, uint8_t nregs, size_t nfree) {
@@ -109,17 +112,21 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            val_t *result, struct runtime_args *rargs,
                            struct gc_stats *stats_out) {
   struct state st;
-  val_t *stk = calloc(stack_slots, sizeof(val_t));
+  if (stack_slots > UINT32_MAX ||
+      stack_slots > (SIZE_MAX - sizeof(struct fiber_segment)) / sizeof(val_t))
+    return S_LIMIT;
 
-  if (stk == nullptr)
+  struct fiber_segment *fiber =
+      calloc(1, sizeof(*fiber) + stack_slots * sizeof(val_t));
+  if (fiber == nullptr)
     return S_LIMIT;
   if (!heap_init(&global_heap, rargs)) {
-    free(stk);
+    free(fiber);
     return S_HEAP_INIT_FAILED;
   }
   if (!state_init(&st, &global_heap, rargs)) {
     heap_deinit(&global_heap);
-    free(stk);
+    free(fiber);
     return S_STATE_INIT_FAILED;
   }
 
@@ -127,14 +134,21 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
   st.fns = fns;
   st.numfn = numfn;
   st.numobject = numobject;
-  st.ctbl = entry->ctbl;
-  st.stk = stk;
-  st.stklimit = stk + stack_slots;
   st.msg = nullptr;
 
-  status_t status = vm_entry(&st);
+  fiber->state = &st;
+  fiber->parent = nullptr;
+  fiber->ctbl = entry->ctbl;
+  fiber->sync_addr = VAL_EMPTY;
+  fiber->spawn_addr = VAL_EMPTY;
+  fiber->effect_hnd = VAL_EMPTY;
+  fiber->stklimit.active = fiber->stk + stack_slots;
+  fiber->sc_jump = false;
+  fiber->gc_poll_not_required = true;
+
+  status_t status = vm_entry(fiber);
   if (result != nullptr) {
-    val_t *bp = next_bp(st.stk, FRAME_HEADER_SIZE);
+    val_t *bp = next_bp(fiber->stk, FRAME_HEADER_SIZE);
     *result = bp[0];
   }
 
@@ -142,7 +156,7 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
     *stats_out = global_heap.stats;
 
   heap_deinit(&global_heap);
-  free(stk);
+  free(fiber);
   return status;
 }
 

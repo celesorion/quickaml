@@ -38,25 +38,25 @@ _vm_entry:                              ; @vm_entry
 	.cfi_offset b14, -152
 	.cfi_offset b15, -160
 	mov	x23, x0
-	ldp	x8, x25, [x0, #8]
-	ldr	x20, [x8, #16]
-	ldr	x9, [x0, #48]
-	stp	x8, xzr, [x9, #16]
-	ldr	x8, [x8, #32]
-	str	x8, [x0, #40]
+	ldr	x8, [x0]
+	ldp	x9, x25, [x8, #8]
+	ldr	x20, [x9, #16]
+	stp	x9, xzr, [x0, #80]
+	ldr	x8, [x9, #32]
+	str	x8, [x0, #16]
 	ldr	w8, [x20], #4
-	and	x10, x8, #0xff
+	and	x9, x8, #0xff
 	ubfx	x0, x8, #16, #16
 Lloh0:
 	adrp	x24, _dispatch@PAGE
 Lloh1:
 	add	x24, x24, _dispatch@PAGEOFF
-	ldr	x10, [x24, x10, lsl #3]
+	ldr	x9, [x24, x9, lsl #3]
 	ubfx	w1, w8, #8, #8
-	add	x21, x9, #32
+	add	x21, x23, #96
                                         ; kill: def $w0 killed $w0 killed $x0
 	mov	x22, #-562949953421312          ; =0xfffe000000000000
-	blr	x10
+	blr	x9
 	mov	w0, #0                          ; =0x0
 	ldp	x29, x30, [sp, #144]            ; 16-byte Folded Reload
 	ldp	x20, x19, [sp, #128]            ; 16-byte Folded Reload
@@ -153,7 +153,8 @@ LBB1_13:
 	cmp	w1, #8
 	b.ne	LBB1_23
 ; %bb.15:
-	ldr	x0, [x23]
+	ldr	x8, [x23]
+	ldr	x0, [x8]
 	bl	_heap_stat_print
 	b	LBB1_22
 LBB1_16:
@@ -295,7 +296,7 @@ _vm_op_LoaduI:                          ; @vm_op_LoaduI
 _vm_op_LoadC:                           ; @vm_op_LoadC
 	.cfi_startproc
 ; %bb.0:
-	ldr	x8, [x23, #40]
+	ldr	x8, [x23, #16]
 	ldr	x8, [x8, w0, uxtw #3]
 	str	x8, [x21, w1, uxtw #3]
 	ldr	w8, [x20], #4
@@ -361,18 +362,18 @@ _vm_op_Apply:                           ; @vm_op_Apply
 	mov	w11, w1
 	ldr	x10, [x21, w1, uxtw #3]
 	ldr	x20, [x10, #16]
-	ldrb	w8, [x23, #81]
+	ldrb	w8, [x23, #57]
 	tbz	w8, #0, LBB10_3
 ; %bb.1:
 	add	x8, x21, x11, lsl #3
 	add	x21, x8, #16
-	ldr	x8, [x23, #56]
+	ldr	x8, [x23, #48]
 	cmp	x21, x8
 	b.hs	LBB10_4
 LBB10_2:
 	stp	x10, x9, [x21, #-16]
 	ldr	x8, [x10, #32]
-	str	x8, [x23, #40]
+	str	x8, [x23, #16]
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
 	ldr	x2, [x24, x9, lsl #3]
@@ -392,7 +393,7 @@ LBB10_3:
 	mov	x1, x13
 	add	x8, x21, x11, lsl #3
 	add	x21, x8, #16
-	ldr	x8, [x23, #56]
+	ldr	x8, [x23, #48]
 	cmp	x21, x8
 	b.lo	LBB10_2
 LBB10_4:
@@ -412,18 +413,18 @@ _vm_op_Call:                            ; @vm_op_Call
 	mov	x9, x20
 	ldr	x10, [x25, w0, uxtw #3]
 	ldr	x20, [x10, #16]
-	ldrb	w8, [x23, #81]
+	ldrb	w8, [x23, #57]
 	tbz	w8, #0, LBB11_3
 ; %bb.1:
 	add	x8, x21, w1, uxtw #3
 	add	x21, x8, #16
-	ldr	x8, [x23, #56]
+	ldr	x8, [x23, #48]
 	cmp	x21, x8
 	b.hs	LBB11_4
 LBB11_2:
 	stp	x10, x9, [x21, #-16]
 	ldr	x8, [x10, #32]
-	str	x8, [x23, #40]
+	str	x8, [x23, #16]
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
 	ldr	x2, [x24, x9, lsl #3]
@@ -443,7 +444,7 @@ LBB11_3:
 	mov	x1, x12
 	add	x8, x21, w1, uxtw #3
 	add	x21, x8, #16
-	ldr	x8, [x23, #56]
+	ldr	x8, [x23, #48]
 	cmp	x21, x8
 	b.lo	LBB11_2
 LBB11_4:
@@ -461,7 +462,7 @@ _vm_op_Retu:                            ; @vm_op_Retu
 	sub	x21, x21, x9, lsl #3
 	ldur	x9, [x21, #-16]
 	ldr	x9, [x9, #32]
-	str	x9, [x23, #40]
+	str	x9, [x23, #16]
 	ldr	w9, [x8]
 	and	x10, x9, #0xff
 	ldr	x2, [x24, x10, lsl #3]
@@ -483,7 +484,7 @@ _vm_op_Ret:                             ; @vm_op_Ret
 	sub	x21, x21, x9, lsl #3
 	ldur	x9, [x21, #-16]
 	ldr	x9, [x9, #32]
-	str	x9, [x23, #40]
+	str	x9, [x23, #16]
 	ldr	w9, [x8]
 	and	x10, x9, #0xff
 	ldr	x2, [x24, x10, lsl #3]
@@ -540,7 +541,7 @@ LBB14_8:
 	sub	x21, x9, x10, lsl #3
 	ldur	x9, [x21, #-16]
 	ldr	x9, [x9, #32]
-	str	x9, [x23, #40]
+	str	x9, [x23, #16]
 	ldr	w9, [x8]
 	and	x10, x9, #0xff
 	ldr	x2, [x24, x10, lsl #3]
@@ -561,17 +562,18 @@ _vm_op_Clos:                            ; @vm_op_Clos
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
 	mov	x10, x1
+	ldr	x11, [x23]
 	ldr	x1, [x25, w0, uxtw #3]
 	mov	x0, x23
 	mov	x2, x21
 	bl	_thunk_alloc_instance
 	mov	x9, x0
-	ldr	x0, [x23]
+	ldr	x0, [x11]
 	mov	x1, x9
 	mov	w2, #2                          ; =0x2
 	bl	_gc_publish_new_object
 	str	x9, [x21, w10, uxtw #3]
-	ldrb	w8, [x23, #81]
+	ldrb	w8, [x23, #57]
 	tbz	w8, #0, LBB15_2
 LBB15_1:
 	ldr	w8, [x20], #4
@@ -596,8 +598,9 @@ _vm_op_WObj:                            ; @vm_op_WObj
 ; %bb.0:
 	mov	x9, x1
 	mov	x12, x0
+	ldr	x15, [x23]
 	and	w13, w0, #0xff
-	ldr	x8, [x23, #32]
+	ldr	x8, [x15, #32]
 	cmp	x8, x13
 	b.lo	LBB16_12
 ; %bb.1:
@@ -625,8 +628,8 @@ _vm_op_WObj:                            ; @vm_op_WObj
 	b.ls	LBB16_4
 ; %bb.3:
 	lsl	x12, x8, #3
-	add	x15, x12, x21
-	sub	x12, x10, x15
+	add	x16, x12, x21
+	sub	x12, x10, x16
 	add	x12, x12, #16
 	cmp	x12, #64
 	b.hs	LBB16_9
@@ -645,12 +648,12 @@ LBB16_6:                                ; =>This Inner Loop Header: Depth=1
 	subs	x11, x11, #1
 	b.ne	LBB16_6
 LBB16_7:
-	ldr	x0, [x23]
+	ldr	x0, [x15]
 	mov	x1, x10
 	mov	w2, #0                          ; =0x0
 	bl	_gc_publish_new_object
 	str	x10, [x21, w9, uxtw #3]
-	ldrb	w8, [x23, #81]
+	ldrb	w8, [x23, #57]
 	tbz	w8, #0, LBB16_13
 LBB16_8:
 	ldr	w8, [x20], #4
@@ -664,15 +667,15 @@ LBB16_8:
 LBB16_9:
 	and	x12, x11, #0xf8
 	add	x13, x10, #64
-	add	x15, x15, #32
-	mov	x16, x12
+	add	x16, x16, #32
+	mov	x17, x12
 LBB16_10:                               ; =>This Inner Loop Header: Depth=1
-	ldp	q0, q1, [x15, #-32]
-	ldp	q2, q3, [x15], #64
+	ldp	q0, q1, [x16, #-32]
+	ldp	q2, q3, [x16], #64
 	stp	q0, q1, [x13, #-48]
 	stp	q2, q3, [x13, #-16]
 	add	x13, x13, #64
-	subs	x16, x16, #8
+	subs	x17, x17, #8
 	b.ne	LBB16_10
 ; %bb.11:
 	cmp	x12, x11
@@ -716,7 +719,8 @@ _vm_op_MObj:                            ; @vm_op_MObj
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
 LBB17_2:
-	ldr	x10, [x23, #32]
+	ldr	x10, [x23]
+	ldr	x10, [x10, #32]
 	cmp	x10, w8, uxtw
 	b.lo	LBB17_4
 ; %bb.3:
@@ -777,7 +781,7 @@ _vm_op_AddDC:                           ; @vm_op_AddDC
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x23, #40]
+	ldr	x9, [x23, #16]
 	and	w10, w0, #0xff
 	ldr	x9, [x9, w10, uxtw #3]
 	and	x10, x8, x22
@@ -828,7 +832,7 @@ _vm_op_SubDC:                           ; @vm_op_SubDC
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x23, #40]
+	ldr	x9, [x23, #16]
 	and	w10, w0, #0xff
 	ldr	x9, [x9, w10, uxtw #3]
 	and	x10, x8, x22
@@ -879,7 +883,7 @@ _vm_op_MulDC:                           ; @vm_op_MulDC
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x23, #40]
+	ldr	x9, [x23, #16]
 	and	w10, w0, #0xff
 	ldr	x9, [x9, w10, uxtw #3]
 	and	x10, x8, x22
@@ -932,7 +936,7 @@ _vm_op_DivDC:                           ; @vm_op_DivDC
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x23, #40]
+	ldr	x9, [x23, #16]
 	and	w10, w0, #0xff
 	ldr	x9, [x9, w10, uxtw #3]
 	and	x10, x8, x22
@@ -992,7 +996,7 @@ _vm_op_RemDC:                           ; @vm_op_RemDC
 	.cfi_startproc
 ; %bb.0:
 	ldr	x8, [x21, w1, uxtw #3]
-	ldr	x9, [x23, #40]
+	ldr	x9, [x23, #16]
 	and	w10, w0, #0xff
 	ldr	x9, [x9, w10, uxtw #3]
 	and	x10, x8, x22
@@ -1352,7 +1356,7 @@ LBB30_5:
 _vm_op_SetCond:                         ; @vm_op_SetCond
 	.cfi_startproc
 ; %bb.0:
-	strb	wzr, [x23, #80]
+	strb	wzr, [x23, #56]
 	ldrb	w8, [x20], #4
 	sub	w8, w8, #32
 	cmp	w8, #15
@@ -1374,7 +1378,7 @@ _vm_op_SetCondJ:                        ; @vm_op_SetCondJ
 	.cfi_startproc
 ; %bb.0:
 	mov	w8, #1                          ; =0x1
-	strb	w8, [x23, #80]
+	strb	w8, [x23, #56]
 	ldrb	w8, [x20], #4
 	sub	w8, w8, #32
 	cmp	w8, #15
@@ -1495,7 +1499,7 @@ _vm_op_CmpEqDC:                         ; @vm_op_CmpEqDC
 ; %bb.0:
 	ldr	w8, [x20], #4
 	ldr	x9, [x21, w1, uxtw #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x10, [x10, w0, uxtw #3]
 	and	x11, x9, x22
 	cmp	x11, x22
@@ -1542,7 +1546,7 @@ _vm_op_CmpNeDC:                         ; @vm_op_CmpNeDC
 ; %bb.0:
 	ldr	w8, [x20], #4
 	ldr	x9, [x21, w1, uxtw #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x10, [x10, w0, uxtw #3]
 	and	x11, x9, x22
 	cmp	x11, x22
@@ -1589,7 +1593,7 @@ _vm_op_CmpLtDC:                         ; @vm_op_CmpLtDC
 ; %bb.0:
 	ldr	w8, [x20], #4
 	ldr	x9, [x21, w1, uxtw #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x10, [x10, w0, uxtw #3]
 	and	x11, x9, x22
 	cmp	x11, x22
@@ -1636,7 +1640,7 @@ _vm_op_CmpLeDC:                         ; @vm_op_CmpLeDC
 ; %bb.0:
 	ldr	w8, [x20], #4
 	ldr	x9, [x21, w1, uxtw #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x10, [x10, w0, uxtw #3]
 	and	x11, x9, x22
 	cmp	x11, x22
@@ -1683,7 +1687,7 @@ _vm_op_CmpGtDC:                         ; @vm_op_CmpGtDC
 ; %bb.0:
 	ldr	w8, [x20], #4
 	ldr	x9, [x21, w1, uxtw #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x10, [x10, w0, uxtw #3]
 	and	x11, x9, x22
 	cmp	x11, x22
@@ -1730,7 +1734,7 @@ _vm_op_CmpGeDC:                         ; @vm_op_CmpGeDC
 ; %bb.0:
 	ldr	w8, [x20], #4
 	ldr	x9, [x21, w1, uxtw #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x10, [x10, w0, uxtw #3]
 	and	x11, x9, x22
 	cmp	x11, x22
@@ -2055,11 +2059,12 @@ LBB47_7:
 _undefined:                             ; @undefined
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh21:
-	adrp	x8, l_.str.6@PAGE
+	adrp	x9, l_.str.6@PAGE
 Lloh22:
-	add	x8, x8, l_.str.6@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.6@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh21, Lloh22
 	.cfi_endproc
@@ -2076,11 +2081,12 @@ LBB49_1:                                ; =>This Inner Loop Header: Depth=1
 _unusedexta:                            ; @unusedexta
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh23:
-	adrp	x8, l_.str.8@PAGE
+	adrp	x9, l_.str.8@PAGE
 Lloh24:
-	add	x8, x8, l_.str.8@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.8@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh23, Lloh24
 	.cfi_endproc
@@ -2089,11 +2095,12 @@ Lloh24:
 _assertionfailed:                       ; @assertionfailed
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh25:
-	adrp	x8, l_.str.9@PAGE
+	adrp	x9, l_.str.9@PAGE
 Lloh26:
-	add	x8, x8, l_.str.9@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.9@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh25, Lloh26
 	.cfi_endproc
@@ -2102,11 +2109,12 @@ Lloh26:
 _invalidtrap:                           ; @invalidtrap
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh27:
-	adrp	x8, l_.str.10@PAGE
+	adrp	x9, l_.str.10@PAGE
 Lloh28:
-	add	x8, x8, l_.str.10@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.10@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh27, Lloh28
 	.cfi_endproc
@@ -2121,13 +2129,14 @@ _panic:                                 ; @panic
 	.cfi_def_cfa w29, 16
 	.cfi_offset w30, -8
 	.cfi_offset w29, -16
+	ldr	x8, [x23]
 Lloh29:
-	adrp	x8, ___stderrp@GOTPAGE
+	adrp	x9, ___stderrp@GOTPAGE
 Lloh30:
-	ldr	x8, [x8, ___stderrp@GOTPAGEOFF]
+	ldr	x9, [x9, ___stderrp@GOTPAGEOFF]
 Lloh31:
-	ldr	x0, [x8]
-	ldr	x8, [x23, #64]
+	ldr	x0, [x9]
+	ldr	x8, [x8, #40]
 	str	x8, [sp]
 Lloh32:
 	adrp	x1, l_.str.7@PAGE
@@ -2144,11 +2153,12 @@ Lloh33:
 _unimplemented:                         ; @unimplemented
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh34:
-	adrp	x8, l_.str.11@PAGE
+	adrp	x9, l_.str.11@PAGE
 Lloh35:
-	add	x8, x8, l_.str.11@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.11@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh34, Lloh35
 	.cfi_endproc
@@ -2157,11 +2167,12 @@ Lloh35:
 _stackoverflow:                         ; @stackoverflow
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh36:
-	adrp	x8, l_.str.12@PAGE
+	adrp	x9, l_.str.12@PAGE
 Lloh37:
-	add	x8, x8, l_.str.12@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.12@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh36, Lloh37
 	.cfi_endproc
@@ -2198,11 +2209,12 @@ _thunk_alloc_instance:                  ; @thunk_alloc_instance
 _invalidlayout:                         ; @invalidlayout
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh38:
-	adrp	x8, l_.str.13@PAGE
+	adrp	x9, l_.str.13@PAGE
 Lloh39:
-	add	x8, x8, l_.str.13@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.13@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh38, Lloh39
 	.cfi_endproc
@@ -2211,11 +2223,12 @@ Lloh39:
 _notaoffset:                            ; @notaoffset
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh40:
-	adrp	x8, l_.str.14@PAGE
+	adrp	x9, l_.str.14@PAGE
 Lloh41:
-	add	x8, x8, l_.str.14@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.14@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh40, Lloh41
 	.cfi_endproc
@@ -2230,7 +2243,7 @@ _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
 	b.ne	LBB59_7
 ; %bb.1:
 	scvtf	d0, w8
-	ldr	x8, [x23, #40]
+	ldr	x8, [x23, #16]
 	and	w9, w0, #0xff
 	ldr	x8, [x8, w9, uxtw #3]
 	and	x9, x8, x22
@@ -2260,7 +2273,7 @@ LBB59_7:
 ; %bb.8:
 	add	x8, x8, x22
 	fmov	d0, x8
-	ldr	x8, [x23, #40]
+	ldr	x8, [x23, #16]
 	and	w9, w0, #0xff
 	ldr	x8, [x8, w9, uxtw #3]
 	and	x9, x8, x22
@@ -2311,11 +2324,12 @@ LBB59_18:
 _notanumber:                            ; @notanumber
 	.cfi_startproc
 ; %bb.0:
+	ldr	x8, [x23]
 Lloh42:
-	adrp	x8, l_.str.15@PAGE
+	adrp	x9, l_.str.15@PAGE
 Lloh43:
-	add	x8, x8, l_.str.15@PAGEOFF
-	str	x8, [x23, #64]
+	add	x9, x9, l_.str.15@PAGEOFF
+	str	x9, [x8, #40]
 	b	_panic
 	.loh AdrpAdd	Lloh42, Lloh43
 	.cfi_endproc
@@ -2448,7 +2462,7 @@ LBB63_2:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2498,7 +2512,7 @@ LBB64_5:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2550,7 +2564,7 @@ LBB65_5:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2570,7 +2584,7 @@ _vm_op_setc_CmpEqDC:                    ; @vm_op_setc_CmpEqDC
 	ldur	w9, [x20, #-4]
 	ubfx	x8, x9, #8, #8
 	ldr	x8, [x21, x8, lsl #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	lsr	x9, x9, #13
 	and	x9, x9, #0x7fff8
 	ldr	x9, [x10, x9]
@@ -2616,7 +2630,7 @@ LBB66_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2634,7 +2648,7 @@ _vm_op_setc_CmpNeDC:                    ; @vm_op_setc_CmpNeDC
 	ldur	w9, [x20, #-4]
 	ubfx	x8, x9, #8, #8
 	ldr	x8, [x21, x8, lsl #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	lsr	x9, x9, #13
 	and	x9, x9, #0x7fff8
 	ldr	x9, [x10, x9]
@@ -2680,7 +2694,7 @@ LBB67_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2698,7 +2712,7 @@ _vm_op_setc_CmpLtDC:                    ; @vm_op_setc_CmpLtDC
 	ldur	w9, [x20, #-4]
 	ubfx	x8, x9, #8, #8
 	ldr	x8, [x21, x8, lsl #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	lsr	x9, x9, #13
 	and	x9, x9, #0x7fff8
 	ldr	x9, [x10, x9]
@@ -2716,7 +2730,7 @@ LBB68_3:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2762,7 +2776,7 @@ _vm_op_setc_CmpLeDC:                    ; @vm_op_setc_CmpLeDC
 	ldur	w9, [x20, #-4]
 	ubfx	x8, x9, #8, #8
 	ldr	x8, [x21, x8, lsl #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	lsr	x9, x9, #13
 	and	x9, x9, #0x7fff8
 	ldr	x9, [x10, x9]
@@ -2808,7 +2822,7 @@ LBB69_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2826,7 +2840,7 @@ _vm_op_setc_CmpGtDC:                    ; @vm_op_setc_CmpGtDC
 	ldur	w9, [x20, #-4]
 	ubfx	x8, x9, #8, #8
 	ldr	x8, [x21, x8, lsl #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	lsr	x9, x9, #13
 	and	x9, x9, #0x7fff8
 	ldr	x9, [x10, x9]
@@ -2844,7 +2858,7 @@ LBB70_3:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2890,7 +2904,7 @@ _vm_op_setc_CmpGeDC:                    ; @vm_op_setc_CmpGeDC
 	ldur	w9, [x20, #-4]
 	ubfx	x8, x9, #8, #8
 	ldr	x8, [x21, x8, lsl #3]
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	lsr	x9, x9, #13
 	and	x9, x9, #0x7fff8
 	ldr	x9, [x10, x9]
@@ -2936,7 +2950,7 @@ LBB71_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -2999,7 +3013,7 @@ LBB72_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -3062,7 +3076,7 @@ LBB73_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -3097,7 +3111,7 @@ LBB74_3:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -3188,7 +3202,7 @@ LBB75_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -3223,7 +3237,7 @@ LBB76_3:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -3314,7 +3328,7 @@ LBB77_8:
 	mov	w8, #6                          ; =0x6
 	cinc	x8, x8, eq
 	str	x8, [x21, w1, uxtw #3]
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 	ldr	w8, [x20], #4
 	and	x9, x8, #0xff
@@ -3352,7 +3366,7 @@ _vm_op_compare_setc_fallback:           ; @vm_op_compare_setc_fallback
 	cmp	w10, #40
 	b.hi	LBB79_2
 ; %bb.1:
-	ldr	x12, [x23, #40]
+	ldr	x12, [x23, #16]
 LBB79_2:
 	lsr	x13, x11, #13
 	and	x13, x13, #0x7fff8
@@ -3397,7 +3411,7 @@ LBB79_8:
 	str	x8, [x21, w9, uxtw #3]
 	tbnz	w0, #0, LBB79_10
 LBB79_9:
-	ldrb	w8, [x23, #80]
+	ldrb	w8, [x23, #56]
 	add	x20, x20, x8, lsl #2
 LBB79_10:
 	ldr	w8, [x20], #4
@@ -3633,7 +3647,7 @@ _vm_op_compare_dc_fallback:             ; @vm_op_compare_dc_fallback
 	mov	x12, x0
 	ldr	x0, [x21, w1, uxtw #3]
 	sub	x9, x20, #4
-	ldr	x10, [x23, #40]
+	ldr	x10, [x23, #16]
 	ldr	x1, [x10, w12, uxtw #3]
 	ldurb	w10, [x20, #-8]
 	cmp	w10, #40
