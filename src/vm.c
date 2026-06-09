@@ -48,7 +48,8 @@ void panic(PARAMS) {
 }
 
 // Panic handlers no longer need fns as the function table, so reuse it for the
-// message. Keep dispatch as the dispatch table; it is not recoverable from state.
+// message. Keep dispatch as the dispatch table; it is not recoverable from
+// state.
 THREADED
 void stackoverflow(PARAMS) {
   fns = (struct thunk **)(void *)"stack overflow";
@@ -187,11 +188,11 @@ OP_DEFINITION(Trap) {
   static FILE *edit_file = nullptr;
   ssz_t tid = ARG3A;
   switch (tid) {
-  case T_UNDEFINED:
+  case T_UNDEFINED: // no correspond builtin
     MUSTTAIL return undefined(ARGS);
-  case T_DIVERGE:
+  case T_DIVERGE: // no correspond builtin
     MUSTTAIL return diverge(ARGS);
-  case T_HALT: {
+  case T_HALT: { // halt()
     if (edit_file != nullptr) {
       FILE *file = edit_file;
       edit_file = nullptr;
@@ -204,8 +205,8 @@ OP_DEFINITION(Trap) {
   }
   case T_UNUSEDEXTA:
     MUSTTAIL return unusedexta(ARGS);
-  case T_PRINTREGS:
-  case T_PRINTREGSX: {
+  case T_PRINTREGS: // print_raw(value)
+  case T_PRINTREGSX: { // print_raw_hex(value)
     ssz_t i1 = ARG3B;
     ssz_t i2 = ARG3C;
 
@@ -217,7 +218,7 @@ OP_DEFINITION(Trap) {
     }
     break;
   }
-  case T_ASSERT_EQ: {
+  case T_ASSERT_EQ: { // assert_eq(v1, v2)
     ssz_t i1 = ARG3B;
     ssz_t i2 = ARG3C;
 
@@ -227,18 +228,18 @@ OP_DEFINITION(Trap) {
     }
     break;
   }
-  case T_PRINTOBJ: {
+  case T_PRINTOBJ: { // print_object(value)
     ssz_t o = ARG3B;
     fprintf(stderr, "r%u = ", o);
     obj_print(stderr, bp[o]);
     fprintf(stderr, "\n");
     break;
   }
-  case T_HEAPSTAT: {
+  case T_HEAPSTAT: { // print_heap_stat()
     heap_stat_print(state->heap);
     break;
   }
-  case T_FILE_OPEN: {
+  case T_FILE_OPEN: { // open(path)
     ssz_t path_reg = ARG3B;
     ssz_t dst_reg = ARG3C;
     const struct str *path = trap_expect_str(bp[path_reg]);
@@ -277,7 +278,7 @@ OP_DEFINITION(Trap) {
     bp[dst_reg] = val_from_i32((int32_t)offset);
     break;
   }
-  case T_FILE_CLOSE: {
+  case T_FILE_CLOSE: { // close(path)
     ssz_t path_reg = ARG3B;
     const struct str *path = trap_expect_str(bp[path_reg]);
     if (path == nullptr) {
@@ -299,7 +300,7 @@ OP_DEFINITION(Trap) {
     }
     break;
   }
-  case T_FILE_EDIT: {
+  case T_FILE_EDIT: { // edit(offset, byte)
     if (edit_file == nullptr) {
       fns = (struct thunk **)(void *)"no open file";
       MUSTTAIL return panic(ARGS);
