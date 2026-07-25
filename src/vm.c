@@ -371,6 +371,19 @@ OP_DEFINITION(LoaduI) {
   DISPATCH();
 }
 
+OP_DEFINITION(LoadR) {
+  ssz_t dst = ARG2A;
+  val_t raw = ARG2B;
+
+  if (unlikely(raw != VAL_EMPTY && raw != VAL_NULL && raw != VAL_FALSE &&
+               raw != VAL_TRUE)) {
+    MUSTTAIL return badop(ARGS);
+  }
+
+  bp[dst] = raw;
+  DISPATCH();
+}
+
 OP_DEFINITION(LoadC) {
   ssz_t dst = ARG2A;
   val_t cidx = ARG2B;

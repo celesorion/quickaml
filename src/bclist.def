@@ -5,6 +5,7 @@
   _(Exta      , "exta"      )\
   _(LoadI     , "loadi"     )\
   _(LoaduI    , "loadui"    )\
+  _(LoadR     , "loadr"     )\
   _(LoadC     , "loadc"     )\
   _(LoadF     , "loadf"     )\
   _(SetF      , "setf"      )\
