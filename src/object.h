@@ -64,6 +64,9 @@ enum tag {
   TAG_TRUE = 3,
   TAG_INT = 4,
   TAG_STR = 5,
+  TAG_FLOAT = 6,
+  TAG_ARRAY = 7,
+  TAG_MAP = 8,
 };
 
 /*

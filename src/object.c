@@ -22,6 +22,9 @@ COLD_HELPER val_t val_from_tag(uint8_t tag) {
     return val_from_bool(true);
   case TAG_INT: // TODO: requires heap-backed materialization
   case TAG_STR: // TODO: requires heap-backed materialization
+  case TAG_FLOAT:
+  case TAG_ARRAY:
+  case TAG_MAP:
   default:
     assert(0 && "val_from_tag: unhandled tag");
     return VAL_EMPTY;
@@ -129,7 +132,17 @@ void obj_print(FILE *out, val_t value) {
   case OBJ_WORDS: {
     struct object *obj = ref;
     size_t nfields = (obj_size(obj) - sizeof(*obj)) / sizeof(val_t);
-    fprintf(out, "<obj tag=%u fields=%zu>", obj_layout_tag(obj), nfields);
+    switch ((enum tag)obj_layout_tag(obj)) {
+    case TAG_ARRAY:
+      fprintf(out, "<array fields=%zu>", nfields);
+      break;
+    case TAG_MAP:
+      fprintf(out, "<map fields=%zu>", nfields);
+      break;
+    default:
+      fprintf(out, "<object tag=%u fields=%zu>", obj_layout_tag(obj), nfields);
+      break;
+    }
     break;
   }
   case OBJ_STRING: {

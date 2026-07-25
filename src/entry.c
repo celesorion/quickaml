@@ -29,7 +29,10 @@ static bool capture_locs_valid(const struct capture_loc *fvlocs, size_t nfree) {
 struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
                              size_t nconst, uint8_t nregs,
                              const struct capture_loc *fvlocs, size_t nfree) {
-  if (!capture_locs_valid(fvlocs, nfree))
+  if ((nops != 0 && ops == nullptr) || (nconst != 0 && ctbl == nullptr) ||
+      !capture_locs_valid(fvlocs, nfree) ||
+      nops > UINT32_MAX / sizeof(bc_t) ||
+      nconst > UINT32_MAX / sizeof(val_t))
     return nullptr;
 
   size_t size = thunk_size(nops, nconst, nfree);
@@ -52,18 +55,6 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
 
 void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
-struct thunk *vm_thunk_make_wrapper(size_t top_idx) {
-  if (top_idx > UINT16_MAX)
-    return nullptr;
-
-  bc_t ops[] = {
-      mk2(Call, 0, (uint16_t)top_idx),
-      mk3(Trap, T_HALT, 0, 0),
-  };
-  return vm_thunk_alloc(ops, sizeof(ops) / sizeof(ops[0]), nullptr, 0, 0,
-                        nullptr, 0);
-}
-
 bool vm_const_from_i64(int64_t value, val_t *out) {
   if (value < INT32_MIN || value > INT32_MAX || out == nullptr)
     return false;
@@ -78,16 +69,53 @@ bool vm_const_from_f64(double value, val_t *out) {
   return true;
 }
 
-struct str *vm_alloc_str(const char *data, uint32_t len) {
-  struct str *s = aligned_alloc(8, str_size(len));
+struct heap *vm_heap_alloc(const struct runtime_args *rargs) {
+  if (rargs == nullptr)
+    return nullptr;
+
+  struct heap *heap = malloc(sizeof(*heap));
+  if (heap == nullptr)
+    return nullptr;
+  if (!heap_init(heap, rargs)) {
+    free(heap);
+    return nullptr;
+  }
+  return heap;
+}
+
+void vm_heap_free(struct heap *heap) {
+  if (heap == nullptr)
+    return;
+  heap_deinit(heap);
+  free(heap);
+}
+
+struct str *vm_alloc_str(const char *data, uint32_t len,
+                         struct heap *restrict heap) {
+  if ((len != 0 && data == nullptr) || heap == nullptr)
+    return nullptr;
+
+  struct str *s = heap_alloc_preload(heap, str_size(len));
   if (s == nullptr)
     return nullptr;
   str_init(s, TAG_STR, len);
-  memcpy(s->bytes, data, len);
+  if (len != 0)
+    memcpy(s->bytes, data, len);
+  gc_publish_new_object(heap, s, OBJ_STRING);
   return s;
 }
 
-void vm_free_str(struct str *s) { free(s); }
+bool vm_const_from_str(const char *data, uint32_t len,
+                       struct heap *restrict heap, val_t *out) {
+  if (out == nullptr)
+    return false;
+
+  struct str *str = vm_alloc_str(data, len, heap);
+  if (str == nullptr)
+    return false;
+  *out = val_from_ptr(str);
+  return true;
+}
 
 size_t vm_object_size_for_fields(size_t nfields) {
   return object_size(nfields);
@@ -187,6 +215,21 @@ bool vm_format_result(val_t value, char *buf, size_t len) {
     if (obj_kind_of(ref) == OBJ_STRING) {
       struct str *s = ref;
       return format_str_result(s, buf, len);
+    } else if (obj_kind_of(ref) == OBJ_WORDS) {
+      struct object *obj = ref;
+      size_t nfields = (obj_size(obj) - sizeof(*obj)) / sizeof(val_t);
+      if (nfields != 0)
+        return false;
+      switch ((enum tag)obj_layout_tag(obj)) {
+      case TAG_ARRAY:
+        n = snprintf(buf, len, "[]");
+        break;
+      case TAG_MAP:
+        n = snprintf(buf, len, "{}");
+        break;
+      default:
+        return false;
+      }
     } else
       return false;
   } else
@@ -200,11 +243,13 @@ const char *vm_status_name(status_t status) {
   return name ? name : "unknown";
 }
 
-status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
-                           size_t numfn, size_t numobject, size_t stack_slots,
-                           val_t *result, struct runtime_args *rargs,
-                           struct gc_stats *stats_out) {
+status_t vm_exec_with(struct heap *heap, struct thunk *entry,
+                      struct thunk **fns, size_t numfn, size_t numobject,
+                      size_t stack_slots, val_t *result,
+                      struct gc_stats *stats_out) {
   struct state st;
+  if (heap == nullptr)
+    return S_HEAP_INIT_FAILED;
   if (stack_slots > UINT32_MAX ||
       stack_slots > (SIZE_MAX - sizeof(struct fiber_segment)) / sizeof(val_t))
     return S_LIMIT;
@@ -213,12 +258,7 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
       calloc(1, sizeof(*fiber) + stack_slots * sizeof(val_t));
   if (fiber == nullptr)
     return S_LIMIT;
-  if (!heap_init(&global_heap, rargs)) {
-    free(fiber);
-    return S_HEAP_INIT_FAILED;
-  }
-  if (!state_init(&st, &global_heap, rargs)) {
-    heap_deinit(&global_heap);
+  if (!state_init(&st, heap, &heap->args)) {
     free(fiber);
     return S_STATE_INIT_FAILED;
   }
@@ -236,7 +276,7 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
   fiber->effect_hnd = VAL_EMPTY;
   fiber->stklimit.active = fiber->stk + stack_slots;
   fiber->sc_jump = false;
-  fiber->gc_poll_not_required = true;
+  fiber->gc_poll_not_required = heap_gc_poll_not_required(heap);
 
   status_t status = vm_entry(fiber);
   if (result != nullptr) {
@@ -245,10 +285,23 @@ status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
   }
 
   if (stats_out != nullptr)
-    *stats_out = global_heap.stats;
+    *stats_out = heap->stats;
 
-  heap_deinit(&global_heap);
   free(fiber);
+  return status;
+}
+
+status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
+                           size_t numfn, size_t numobject, size_t stack_slots,
+                           val_t *result, struct runtime_args *rargs,
+                           struct gc_stats *stats_out) {
+  struct heap *heap = vm_heap_alloc(rargs);
+  if (heap == nullptr)
+    return S_HEAP_INIT_FAILED;
+  status_t status =
+      vm_exec_with(heap, entry, fns, numfn, numobject, stack_slots, result,
+                   stats_out);
+  vm_heap_free(heap);
   return status;
 }
 

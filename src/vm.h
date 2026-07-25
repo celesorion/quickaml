@@ -164,6 +164,10 @@
 status_t vm_entry(struct fiber_segment *fiber);
 status_t vm_exec(struct thunk *entry, struct thunk **fns, size_t numfn,
                  size_t numobject, size_t stack_slots, val_t *result);
+status_t vm_exec_with(struct heap *heap, struct thunk *entry,
+                      struct thunk **fns, size_t numfn, size_t numobject,
+                      size_t stack_slots, val_t *result,
+                      struct gc_stats *stats_out);
 status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            size_t numfn, size_t numobject, size_t stack_slots,
                            val_t *result, struct runtime_args *rargs,
@@ -172,11 +176,14 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
                              size_t nconst, uint8_t nregs,
                              const struct capture_loc *fvlocs, size_t nfree);
 void vm_thunk_free(struct thunk *thunk);
-struct thunk *vm_thunk_make_wrapper(size_t top_idx);
 bool vm_const_from_i64(int64_t value, val_t *out);
 bool vm_const_from_f64(double value, val_t *out);
-struct str *vm_alloc_str(const char *data, uint32_t len);
-void vm_free_str(struct str *s);
+struct heap *vm_heap_alloc(const struct runtime_args *rargs);
+void vm_heap_free(struct heap *heap);
+struct str *vm_alloc_str(const char *data, uint32_t len,
+                         struct heap *restrict heap);
+bool vm_const_from_str(const char *data, uint32_t len,
+                       struct heap *restrict heap, val_t *out);
 bool vm_format_result(val_t value, char *buf, size_t len);
 size_t vm_object_size_for_fields(size_t nfields);
 const char *vm_status_name(status_t status);

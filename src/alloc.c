@@ -57,6 +57,12 @@ static void *freelist_alloc(struct heap *h, size_t n) {
   return nullptr;
 }
 
+COLD_HELPER void *heap_alloc_preload(struct heap *h, size_t n) {
+  if (h == nullptr || h->phase != GC_IDLE)
+    return nullptr;
+  return freelist_alloc(h, object_align(n));
+}
+
 /* ---------- shading ---------- */
 
 static void shade_gray(struct heap *h, void *ref) {
@@ -127,8 +133,18 @@ static void gc_scan_stack_roots(struct heap *h,
   }
 }
 
+static void gc_scan_thunk_constants(struct heap *h,
+                                    const struct thunk *thunk) {
+  for (size_t i = 0; i < thunk->nconst; i++)
+    shade_value(h, thunk->ctbl[i]);
+}
+
 static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
                           val_t *restrict bp) {
+  struct state *state = fiber->state;
+  for (size_t i = 0; i < state->numfn; i++)
+    gc_scan_thunk_constants(h, state->fns[i]);
+
   gc_scan_stack_roots(h, fiber, bp);
 
   for (struct fiber_segment *parent = fiber->parent; parent != nullptr;
@@ -364,7 +380,8 @@ void heap_stat_print(struct heap *restrict h) {
           h->stats.sweep_assist_steps);
 }
 
-bool heap_init(struct heap *restrict h, struct runtime_args *restrict rargs) {
+bool heap_init(struct heap *restrict h,
+               const struct runtime_args *restrict rargs) {
   size_t heap_size = rargs->base_size;
   size_t align = rargs->align;
   uint8_t *mem = aligned_alloc(align, heap_size);
@@ -383,7 +400,7 @@ bool heap_init(struct heap *restrict h, struct runtime_args *restrict rargs) {
       .live_bytes = 0,
       .heap_size = heap_size,
       .stats = {0},
-      .args = rargs,
+      .args = *rargs,
   };
 
   free_block_init((struct free_block *)mem, (uint32_t)heap_size, nullptr);

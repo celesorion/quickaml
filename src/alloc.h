@@ -30,12 +30,14 @@ struct heap {
   size_t heap_size;
 
   struct gc_stats stats;
-  struct runtime_args *args;
+  struct runtime_args args;
 };
 
+COLD_HELPER void *heap_alloc_preload(struct heap *h, size_t n);
 COLD_HELPER void *alloc_object(size_t n, struct fiber_segment *restrict fiber,
                                val_t *restrict bp);
-bool heap_init(struct heap *restrict h, struct runtime_args *restrict rargs);
+bool heap_init(struct heap *restrict h,
+               const struct runtime_args *restrict rargs);
 void heap_deinit(struct heap *restrict h);
 void heap_stat_print(struct heap *restrict h);
 
