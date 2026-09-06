@@ -41,7 +41,7 @@ TARGET_RELDBG := $(TARGET).reldbg
 TARGET_DBG := $(TARGET).dbg
 
 # Phony targets (non-file targets)
-.PHONY: all rel run reldbg runreldbg debug rundbg distclean clean
+.PHONY: all rel run reldbg runreldbg debug rundbg asm asm-check distclean clean
 
 # Default target
 all: $(TARGET) $(TARGET_RELDBG) $(TARGET_DBG)
@@ -57,14 +57,6 @@ $(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(_CFLAGS) $(CFLAGS) $(_LDFLAGS) $(LDFLAGS) $^ -o $@
 
-$(OBJ_DIR)/vm.s: $(SRC_DIR)/vm.c $(INCS)
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(_CFLAGS) $(CFLAGS) -S $< -o $@
-
-$(OBJ_DIR)/vm.o: $(OBJ_DIR)/vm.s $(INCS)
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(_CFLAGS) $(CFLAGS) -c $< -o $@
-
 # Rule to compile source files into object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
@@ -79,14 +71,6 @@ $(TARGET_RELDBG): $(OBJS_RELDBG)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(_CFLAGS_RELDBG) $(CFLAGS) $(_LDFLAGS_RELDBG) $(LDFLAGS) $^ -o $@
 
-$(OBJ_DIR)/vm.reldbg.s: $(SRC_DIR)/vm.c $(INCS)
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(_CFLAGS_RELDBG) $(CFLAGS) -S $< -o $@
-
-$(OBJ_DIR)/vm.reldbg.o: $(OBJ_DIR)/vm.reldbg.s $(INCS)
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(_CFLAGS_RELDBG) $(CFLAGS) -c $< -o $@
-
 $(OBJ_DIR)/%.reldbg.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(_CFLAGS_RELDBG) $(CFLAGS) -c $< -o $@
@@ -100,17 +84,17 @@ $(TARGET_DBG): $(OBJS_DBG)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(_CFLAGS_DBG) $(CLFAGS) $(LDFLAGS) $^ -o $@
 
-$(OBJ_DIR)/vm.dbg.s: $(SRC_DIR)/vm.c $(INCS)
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(_CFLAGS_DBG) $(CFLAGS) -S $< -o $@
-
-$(OBJ_DIR)/vm.dbg.o: $(OBJ_DIR)/vm.dbg.s $(INCS)
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(_CFLAGS_DBG) $(CFLAGS) -c $< -o $@
-
 $(OBJ_DIR)/%.dbg.o: $(SRC_DIR)/%.c $(INCS)
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(_CFLAGS_DBG) $(CFLAGS) -c $< -o $@
+
+# Rule to regenerate the assembly dumps
+asm:
+	@python3 scripts/asm.py
+
+# Rule to check the tracked dumps against a fresh generation
+asm-check:
+	@python3 scripts/asm.py --check
 
 distclean:
 	@rm -rf $(OBJ_DIR) $(BIN_DIR)
