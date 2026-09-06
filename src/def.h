@@ -36,7 +36,6 @@ typedef uint64_t metainfo;
   _(S_NOT_AN_OPERAND, "not an operand") \
   _(S_NOT_A_INT, "not an integer") \
   _(S_BAD_OP, "bad opcode") \
-  _(S_INSUFFICIENT_ARGS, "insufficient arguments") \
   _(S_DESCSPACE_INIT_FAILED, "descspace init failed") \
   _(S_HEAP_INIT_FAILED, "heap init failed") \
   _(S_STATE_INIT_FAILED, "state init failed") \
@@ -79,10 +78,5 @@ struct gc_stats {
   size_t last_completed_live_bytes;
   size_t last_completed_trigger_bytes;
 };
-
-static inline int exit_with_status(status_t status) {
-  fprintf(stderr, "quickaml stopped: %s\n", status_str(status));
-  return status;
-}
 
 #endif

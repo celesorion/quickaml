@@ -70,6 +70,5 @@ INLINE void gc_store_field(struct heap *h, void *container, val_t *slot,
     gc_store_field_slow(h, value);
 }
 
-extern struct heap global_heap;
 
 #endif

@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct heap global_heap;
 
 /* ---------- heap helpers ---------- */
 

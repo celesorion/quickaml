@@ -1,17 +1,11 @@
 #include "alloc.h"
 #include "bc.h"
 #include "state.h"
-#include "trace.h"
 #include "trap.h"
 #include "vm.h"
 
 #include <inttypes.h>
 #include <string.h>
-
-status_t exec(struct state *state) {
-  (void)state;
-  return S_BAD_OP;
-}
 
 static bool capture_locs_valid(const struct capture_loc *fvlocs, size_t nfree) {
   if (nfree > UINT32_MAX)
@@ -323,53 +317,4 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
 
   free(fiber);
   return status;
-}
-
-status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
-                           struct type_desc **types, size_t numfn,
-                           size_t numtype, size_t stack_slots, val_t *result,
-                           struct runtime_args *rargs,
-                           struct gc_stats *stats_out) {
-  struct heap *heap = vm_heap_alloc(rargs);
-  if (heap == nullptr)
-    return S_HEAP_INIT_FAILED;
-  status_t status = vm_exec_with(heap, entry, fns, types, numfn, numtype,
-                                 stack_slots, result, stats_out);
-  vm_heap_free(heap);
-  return status;
-}
-
-status_t vm_exec(struct thunk *entry, struct thunk **fns,
-                 struct type_desc **types, size_t numfn, size_t numtype,
-                 size_t stack_slots, val_t *result) {
-  struct runtime_args rargs = {.align = 8,
-                               .base_size = 1024 * 1024,
-                               .descspace_size = 4 * 4 * 4096,
-                               .trace_level = TRACE_0};
-  return vm_exec_with_args(entry, fns, types, numfn, numtype, stack_slots,
-                           result, &rargs, nullptr);
-}
-
-int main(int argc, const char *const argv[]) {
-  (void)argv;
-  if (argc <= 1)
-    return exit_with_status(S_INSUFFICIENT_ARGS);
-
-  char *tls = getenv("QUICKAML_TRACE_LEVEL");
-  trace_level_t tl = tls ? strtoul(tls, nullptr, 10) : TRACE_ALL;
-
-  struct runtime_args rargs = {.align = 8,
-                               .base_size = 1024 * 1024,
-                               .descspace_size = 4 * 4 * 4096,
-                               .trace_level = tl};
-  struct state st;
-
-  trace(&st, TRACE_0, "trace level is set to %u", rargs.trace_level);
-
-  if (!heap_init(&global_heap, &rargs))
-    return S_HEAP_INIT_FAILED;
-  if (!state_init(&st, &global_heap, &rargs))
-    return S_STATE_INIT_FAILED;
-
-  return exit_with_status(exec(&st));
 }
