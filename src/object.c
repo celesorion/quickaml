@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <string.h>
 
 struct forwarded {
@@ -57,63 +58,273 @@ COLD_HELPER void thunk_instance_init(struct thunk *thunk,
     thunk->freevars[i] = VAL_EMPTY;
 }
 
-void obj_print(FILE *out, val_t value) {
-  if (val_is_empty(value)) {
-    fprintf(out, "<trivial empty>");
-    return;
-  }
+/* Values print as the syntax that builds them, closures and type values in
+ * angle brackets.  Cycles are written with datum labels the way Scheme's
+ * write does it: the first walk finds out whether the value is cyclic and
+ * which objects it reaches twice; only a cyclic value labels those objects,
+ * in output order, #n= at the first occurrence and #n# after it; the last
+ * walk clears the marks, which live in the object headers. */
 
-  if (val_is_null(value)) {
-    fprintf(out, "<trivial unit>");
-    return;
-  }
+#define PRINT_DEPTH_MAX 256
 
-  if (val_is_bool(value)) {
-    fprintf(out, "<trivial %s>", val_as_bool(value) ? "true" : "false");
-    return;
-  }
+struct printer {
+  char *buf; /* null once out of memory */
+  size_t len;
+  size_t cap;
+  bool graph; /* the value is cyclic: shared objects get labels */
+  uint32_t nlabels;
+};
 
-  if (val_is_int(value)) {
-    fprintf(out, "<int %" PRId32 ">", val_as_i32(value));
+static void print_bytes(struct printer *p, const char *bytes, size_t n) {
+  if (p->buf == nullptr)
     return;
+  if (p->cap - p->len <= n) {
+    size_t cap = p->cap;
+    while (cap - p->len <= n)
+      cap *= 2;
+    char *buf = realloc(p->buf, cap);
+    if (buf == nullptr) {
+      free(p->buf);
+      p->buf = nullptr;
+      return;
+    }
+    p->buf = buf;
+    p->cap = cap;
   }
+  memcpy(p->buf + p->len, bytes, n);
+  p->len += n;
+  p->buf[p->len] = '\0';
+}
 
-  if (val_is_float(value)) {
-    fprintf(out, "<float %g>", val_as_f64(value));
-    return;
+static void print_text(struct printer *p, const char *text) {
+  print_bytes(p, text, strlen(text));
+}
+
+[[gnu::format(printf, 2, 3)]] static void print_fmt(struct printer *p,
+                                                    const char *fmt, ...) {
+  char text[32];
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vsnprintf(text, sizeof text, fmt, ap);
+  va_end(ap);
+  assert(n >= 0 && (size_t)n < sizeof text);
+  print_bytes(p, text, (size_t)n);
+}
+
+static void print_str(struct printer *p, const struct str *str) {
+  print_text(p, "\"");
+  for (size_t i = 0; i < str_len(str); i++) {
+    unsigned char byte = (unsigned char)str->bytes[i];
+    const char *escaped = nullptr;
+    switch (byte) {
+    case '\n':
+      escaped = "\\n";
+      break;
+    case '\r':
+      escaped = "\\r";
+      break;
+    case '\t':
+      escaped = "\\t";
+      break;
+    case '\\':
+      escaped = "\\\\";
+      break;
+    case '"':
+      escaped = "\\\"";
+      break;
+    }
+    if (escaped != nullptr)
+      print_text(p, escaped);
+    else if (byte < 0x20 || byte == 0x7f)
+      print_fmt(p, "\\x%02x", byte);
+    else
+      print_bytes(p, &str->bytes[i], 1);
   }
+  print_text(p, "\"");
+}
 
-  void *ref = val_as_ptr(value);
-  switch (obj_tag_of(ref)) {
+/* The fields a value prints and the walks follow: all of a tuple or array,
+ * the declared ones of a struct.  Every other value is a leaf. */
+static const val_t *print_fields(val_t value, size_t *n) {
+  *n = 0;
+  if (!val_is_ptr(value) || val_is_empty(value))
+    return nullptr;
+  const struct object *obj = val_as_ptr(value);
+  switch (obj_tag_of(obj)) {
+  case TAG_TUPLE:
   case TAG_ARRAY:
-    fprintf(out, "<array fields=%zu>", object_nfields(ref));
+    *n = object_nfields(obj);
+    return obj->fields;
+  case TAG_STRUCT:
+    *n = type_desc_of(val_as_type(obj->fields[0]))->nfields;
+    return obj->fields + 1;
+  default:
+    return nullptr;
+  }
+}
+
+/* Marks every object the value reaches, noting the ones reached twice, and
+ * reports whether one of them was still being walked: a cycle. */
+static bool print_walk(val_t value, int depth) {
+  size_t n;
+  const val_t *fields = print_fields(value, &n);
+  if (fields == nullptr)
+    return false;
+  struct object *obj = val_as_ptr(value);
+  if (obj->hd & (OBJ_FLAG_PRINT_PATH | OBJ_FLAG_PRINT_DONE)) {
+    obj->hd |= OBJ_FLAG_PRINT_SHARED;
+    return (obj->hd & OBJ_FLAG_PRINT_PATH) != 0;
+  }
+  if (depth == PRINT_DEPTH_MAX)
+    return false;
+  obj->hd |= OBJ_FLAG_PRINT_PATH;
+  bool cyclic = false;
+  for (size_t i = 0; i < n; i++)
+    cyclic |= print_walk(fields[i], depth + 1);
+  obj->hd ^= OBJ_FLAG_PRINT_PATH | OBJ_FLAG_PRINT_DONE;
+  return cyclic;
+}
+
+/* Mirrors print_walk, so it reaches exactly the objects that one marked. */
+static void print_unwalk(val_t value, int depth) {
+  size_t n;
+  const val_t *fields = print_fields(value, &n);
+  if (fields == nullptr)
+    return;
+  struct object *obj = val_as_ptr(value);
+  if (!(obj->hd & OBJ_FLAG_PRINT_DONE) || depth == PRINT_DEPTH_MAX)
+    return;
+  obj->hd &= ~(OBJ_FLAG_PRINT_MASK | OBJ_LABEL_MASK);
+  for (size_t i = 0; i < n; i++)
+    print_unwalk(fields[i], depth + 1);
+}
+
+static const struct member_desc *type_member(const struct type_desc *desc,
+                                             uint32_t slot) {
+  for (uint32_t i = 0; i < desc->nmembers; i++)
+    if (desc->members[i].slot == slot)
+      return &desc->members[i];
+  return nullptr;
+}
+
+static void print_value(struct printer *p, val_t value, int depth);
+
+static void print_list(struct printer *p, const val_t *fields, size_t n,
+                       int depth) {
+  for (size_t i = 0; i < n; i++) {
+    if (i != 0)
+      print_text(p, ", ");
+    print_value(p, fields[i], depth + 1);
+  }
+}
+
+static void print_value(struct printer *p, val_t value, int depth) {
+  if (val_is_empty(value)) {
+    print_text(p, "<empty>");
+    return;
+  }
+  if (val_is_null(value)) {
+    print_text(p, "()");
+    return;
+  }
+  if (val_is_bool(value)) {
+    print_text(p, val_as_bool(value) ? "true" : "false");
+    return;
+  }
+  if (val_is_int(value)) {
+    print_fmt(p, "%" PRId32, val_as_i32(value));
+    return;
+  }
+  if (val_is_float(value)) {
+    print_fmt(p, "%.17g", val_as_f64(value));
+    return;
+  }
+
+  struct object *obj = val_as_ptr(value);
+  size_t n;
+  const val_t *fields = print_fields(value, &n);
+  if (fields != nullptr) {
+    uint32_t label = (uint32_t)((obj->hd & OBJ_LABEL_MASK) >> 16);
+    if (label != 0) {
+      print_fmt(p, "#%" PRIu32 "#", label - 1);
+      return;
+    }
+    if (depth == PRINT_DEPTH_MAX) {
+      print_text(p, "...");
+      return;
+    }
+    if (p->graph && (obj->hd & OBJ_FLAG_PRINT_SHARED) && p->nlabels < 0xffff) {
+      label = p->nlabels++;
+      obj->hd |= (metainfo)(label + 1) << 16;
+      print_fmt(p, "#%" PRIu32 "=", label);
+    }
+  }
+
+  switch (obj_tag_of(obj)) {
+  case TAG_TUPLE:
+    print_text(p, "(");
+    print_list(p, fields, n, depth);
+    print_text(p, ")");
+    break;
+  case TAG_ARRAY:
+    print_text(p, "[");
+    print_list(p, fields, n, depth);
+    print_text(p, "]");
     break;
   case TAG_MAP:
-    fprintf(out, "<map fields=%zu>", object_nfields(ref));
+    print_text(p, object_nfields(obj) == 0 ? "{}" : "{...}");
     break;
-  case TAG_TYPE:
-    fprintf(out, "<type methods=%zu>", object_nfields(ref) - 1);
-    break;
-  case TAG_STRUCT:
-    fprintf(out, "<struct members=%zu>", object_nfields(ref) - 1);
-    break;
-  case TAG_STR: {
-    struct str *str = ref;
-    fprintf(out, "<str len=%zu \"%s\">", str_len(str), str->bytes);
+  case TAG_STRUCT: {
+    const struct type_desc *desc = type_desc_of(val_as_type(obj->fields[0]));
+    print_bytes(p, desc->name, desc->namelen);
+    print_text(p, "{");
+    for (size_t i = 0; i < n; i++) {
+      const struct member_desc *member = type_member(desc, (uint32_t)i);
+      if (i != 0)
+        print_text(p, ", ");
+      if (member != nullptr)
+        print_bytes(p, member->name, member->len);
+      else
+        print_text(p, "?");
+      print_text(p, " = ");
+      print_value(p, fields[i], depth + 1);
+    }
+    print_text(p, "}");
     break;
   }
-  case TAG_THUNK: {
-    struct thunk *thunk = ref;
-    fprintf(out, "<thunk ops=%p free=%" PRIu32 ">", (void *)thunk->ops,
-            thunk->nfree);
+  case TAG_TYPE: {
+    const struct type_desc *desc = type_desc_of(obj);
+    print_text(p, "<type ");
+    print_bytes(p, desc->name, desc->namelen);
+    print_text(p, ">");
     break;
   }
+  case TAG_STR:
+    print_str(p, (const struct str *)obj);
+    break;
+  case TAG_THUNK:
+    print_text(p, "<fn>");
+    break;
   case TAG_FREE:
-    fprintf(out, "<free size=%zu>", obj_size(ref));
-    break;
-  default:
-    fprintf(out, "<object tag=%d fields=%zu>", (int)obj_tag_of(ref),
-            object_nfields(ref));
+    print_text(p, "<free>");
     break;
   }
+}
+
+/* The text of a value, to be freed by the caller; null when out of memory. */
+char *obj_format(val_t value) {
+  struct printer p = {.buf = malloc(64), .cap = 64};
+  if (p.buf == nullptr)
+    return nullptr;
+  p.buf[0] = '\0';
+  p.graph = print_walk(value, 0);
+  print_value(&p, value, 0);
+  print_unwalk(value, 0);
+  return p.buf;
+}
+
+void obj_print(FILE *out, val_t value) {
+  char *text = obj_format(value);
+  fputs(text != nullptr ? text : "<out of memory>", out);
+  free(text);
 }

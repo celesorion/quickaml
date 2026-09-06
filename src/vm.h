@@ -183,6 +183,7 @@ struct str *vm_alloc_str(const char *data, uint32_t len,
                          struct heap *restrict heap);
 bool vm_const_from_str(const char *data, uint32_t len,
                        struct heap *restrict heap, val_t *out);
-bool vm_format_result(val_t value, char *buf, size_t len);
+char *vm_format_result(val_t value);
+void vm_result_free(char *text);
 size_t vm_object_size_for_fields(size_t nfields);
 const char *vm_status_name(status_t status);

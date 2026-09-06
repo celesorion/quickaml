@@ -344,6 +344,15 @@ INLINE void obj_set_gc_bits(void *ref, metainfo bits) {
   obj->hd = (obj->hd & ~OBJ_FLAG_GC_MASK) | bits;
 }
 
+/* The printer marks the objects it walks and keeps their datum label, plus
+ * one so that zero means none, in the spare half word; it clears both again
+ * before returning. */
+#define OBJ_FLAG_PRINT_PATH (UINT64_C(0x04) << 8)
+#define OBJ_FLAG_PRINT_DONE (UINT64_C(0x08) << 8)
+#define OBJ_FLAG_PRINT_SHARED (UINT64_C(0x10) << 8)
+#define OBJ_FLAG_PRINT_MASK (UINT64_C(0x1c) << 8)
+#define OBJ_LABEL_MASK (UINT64_C(0xffff) << 16)
+
 INLINE void *obj_gclist(const void *ref) {
   const struct gc_header *gc = ref;
   return gc->gclist;
@@ -412,6 +421,7 @@ COLD_HELPER void thunk_init(struct thunk *thunk, size_t nops, size_t nconst,
                             uint8_t nregs, size_t nfree);
 COLD_HELPER void thunk_instance_init(struct thunk *thunk,
                                      const struct thunk *template);
+char *obj_format(val_t value);
 COLD_HELPER void obj_print(FILE *out, val_t value);
 
 #endif
