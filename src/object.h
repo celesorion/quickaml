@@ -67,8 +67,7 @@ INLINE bool obj_has_gclist(enum tag tag) { return (uint8_t)tag <= TAG_THUNK; }
  * members. A runtime type value is a words object tagged TAG_TYPE holding the
  * description pointer in slot 0 and its method closures after it. A struct
  * instance is tagged TAG_STRUCT and holds its type value in slot 0 followed
- * by one slot per member: the declared fields first, then a copy of the
- * method closures. */
+ * by one slot per declared field; its methods are those of the type value. */
 struct member_desc {
   const char *name;
   uint32_t len;

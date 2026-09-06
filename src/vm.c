@@ -137,7 +137,8 @@ INLINE const struct str *trap_expect_str(val_t value, uint64_t ft) {
 
 // Resolve a member to a slot: a position (an int constant) counts the fields
 // of a tuple or of a struct, a name (a string constant) is looked up in the
-// struct's type description.
+// struct's type description.  A field lives in the instance, a method in its
+// type value.
 COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
   if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
     return nullptr;
@@ -157,11 +158,14 @@ COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
 
   const struct str *s = val_as_str(name);
   size_t len = str_len(s);
-  const struct type_desc *desc = type_desc_of(val_as_type(inst->fields[0]));
+  struct object *type = val_as_type(inst->fields[0]);
+  const struct type_desc *desc = type_desc_of(type);
   for (uint32_t i = 0; i < desc->nmembers; i++) {
     const struct member_desc *m = &desc->members[i];
     if (m->len == len && memcmp(m->name, s->bytes, len) == 0)
-      return &inst->fields[1 + m->slot];
+      return m->slot < desc->nfields
+                 ? &inst->fields[1 + m->slot]
+                 : &type->fields[1 + m->slot - desc->nfields];
   }
   return nullptr;
 }
@@ -673,15 +677,13 @@ OP_DEFINITION(WObj) {
   ssz_t fld = ARG3A;
   ssz_t tag = ARG3B;
   ssz_t len = ARG3C;
-  ssz_t nslots = len;
 
   if (unlikely(!obj_is_words((enum tag)tag))) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
-  // A type value wraps its description handle and method closures. A struct
-  // instance wraps its type value and field values; the method closures of
-  // the type value are appended so every member lives in one slot array.
+  // A type value wraps its description handle and method closures, a struct
+  // instance its type value and field values.
   if (tag == TAG_TYPE) {
     const struct type_desc *desc = val_as_ptr(bp[fld]);
     if (unlikely(len != 1 + desc->nslots - desc->nfields)) {
@@ -695,22 +697,16 @@ OP_DEFINITION(WObj) {
     if (unlikely(len != 1 + desc->nfields)) {
       MUSTTAIL return invalidlayout(ARGS);
     }
-    nslots = 1 + desc->nslots;
   }
 
-  struct object *obj = alloc_object(object_size(nslots), fiber, bp);
-  object_init(obj, (enum tag)tag, nslots);
+  struct object *obj = alloc_object(object_size(len), fiber, bp);
+  object_init(obj, (enum tag)tag, len);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
-  if (nslots > len) {
-    const struct object *type = val_as_type(bp[fld]);
-    for (ssz_t i = len; i < nslots; i++)
-      obj->fields[i] = type->fields[1 + i - len];
-  }
 
   gc_publish_new_object(state->heap, obj);
   bp[fld] = tag == TAG_TYPE ? val_from_type(obj) : val_from_ptr(obj);
-  gc_poll(fiber, bp, object_size(nslots));
+  gc_poll(fiber, bp, object_size(len));
 
   DISPATCH();
 }
