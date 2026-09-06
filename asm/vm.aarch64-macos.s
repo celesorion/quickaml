@@ -629,30 +629,31 @@ _vm_op_SetField:                        ; @vm_op_SetField
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
 	mov	x29, sp
 	mov	x9, x1
-	mov	x11, x0
+	mov	x10, x0
 	and	w8, w0, #0xff
-	ldr	x10, [x21, w8, uxtw #3]
+	ldr	x11, [x21, w8, uxtw #3]
 	ldr	x8, [x23, #16]
 	lsr	w12, w0, #8
-	ldr	x1, [x8, w12, uxtw #3]
-	mov	x0, x10
-	bl	_member_slot
+	ldr	x12, [x8, w12, uxtw #3]
+	mov	x0, x11
+	mov	x1, x12
+	bl	_field_slot
 	cbz	x0, .L4
 ; %bb.1:
 	mov	x8, x0
-	ldr	x11, [x23]
-	ldr	x0, [x11]
+	ldr	x10, [x23]
+	ldr	x0, [x10]
 	ldr	x1, [x21, w9, uxtw #3]
 	str	x1, [x8]
 	ldr	w8, [x0, #40]
 	cmp	w8, #1
 	b.ne	.L3
 ; %bb.2:
-	and	x8, x10, #0xfffffffffffffff8
+	and	x8, x11, #0xfffffffffffffff8
 	ldr	x8, [x8]
 	and	x8, x8, #0x300
 	cmp	x8, #512
-	b.eq	.L5
+	b.eq	.L7
 .L3:
 	ldrb	w8, [x20]
 	ldr	x2, [x24, x8, lsl #3]
@@ -663,10 +664,20 @@ _vm_op_SetField:                        ; @vm_op_SetField
 	br	x2
 .L4:
 	mov	x0, x11
+	mov	x1, x12
+	bl	_member_slot
+	cbnz	x0, .L6
+; %bb.5:
+	mov	x0, x10
 	mov	x1, x9
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_nomember
-.L5:
+.L6:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	b	_notafield
+.L7:
 	bl	_gc_store_field_slow
 	b	.L3
                                         ; -- End function
@@ -2527,8 +2538,86 @@ Lloh75:
 	b	_panic
 	.loh AdrpAdd	Lloh74, Lloh75
                                         ; -- End function
-	.p2align	5                               ; -- Begin function notafunction
-_notafunction:                          ; @notafunction
+	.p2align	2                               ; -- Begin function field_slot
+_field_slot:                            ; @field_slot
+; %bb.0:
+	mov	x8, x0
+	mov	x0, #0                          ; =0x0
+	cbz	x8, .L13
+; %bb.1:
+	and	x16, x8, #0xfffffffffffffffe
+	and	x16, x16, #0xfffe000000000003
+	cbnz	x16, .L13
+; %bb.2:
+	str	x15, [sp, #-128]!               ; 8-byte Folded Spill
+	stp	x14, x13, [sp, #16]             ; 16-byte Folded Spill
+	stp	x12, x11, [sp, #32]             ; 16-byte Folded Spill
+	stp	x10, x9, [sp, #48]              ; 16-byte Folded Spill
+	stp	x24, x23, [sp, #64]             ; 16-byte Folded Spill
+	stp	x22, x21, [sp, #80]             ; 16-byte Folded Spill
+	stp	x20, x19, [sp, #96]             ; 16-byte Folded Spill
+	stp	x29, x30, [sp, #112]            ; 16-byte Folded Spill
+	add	x29, sp, #112
+	and	x20, x8, #0x1fffffffffff8
+	ldrb	w8, [x20]
+	cmp	x8, #4
+	b.ne	.L11
+; %bb.3:
+	ldr	x8, [x20, #16]!
+	ldur	x8, [x8, #12]
+	and	x21, x8, #0xfffffffffffffff8
+	mov	x8, #-562949953421312           ; =0xfffe000000000000
+	cmp	x1, x8
+	b.lo	.L5
+.L4:
+	ldr	w8, [x21]
+	add	w16, w1, #1
+	add	x16, x20, w16, uxtw #3
+	cmp	w1, w8
+	csel	x0, x16, xzr, lo
+	b	.L12
+.L5:
+	ldr	w22, [x21, #8]
+	cbz	w22, .L11
+; %bb.6:
+	sub	x23, x1, #5
+	ldur	w8, [x1, #-1]
+	sub	x19, x8, #9
+	add	x24, x21, #36
+	b	.L8
+.L7:                                ;   in Loop: Header=BB60_8 Depth=1
+	add	x24, x24, #16
+	subs	x22, x22, #1
+	b.eq	.L11
+.L8:                                ; =>This Inner Loop Header: Depth=1
+	ldur	w8, [x24, #-4]
+	cmp	x19, x8
+	b.ne	.L7
+; %bb.9:                                ;   in Loop: Header=BB60_8 Depth=1
+	ldur	x0, [x24, #-12]
+	add	x1, x23, #8
+	mov	x2, x19
+	bl	_memcmp
+	cbnz	w0, .L7
+; %bb.10:
+	ldr	w1, [x24]
+	b	.L4
+.L11:
+	mov	x0, #0                          ; =0x0
+.L12:
+	ldp	x29, x30, [sp, #112]            ; 16-byte Folded Reload
+	ldp	x20, x19, [sp, #96]             ; 16-byte Folded Reload
+	ldp	x22, x21, [sp, #80]             ; 16-byte Folded Reload
+	ldp	x24, x23, [sp, #64]             ; 16-byte Folded Reload
+	ldp	x10, x9, [sp, #48]              ; 16-byte Folded Reload
+	ldp	x12, x11, [sp, #32]             ; 16-byte Folded Reload
+	ldp	x14, x13, [sp, #16]             ; 16-byte Folded Reload
+	ldr	x15, [sp], #128                 ; 8-byte Folded Reload
+.L13:
+	ret
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function notafield
+_notafield:                             ; @notafield
 ; %bb.0:
 Lloh76:
 	adrp	x25, l_.str.28@PAGE
@@ -2537,8 +2626,8 @@ Lloh77:
 	b	_panic
 	.loh AdrpAdd	Lloh76, Lloh77
                                         ; -- End function
-	.p2align	5                               ; -- Begin function stackoverflow
-_stackoverflow:                         ; @stackoverflow
+	.p2align	5                               ; -- Begin function notafunction
+_notafunction:                          ; @notafunction
 ; %bb.0:
 Lloh78:
 	adrp	x25, l_.str.29@PAGE
@@ -2546,6 +2635,16 @@ Lloh79:
 	add	x25, x25, l_.str.29@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh78, Lloh79
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function stackoverflow
+_stackoverflow:                         ; @stackoverflow
+; %bb.0:
+Lloh80:
+	adrp	x25, l_.str.30@PAGE
+Lloh81:
+	add	x25, x25, l_.str.30@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh80, Lloh81
                                         ; -- End function
 	.p2align	2                               ; -- Begin function thunk_alloc_instance
 _thunk_alloc_instance:                  ; @thunk_alloc_instance
@@ -2609,22 +2708,22 @@ _capture_loc_resolve:                   ; @capture_loc_resolve
 	.p2align	5                               ; -- Begin function invalidlayout
 _invalidlayout:                         ; @invalidlayout
 ; %bb.0:
-Lloh80:
-	adrp	x25, l_.str.30@PAGE
-Lloh81:
-	add	x25, x25, l_.str.30@PAGEOFF
-	b	_panic
-	.loh AdrpAdd	Lloh80, Lloh81
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function notaoffset
-_notaoffset:                            ; @notaoffset
-; %bb.0:
 Lloh82:
 	adrp	x25, l_.str.31@PAGE
 Lloh83:
 	add	x25, x25, l_.str.31@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh82, Lloh83
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function notaoffset
+_notaoffset:                            ; @notaoffset
+; %bb.0:
+Lloh84:
+	adrp	x25, l_.str.32@PAGE
+Lloh85:
+	add	x25, x25, l_.str.32@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh84, Lloh85
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_arith_dc_fallback
 _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
@@ -2708,12 +2807,12 @@ _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
 	.p2align	5                               ; -- Begin function notanumber
 _notanumber:                            ; @notanumber
 ; %bb.0:
-Lloh84:
-	adrp	x25, l_.str.32@PAGE
-Lloh85:
-	add	x25, x25, l_.str.32@PAGEOFF
+Lloh86:
+	adrp	x25, l_.str.33@PAGE
+Lloh87:
+	add	x25, x25, l_.str.33@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh84, Lloh85
+	.loh AdrpAdd	Lloh86, Lloh87
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_arith_dd_fallback
 _vm_op_arith_dd_fallback:               ; @vm_op_arith_dd_fallback
@@ -2809,12 +2908,12 @@ _vm_op_setcond_bad_op:                  ; @vm_op_setcond_bad_op
 	.p2align	5                               ; -- Begin function unimplemented
 _unimplemented:                         ; @unimplemented
 ; %bb.0:
-Lloh86:
-	adrp	x25, l_.str.33@PAGE
-Lloh87:
-	add	x25, x25, l_.str.33@PAGEOFF
+Lloh88:
+	adrp	x25, l_.str.34@PAGE
+Lloh89:
+	add	x25, x25, l_.str.34@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh86, Lloh87
+	.loh AdrpAdd	Lloh88, Lloh89
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_setc_CmpNotF
 _vm_op_setc_CmpNotF:                    ; @vm_op_setc_CmpNotF
@@ -4134,21 +4233,24 @@ l_.str.27:                              ; @.str.27
 	.asciz	"no such member"
 
 l_.str.28:                              ; @.str.28
-	.asciz	"not a function"
+	.asciz	"not a field"
 
 l_.str.29:                              ; @.str.29
-	.asciz	"stack overflow"
+	.asciz	"not a function"
 
 l_.str.30:                              ; @.str.30
-	.asciz	"invalid layout"
+	.asciz	"stack overflow"
 
 l_.str.31:                              ; @.str.31
-	.asciz	"not a offset"
+	.asciz	"invalid layout"
 
 l_.str.32:                              ; @.str.32
-	.asciz	"not a number"
+	.asciz	"not a offset"
 
 l_.str.33:                              ; @.str.33
+	.asciz	"not a number"
+
+l_.str.34:                              ; @.str.34
 	.asciz	"unimplemented"
 
 	.section	__DATA,__const

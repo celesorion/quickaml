@@ -123,6 +123,12 @@ void nomember(PARAMS) {
 }
 
 THREADED
+void notafield(PARAMS) {
+  fns = (struct thunk **)(void *)"not a field";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void diverge(PARAMS) {
   for (;;)
     ;
@@ -133,6 +139,18 @@ void halt(PARAMS) { return; }
 
 INLINE const struct str *trap_expect_str(val_t value, uint64_t ft) {
   return val_is_str_macro(value, ft) ? val_as_str(value) : nullptr;
+}
+
+// The member of a type description with the given name.
+static const struct member_desc *member_named(const struct type_desc *desc,
+                                              const struct str *name) {
+  size_t len = str_len(name);
+  for (uint32_t i = 0; i < desc->nmembers; i++) {
+    const struct member_desc *m = &desc->members[i];
+    if (m->len == len && memcmp(m->name, name->bytes, len) == 0)
+      return m;
+  }
+  return nullptr;
 }
 
 // Resolve a member to a slot: a position (an int constant) counts the fields
@@ -156,18 +174,34 @@ COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
   if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
     return nullptr;
 
-  const struct str *s = val_as_str(name);
-  size_t len = str_len(s);
   struct object *type = val_as_type(inst->fields[0]);
   const struct type_desc *desc = type_desc_of(type);
-  for (uint32_t i = 0; i < desc->nmembers; i++) {
-    const struct member_desc *m = &desc->members[i];
-    if (m->len == len && memcmp(m->name, s->bytes, len) == 0)
-      return m->slot < desc->nfields
-                 ? &inst->fields[1 + m->slot]
-                 : &type->fields[1 + m->slot - desc->nfields];
+  const struct member_desc *m = member_named(desc, val_as_str(name));
+  if (m == nullptr)
+    return nullptr;
+  return m->slot < desc->nfields ? &inst->fields[1 + m->slot]
+                                 : &type->fields[1 + m->slot - desc->nfields];
+}
+
+// The slot an assignment may write: a declared field of a struct, by name or
+// by position.  Methods and tuple fields are read-only, so they are not found.
+COLD_HELPER static val_t *field_slot(val_t recv, val_t name) {
+  if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
+    return nullptr;
+  struct object *inst = val_as_ptr(recv);
+  if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
+    return nullptr;
+  const struct type_desc *desc = type_desc_of(val_as_type(inst->fields[0]));
+  uint32_t slot;
+  if (val_is_int(name)) {
+    slot = (uint32_t)val_as_i32(name);
+  } else {
+    const struct member_desc *m = member_named(desc, val_as_str(name));
+    if (m == nullptr)
+      return nullptr;
+    slot = m->slot;
   }
-  return nullptr;
+  return slot < desc->nfields ? &inst->fields[1 + slot] : nullptr;
 }
 
 INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
@@ -481,10 +515,13 @@ OP_DEFINITION(LoadField) {
 OP_DEFINITION(SetField) {
   ssz_t src = ARG3A;
   ssz_t recv = ARG3B;
-  val_t *slot = member_slot(bp[recv], fiber->ctbl[ARG3C]);
+  val_t *slot = field_slot(bp[recv], fiber->ctbl[ARG3C]);
 
   if (unlikely(slot == nullptr)) {
-    MUSTTAIL return nomember(ARGS);
+    if (member_slot(bp[recv], fiber->ctbl[ARG3C]) == nullptr) {
+      MUSTTAIL return nomember(ARGS);
+    }
+    MUSTTAIL return notafield(ARGS);
   }
 
   gc_store_field(fiber->state->heap, val_as_ptr(bp[recv]), slot, bp[src]);
