@@ -49,14 +49,15 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
 
 void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
-struct type_desc *vm_type_alloc(uint32_t nfields, uint32_t nslots,
+struct type_desc *vm_type_alloc(const char *name, uint32_t namelen,
+                                uint32_t nfields, uint32_t nslots,
                                 const struct member_desc *members,
                                 size_t nmembers) {
-  if (nfields > nslots || (nmembers != 0 && members == nullptr) ||
-      nmembers > UINT32_MAX)
+  if (nfields > nslots || (namelen != 0 && name == nullptr) ||
+      (nmembers != 0 && members == nullptr) || nmembers > UINT32_MAX)
     return nullptr;
 
-  size_t names = 0;
+  size_t names = namelen + 1;
   for (size_t i = 0; i < nmembers; i++) {
     if (members[i].slot >= nslots ||
         (members[i].len != 0 && members[i].name == nullptr))
@@ -72,14 +73,20 @@ struct type_desc *vm_type_alloc(uint32_t nfields, uint32_t nslots,
   desc->nfields = nfields;
   desc->nslots = nslots;
   desc->nmembers = (uint32_t)nmembers;
-  char *name = (char *)&desc->members[nmembers];
+  char *text = (char *)&desc->members[nmembers];
+  desc->name = text;
+  desc->namelen = namelen;
+  if (namelen != 0)
+    memcpy(text, name, namelen);
+  text[namelen] = '\0';
+  text += namelen + 1;
   for (size_t i = 0; i < nmembers; i++) {
     desc->members[i] = members[i];
-    desc->members[i].name = name;
+    desc->members[i].name = text;
     if (members[i].len != 0)
-      memcpy(name, members[i].name, members[i].len);
-    name[members[i].len] = '\0';
-    name += members[i].len + 1;
+      memcpy(text, members[i].name, members[i].len);
+    text[members[i].len] = '\0';
+    text += members[i].len + 1;
   }
   return desc;
 }

@@ -63,11 +63,12 @@ INLINE bool obj_is_words(enum tag tag) { return (uint8_t)tag < TAG_THUNK; }
 /* Words objects and thunks are scanned, so they queue on the gray list. */
 INLINE bool obj_has_gclist(enum tag tag) { return (uint8_t)tag <= TAG_THUNK; }
 
-/* Immutable, image-owned description of a struct type. A runtime type value
- * is a words object tagged TAG_TYPE holding the description pointer in
- * slot 0 and its method closures after it. A struct instance is tagged
- * TAG_STRUCT and holds its type value in slot 0 followed by one slot per
- * member: the declared fields first, then a copy of the method closures. */
+/* Immutable, image-owned description of a struct type: its declared name and
+ * members. A runtime type value is a words object tagged TAG_TYPE holding the
+ * description pointer in slot 0 and its method closures after it. A struct
+ * instance is tagged TAG_STRUCT and holds its type value in slot 0 followed
+ * by one slot per member: the declared fields first, then a copy of the
+ * method closures. */
 struct member_desc {
   const char *name;
   uint32_t len;
@@ -78,6 +79,8 @@ struct type_desc {
   uint32_t nfields;
   uint32_t nslots;
   uint32_t nmembers;
+  uint32_t namelen;
+  const char *name;
   struct member_desc members[];
 };
 

@@ -166,7 +166,8 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
                       struct thunk **fns, struct type_desc **types,
                       size_t numfn, size_t numtype, size_t stack_slots,
                       val_t *result, struct gc_stats *stats_out);
-struct type_desc *vm_type_alloc(uint32_t nfields, uint32_t nslots,
+struct type_desc *vm_type_alloc(const char *name, uint32_t namelen,
+                                uint32_t nfields, uint32_t nslots,
                                 const struct member_desc *members,
                                 size_t nmembers);
 void vm_type_free(struct type_desc *desc);

@@ -2524,7 +2524,7 @@ _member_slot:                           ; @member_slot
 	sub	x22, x1, #5
 	ldur	w16, [x1, #-1]
 	sub	x19, x16, #9
-	add	x23, x8, #28
+	add	x23, x8, #36
 	b	.L10
 .L9:                                ;   in Loop: Header=BB58_10 Depth=1
 	add	x23, x23, #16

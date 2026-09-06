@@ -3342,18 +3342,18 @@ member_slot:                            # @member_slot
 	cmpq	%rbx, %r15
 	je	.L15
 .L11:                              # =>This Inner Loop Header: Depth=1
-	movl	24(%r13,%rbx), %eax
+	movl	32(%r13,%rbx), %eax
 	cmpq	%rax, %r12
 	jne	.L14
 # %bb.12:                               #   in Loop: Header=BB58_11 Depth=1
-	movq	16(%r13,%rbx), %rdi
+	movq	24(%r13,%rbx), %rdi
 	movq	%r14, %rsi
 	movq	%r12, %rdx
 	callq	bcmp@PLT
 	testl	%eax, %eax
 	jne	.L14
 # %bb.13:
-	movl	28(%r13,%rbx), %eax
+	movl	36(%r13,%rbx), %eax
 	addl	$1, %eax
 	movq	-104(%rbp), %r11                # 8-byte Reload
 	leaq	(%r11,%rax,8), %rax
