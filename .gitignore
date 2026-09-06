@@ -43,8 +43,6 @@
 *.pdb
 
 out/
-bin/
-obj/
 
 .cache/
 .vscode/

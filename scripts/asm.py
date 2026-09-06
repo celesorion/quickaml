@@ -12,7 +12,7 @@ SOURCE = "src/vm.c"
 ZIG_VERSION = "0.15.1"
 TARGETS = ["aarch64-macos", "x86_64-linux-gnu"]
 # Mirrors the flags build.rs compiles the shipped vm with; the configuration
-# macros come from flags/<arch>, shared with the Makefile and build.rs
+# macros come from flags/<arch>, shared with build.rs
 FLAGS = ["-O3", "-std=c2x", "-Wall", "-Wextra", "-DNDEBUG"]
 # zig cc emits debug info by default and warns about its own unused '-c'
 ZIG_FLAGS = ["-g0", "-Wno-unused-command-line-argument"]
