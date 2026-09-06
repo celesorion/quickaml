@@ -343,14 +343,9 @@ INLINE void obj_set_gc_bits(void *ref, metainfo bits) {
   obj->hd = (obj->hd & ~OBJ_FLAG_GC_MASK) | bits;
 }
 
-/* The printer marks the objects it walks and keeps their datum label, plus
- * one so that zero means none, in the spare half word; it clears both again
- * before returning. */
+/* The printer marks the values it is inside, to cut cycles; the bit is
+ * clear again when it returns. */
 #define OBJ_FLAG_PRINT_PATH (UINT64_C(0x04) << 8)
-#define OBJ_FLAG_PRINT_DONE (UINT64_C(0x08) << 8)
-#define OBJ_FLAG_PRINT_SHARED (UINT64_C(0x10) << 8)
-#define OBJ_FLAG_PRINT_MASK (UINT64_C(0x1c) << 8)
-#define OBJ_LABEL_MASK (UINT64_C(0xffff) << 16)
 
 INLINE void *obj_gclist(const void *ref) {
   const struct gc_header *gc = ref;

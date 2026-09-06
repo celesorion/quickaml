@@ -59,11 +59,9 @@ COLD_HELPER void thunk_instance_init(struct thunk *thunk,
 }
 
 /* Values print as the syntax that builds them, closures and type values in
- * angle brackets.  Cycles are written with datum labels the way Scheme's
- * write does it: the first walk finds out whether the value is cyclic and
- * which objects it reaches twice; only a cyclic value labels those objects,
- * in output order, #n= at the first occurrence and #n# after it; the last
- * walk clears the marks, which live in the object headers. */
+ * angle brackets.  A container marks its header while its fields print, so a
+ * reference back to it prints as <cycle>, the way the OCaml toplevel does;
+ * a shared value that closes no cycle simply prints again. */
 
 #define PRINT_DEPTH_MAX 256
 
@@ -71,8 +69,6 @@ struct printer {
   char *buf; /* null once out of memory */
   size_t len;
   size_t cap;
-  bool graph; /* the value is cyclic: shared objects get labels */
-  uint32_t nlabels;
 };
 
 static void print_bytes(struct printer *p, const char *bytes, size_t n) {
@@ -143,8 +139,8 @@ static void print_str(struct printer *p, const struct str *str) {
   print_text(p, "\"");
 }
 
-/* The fields a value prints and the walks follow: all of a tuple or array,
- * the declared ones of a struct.  Every other value is a leaf. */
+/* The fields a value prints: all of a tuple or array, the declared ones of a
+ * struct.  Every other value is a leaf. */
 static const val_t *print_fields(val_t value, size_t *n) {
   *n = 0;
   if (!val_is_ptr(value) || val_is_empty(value))
@@ -161,42 +157,6 @@ static const val_t *print_fields(val_t value, size_t *n) {
   default:
     return nullptr;
   }
-}
-
-/* Marks every object the value reaches, noting the ones reached twice, and
- * reports whether one of them was still being walked: a cycle. */
-static bool print_walk(val_t value, int depth) {
-  size_t n;
-  const val_t *fields = print_fields(value, &n);
-  if (fields == nullptr)
-    return false;
-  struct object *obj = val_as_ptr(value);
-  if (obj->hd & (OBJ_FLAG_PRINT_PATH | OBJ_FLAG_PRINT_DONE)) {
-    obj->hd |= OBJ_FLAG_PRINT_SHARED;
-    return (obj->hd & OBJ_FLAG_PRINT_PATH) != 0;
-  }
-  if (depth == PRINT_DEPTH_MAX)
-    return false;
-  obj->hd |= OBJ_FLAG_PRINT_PATH;
-  bool cyclic = false;
-  for (size_t i = 0; i < n; i++)
-    cyclic |= print_walk(fields[i], depth + 1);
-  obj->hd ^= OBJ_FLAG_PRINT_PATH | OBJ_FLAG_PRINT_DONE;
-  return cyclic;
-}
-
-/* Mirrors print_walk, so it reaches exactly the objects that one marked. */
-static void print_unwalk(val_t value, int depth) {
-  size_t n;
-  const val_t *fields = print_fields(value, &n);
-  if (fields == nullptr)
-    return;
-  struct object *obj = val_as_ptr(value);
-  if (!(obj->hd & OBJ_FLAG_PRINT_DONE) || depth == PRINT_DEPTH_MAX)
-    return;
-  obj->hd &= ~(OBJ_FLAG_PRINT_MASK | OBJ_LABEL_MASK);
-  for (size_t i = 0; i < n; i++)
-    print_unwalk(fields[i], depth + 1);
 }
 
 static const struct member_desc *type_member(const struct type_desc *desc,
@@ -244,20 +204,15 @@ static void print_value(struct printer *p, val_t value, int depth) {
   size_t n;
   const val_t *fields = print_fields(value, &n);
   if (fields != nullptr) {
-    uint32_t label = (uint32_t)((obj->hd & OBJ_LABEL_MASK) >> 16);
-    if (label != 0) {
-      print_fmt(p, "#%" PRIu32 "#", label - 1);
+    if (obj->hd & OBJ_FLAG_PRINT_PATH) {
+      print_text(p, "<cycle>");
       return;
     }
     if (depth == PRINT_DEPTH_MAX) {
       print_text(p, "...");
       return;
     }
-    if (p->graph && (obj->hd & OBJ_FLAG_PRINT_SHARED) && p->nlabels < 0xffff) {
-      label = p->nlabels++;
-      obj->hd |= (metainfo)(label + 1) << 16;
-      print_fmt(p, "#%" PRIu32 "=", label);
-    }
+    obj->hd |= OBJ_FLAG_PRINT_PATH;
   }
 
   switch (obj_tag_of(obj)) {
@@ -309,6 +264,9 @@ static void print_value(struct printer *p, val_t value, int depth) {
     print_text(p, "<free>");
     break;
   }
+
+  if (fields != nullptr)
+    obj->hd &= ~OBJ_FLAG_PRINT_PATH;
 }
 
 /* The text of a value, to be freed by the caller; null when out of memory. */
@@ -317,9 +275,7 @@ char *obj_format(val_t value) {
   if (p.buf == nullptr)
     return nullptr;
   p.buf[0] = '\0';
-  p.graph = print_walk(value, 0);
   print_value(&p, value, 0);
-  print_unwalk(value, 0);
   return p.buf;
 }
 
