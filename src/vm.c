@@ -28,7 +28,7 @@ status_t vm_entry(struct fiber_segment *fiber) {
   struct state *state = fiber->state;
   bc_t *ip = state->entry->ops;
   val_t *bp = next_bp(fiber->stk, FRAME_HEADER_SIZE);
-  frame_rv(bp) = val_from_ptr(state->entry);
+  frame_rv(bp) = val_from_closure(state->entry);
   frame_ra(bp) = 0;
   fiber->ctbl = state->entry->ctbl;
   struct thunk **fns = state->fns;
@@ -131,15 +131,8 @@ void diverge(PARAMS) {
 THREADED
 void halt(PARAMS) { return; }
 
-INLINE const struct str *trap_expect_str(val_t value) {
-  if (val_is_empty(value) || !val_is_ptr(value))
-    return nullptr;
-
-  void *ref = val_as_ptr(value);
-  if (obj_tag_of(ref) != TAG_STR)
-    return nullptr;
-
-  return ref;
+INLINE const struct str *trap_expect_str(val_t value, uint64_t ft) {
+  return val_is_str_macro(value, ft) ? val_as_str(value) : nullptr;
 }
 
 // Resolve a member name (a string constant) to the slot of a struct instance.
@@ -150,9 +143,9 @@ COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
   if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
     return nullptr;
 
-  const struct str *s = val_as_ptr(name);
+  const struct str *s = val_as_str(name);
   size_t len = str_len(s);
-  const struct type_desc *desc = type_desc_of(val_as_ptr(inst->fields[0]));
+  const struct type_desc *desc = type_desc_of(val_as_type(inst->fields[0]));
   for (uint32_t i = 0; i < desc->nmembers; i++) {
     const struct member_desc *m = &desc->members[i];
     if (m->len == len && memcmp(m->name, s->bytes, len) == 0)
@@ -273,7 +266,7 @@ OP_DEFINITION(Trap) {
   case T_FILE_OPEN: { // open(path)
     ssz_t path_reg = ARG3B;
     ssz_t dst_reg = ARG3C;
-    const struct str *path = trap_expect_str(bp[path_reg]);
+    const struct str *path = trap_expect_str(bp[path_reg], ft);
     if (path == nullptr) {
       fns = (struct thunk **)(void *)"file path is not a string";
       MUSTTAIL return panic(ARGS);
@@ -311,7 +304,7 @@ OP_DEFINITION(Trap) {
   }
   case T_FILE_CLOSE: { // close(path)
     ssz_t path_reg = ARG3B;
-    const struct str *path = trap_expect_str(bp[path_reg]);
+    const struct str *path = trap_expect_str(bp[path_reg], ft);
     if (path == nullptr) {
       fns = (struct thunk **)(void *)"file path is not a string";
       MUSTTAIL return panic(ARGS);
@@ -441,7 +434,7 @@ OP_DEFINITION(LoadType) {
 OP_DEFINITION(LoadFree) {
   ssz_t dst = ARG2A;
   val_t fidx = ARG2B;
-  struct thunk *thunk = val_as_ptr(frame_rv(bp));
+  struct thunk *thunk = val_as_closure(frame_rv(bp));
 
   if (fidx == 0) {
     bp[dst] = frame_rv(bp);
@@ -496,12 +489,11 @@ OP_DEFINITION(Apply) {
   ssz_t ithunk = ARG2A;
   val_t fv = bp[ithunk];
 
-  if (unlikely(val_is_empty(fv) || !val_is_ptr(fv) ||
-               obj_tag_of(val_as_ptr(fv)) != TAG_THUNK)) {
+  if (unlikely(!val_is_closure_macro(fv, ft))) {
     MUSTTAIL return notafunction(ARGS);
   }
 
-  struct thunk *thunk = val_as_ptr(fv);
+  struct thunk *thunk = val_as_closure(fv);
 
   bc_t *oldip = ip;
   ip = thunk->ops;
@@ -513,7 +505,7 @@ OP_DEFINITION(Apply) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
-  frame_rv(bp) = val_from_ptr(thunk);
+  frame_rv(bp) = fv;
   frame_ra(bp) = ptr2val(oldip);
   fiber->ctbl = thunk->ctbl;
 
@@ -551,7 +543,7 @@ OP_DEFINITION(Call) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
-  frame_rv(bp) = val_from_ptr(thunk);
+  frame_rv(bp) = val_from_closure(thunk);
   frame_ra(bp) = ptr2val(oldip);
   fiber->ctbl = thunk->ctbl;
 
@@ -567,7 +559,7 @@ OP_DEFINITION(Retu) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  fiber->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
+  fiber->ctbl = val_as_closure(frame_rv(bp))->ctbl;
 
   DISPATCH();
 }
@@ -583,7 +575,7 @@ OP_DEFINITION(Ret) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  fiber->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
+  fiber->ctbl = val_as_closure(frame_rv(bp))->ctbl;
 
   DISPATCH();
 }
@@ -603,7 +595,7 @@ OP_DEFINITION(Retn) {
 
   bp = prev_bp(bp, fo);
   ip = ra;
-  fiber->ctbl = ((struct thunk *)val2ptr(frame_rv(bp)))->ctbl;
+  fiber->ctbl = val_as_closure(frame_rv(bp))->ctbl;
 
   DISPATCH();
 }
@@ -619,7 +611,7 @@ thunk_alloc_instance(struct fiber_segment *restrict fiber,
 
 COLD_HELPER static bool capture_loc_resolve(val_t loc, val_t *restrict bp,
                                             val_t *restrict out) {
-  struct thunk *current = val_as_ptr(frame_rv(bp));
+  struct thunk *current = val_as_closure(frame_rv(bp));
   uint16_t kind = capture_loc_kind(loc);
   uint16_t index = capture_loc_index(loc);
 
@@ -659,7 +651,7 @@ OP_DEFINITION(Clos) {
   }
 
   gc_publish_new_object(state->heap, thunk);
-  bp[dst] = val_from_ptr(thunk);
+  bp[dst] = val_from_closure(thunk);
   gc_poll(fiber, bp, obj_size(thunk));
   DISPATCH();
 }
@@ -684,7 +676,10 @@ OP_DEFINITION(WObj) {
       MUSTTAIL return invalidlayout(ARGS);
     }
   } else if (tag == TAG_STRUCT) {
-    const struct type_desc *desc = type_desc_of(val_as_ptr(bp[fld]));
+    if (unlikely(!val_is_type_macro(bp[fld], ft))) {
+      MUSTTAIL return invalidlayout(ARGS);
+    }
+    const struct type_desc *desc = type_desc_of(val_as_type(bp[fld]));
     if (unlikely(len != 1 + desc->nfields)) {
       MUSTTAIL return invalidlayout(ARGS);
     }
@@ -696,13 +691,13 @@ OP_DEFINITION(WObj) {
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
   if (nslots > len) {
-    const struct object *type = val_as_ptr(bp[fld]);
+    const struct object *type = val_as_type(bp[fld]);
     for (ssz_t i = len; i < nslots; i++)
       obj->fields[i] = type->fields[1 + i - len];
   }
 
   gc_publish_new_object(state->heap, obj);
-  bp[fld] = val_from_ptr(obj);
+  bp[fld] = tag == TAG_TYPE ? val_from_type(obj) : val_from_ptr(obj);
   gc_poll(fiber, bp, object_size(nslots));
 
   DISPATCH();
@@ -749,13 +744,10 @@ COLD_HELPER static bool val_eq(val_t lhs, val_t rhs, uint64_t ft) {
   double l, r;
   if (val_to_f64_pair(lhs, rhs, ft, &l, &r))
     return l == r;
-  if (val_is_ptr(lhs) && val_is_ptr(rhs)) {
-    void *lp = val_as_ptr(lhs), *rp = val_as_ptr(rhs);
-    if (obj_tag_of(lp) == TAG_STR && obj_tag_of(rp) == TAG_STR) {
-      struct str *ls = lp, *rs = rp;
-      size_t ll = str_len(ls);
-      return ll == str_len(rs) && memcmp(ls->bytes, rs->bytes, ll) == 0;
-    }
+  if (val_is_str_macro(lhs, ft) && val_is_str_macro(rhs, ft)) {
+    struct str *ls = val_as_str(lhs), *rs = val_as_str(rhs);
+    size_t ll = str_len(ls);
+    return ll == str_len(rs) && memcmp(ls->bytes, rs->bytes, ll) == 0;
   }
   return false;
 }

@@ -103,7 +103,7 @@ static void gc_scan_stack_roots(struct heap *h,
 
   while (cur_bp > stk_base + 2 * FRAME_HEADER_SIZE) {
     val_t fn_val = frame_rv(cur_bp);
-    struct thunk *thunk = val2ptr(fn_val);
+    struct thunk *thunk = val_as_closure(fn_val);
     uint8_t nregs = thunk->nregs;
     shade_value(h, fn_val);
 
@@ -122,7 +122,7 @@ static void gc_scan_stack_roots(struct heap *h,
   if (cur_bp > stk_base) {
     val_t fn_val = frame_rv(cur_bp);
     if (fn_val) {
-      struct thunk *thunk = val2ptr(fn_val);
+      struct thunk *thunk = val_as_closure(fn_val);
       uint8_t nregs = thunk->nregs;
       shade_value(h, fn_val);
       for (uint8_t i = 0; i < nregs; i++)

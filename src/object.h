@@ -89,7 +89,7 @@ struct type_desc {
  *
  *   63           49 48  47                              3 2  1 0
  *  +---------------+---+---------------------------------+--+-+-+
- *  |000000000000000| 0 | object address, 8-byte aligned  |x |0|x| pointer
+ *  |000000000000000| 0 | object address, 8-byte aligned  |k |0|k| pointer
  *  |000000000000000| 0 |                0                |b |1|v| trivial
  *  +---------------+-----------------+--------------------------+
  *  |111111111111111|00000000000000000| int32, two's complement  | int
@@ -97,9 +97,10 @@ struct type_desc {
  *  |           otherwise: IEEE754 double bits + 2^49            | float
  *  +------------------------------------------------------------+
  *
- * pointer  bit 1 clear.  Bit 48 and the alignment bits 0 and 2 are always zero
- *          today and free for tags.  VAL_EMPTY is the null pointer, so callers
- *          of val_is_ptr exclude it separately.
+ * pointer  bit 1 clear.  The low three bits are the kind: 000 untagged, the
+ *          header decides; 001 closure; 100 type value; 101 string.  Bit 48
+ *          is free.  VAL_EMPTY is the null pointer, so callers of val_is_ptr
+ *          exclude it separately.
  * trivial  bit 1 (VAL_OTHER_TAG) set: VAL_NULL 0b010, then with bit 2
  *          (VAL_BOOL_TAG) VAL_FALSE 0b110 and VAL_TRUE 0b111.
  * int      val_is_int tests only the top 15 bits, so bits 48..32 are free.
@@ -117,6 +118,11 @@ struct type_desc {
 #define VAL_NULL VAL_OTHER_TAG
 #define VAL_FALSE (VAL_OTHER_TAG | VAL_BOOL_TAG)
 #define VAL_TRUE (VAL_OTHER_TAG | VAL_BOOL_TAG | VAL_BOOL_VAL_BIT)
+/* Pointer kinds in the alignment bits 0 and 2; bit 1 stays clear. */
+#define VAL_KIND_MASK UINT64_C(0x7)
+#define VAL_KIND_CLOSURE UINT64_C(0x1)
+#define VAL_KIND_TYPE UINT64_C(0x4)
+#define VAL_KIND_STR UINT64_C(0x5)
 
 static_assert(sizeof(val_t) == 8, "NuN boxing requires 64-bit values");
 static_assert(sizeof(metainfo) == 8, "object headers must stay 64-bit");
@@ -184,16 +190,71 @@ INLINE bool val_is_float(val_t value) {
   return val_is_float_macro(value, VAL_FLOAT_TAG);
 }
 
-INLINE val_t val_from_ptr(void *ptr) {
-  uintptr_t raw = (uintptr_t)ptr;
-  assert(raw != VAL_EMPTY);
-  assert((raw & VAL_NOT_CELL_MASK) == 0);
-  return (val_t)raw;
+/* A tagged kind is checked without touching the object; an untagged pointer
+ * leaves the header to decide.  Handlers pass the pinned ft register as the
+ * tag: x86-64 has no 64-bit immediate for the mask. */
+#define val_is_kind_macro(value, kind, tag)                                    \
+  (((value) & ((tag) + VAL_KIND_MASK)) == (kind))
+#define val_is_closure_macro(value, tag)                                       \
+  val_is_kind_macro(value, VAL_KIND_CLOSURE, tag)
+#define val_is_type_macro(value, tag)                                          \
+  val_is_kind_macro(value, VAL_KIND_TYPE, tag)
+#define val_is_str_macro(value, tag)                                           \
+  val_is_kind_macro(value, VAL_KIND_STR, tag)
+
+INLINE bool val_is_closure(val_t value) {
+  return val_is_closure_macro(value, VAL_FLOAT_TAG);
 }
 
+INLINE bool val_is_type(val_t value) {
+  return val_is_type_macro(value, VAL_FLOAT_TAG);
+}
+
+INLINE bool val_is_str(val_t value) {
+  return val_is_str_macro(value, VAL_FLOAT_TAG);
+}
+
+INLINE val_t val_from_kind(const void *ptr, val_t kind) {
+  uintptr_t raw = (uintptr_t)ptr;
+  assert(raw != VAL_EMPTY);
+  assert((raw & (VAL_FLOAT_TAG | VAL_KIND_MASK)) == 0);
+  return (val_t)raw | kind;
+}
+
+INLINE val_t val_from_ptr(void *ptr) { return val_from_kind(ptr, 0); }
+
+INLINE val_t val_from_closure(struct thunk *thunk) {
+  return val_from_kind(thunk, VAL_KIND_CLOSURE);
+}
+
+INLINE val_t val_from_type(struct object *type) {
+  return val_from_kind(type, VAL_KIND_TYPE);
+}
+
+INLINE val_t val_from_str(struct str *str) {
+  return val_from_kind(str, VAL_KIND_STR);
+}
+
+/* Any pointer, kind stripped. */
 INLINE void *val_as_ptr(val_t value) {
   assert(val_is_ptr(value));
-  return (void *)(uintptr_t)value;
+  return (void *)(uintptr_t)(value & ~VAL_KIND_MASK);
+}
+
+/* The kind is known here, so subtracting it folds into the field offsets. */
+INLINE struct thunk *val_as_closure(val_t value) {
+  assert(val_is_closure(value));
+  return (struct thunk *)(uintptr_t)(value - VAL_KIND_CLOSURE);
+}
+
+INLINE struct object *val_as_type(val_t value) {
+  assert(val_is_type(value));
+  return (struct object *)(uintptr_t)(value - VAL_KIND_TYPE);
+}
+
+INLINE struct str *val_as_str(val_t value) {
+  assert(val_is_str(value));
+  return (struct str *)(uintptr_t)(value - VAL_KIND_STR);
 }
 
 #define val_from_i32_macro(num, tag) ((tag) | (uint32_t)num)

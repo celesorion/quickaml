@@ -150,7 +150,7 @@ bool vm_const_from_str(const char *data, uint32_t len,
   struct str *str = vm_alloc_str(data, len, heap);
   if (str == nullptr)
     return false;
-  *out = val_from_ptr(str);
+  *out = val_from_str(str);
   return true;
 }
 
