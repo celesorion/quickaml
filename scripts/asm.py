@@ -11,8 +11,9 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = "src/vm.c"
 ZIG_VERSION = "0.15.1"
 TARGETS = ["aarch64-macos", "x86_64-linux-gnu"]
-# Mirrors the flags build.rs compiles the shipped vm with
-FLAGS = ["-O3", "-std=c2x", "-Wall", "-Wextra", "-DNDEBUG", "-DJUMP_MODE=0", "-DDECODE_MODE=1"]
+# Mirrors the flags build.rs compiles the shipped vm with; the configuration
+# macros come from flags/<arch>, shared with the Makefile and build.rs
+FLAGS = ["-O3", "-std=c2x", "-Wall", "-Wextra", "-DNDEBUG"]
 # zig cc emits debug info by default and warns about its own unused '-c'
 ZIG_FLAGS = ["-g0", "-Wno-unused-command-line-argument"]
 
@@ -43,8 +44,12 @@ def normalize(text):
     return "\n".join(lines)
 
 
+def config_flags(target):
+    return (ROOT / "flags" / target.split("-")[0]).read_text().split()
+
+
 def dump(target, clang):
-    args = [*FLAGS, *ZIG_FLAGS, "-target", target, "-S", SOURCE]
+    args = [*FLAGS, *config_flags(target), *ZIG_FLAGS, "-target", target, "-S", SOURCE]
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "vm.s"
         zig("cc", *args, "-o", str(out))

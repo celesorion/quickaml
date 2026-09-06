@@ -1,8 +1,10 @@
 # Compiler
 CC := clang
 
-# Default CFLAGS
-CFLAGS := -DJUMP_MODE=0 -DDECODE_MODE=0
+# VM configuration macros, one file per architecture, shared with build.rs
+# and scripts/asm.py
+ARCH := $(shell uname -m | sed s/arm64/aarch64/)
+CFLAGS := $(shell cat flags/$(ARCH))
 
 # Compiler flags
 _CFLAGS := -Wall -Wextra -O3 -std=c2x -DNDEBUG
