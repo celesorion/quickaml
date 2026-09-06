@@ -12,8 +12,7 @@
 #define add2ip(ip, off)                                                        \
   ((bc_t *)((unsigned char *)(ip) + (ptrdiff_t)off * sizeof(bc_t)))
 
-#define THREADED                                                               \
-  [[gnu::noinline, clang::preserve_none, gnu::aligned(32)]] static
+#define THREADED [[gnu::noinline, gnu::aligned(32)]] PRESERVE_NONE static
 #define MUSTTAIL [[clang::musttail]]
 #define DP(dp, op) (((opthread *const *)(dp))[op])
 
@@ -151,7 +150,7 @@
 
 #endif
 
-[[clang::preserve_none]] typedef void opthread(PARAMS);
+PRESERVE_NONE typedef void opthread(PARAMS);
 
 
 #define cast(x, t) ((t)(x))

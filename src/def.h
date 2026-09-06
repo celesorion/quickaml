@@ -19,8 +19,25 @@ typedef uint64_t metainfo;
 #define val2ptr(v) ((void *)(v))
 #define val2off(v) ((joff_t)(v))
 
+/* The calling conventions the interpreter relies on.  preserve_none lets the
+ * threaded handlers keep the machine state in registers across their tail
+ * calls, preserve_most keeps calls into the cold helpers cheap for them.  gcc
+ * 15 spells the first one gnu::preserve_none and has no second one. */
+#if __has_c_attribute(clang::preserve_none)
+#define PRESERVE_NONE [[clang::preserve_none]]
+#elif __has_c_attribute(gnu::preserve_none)
+#define PRESERVE_NONE [[gnu::preserve_none]]
+#else
+#define PRESERVE_NONE
+#endif
+#if __has_c_attribute(clang::preserve_most)
+#define PRESERVE_MOST [[clang::preserve_most]]
+#else
+#define PRESERVE_MOST
+#endif
+
 #define INLINE [[gnu::always_inline]] static inline
-#define COLD_HELPER [[gnu::noinline, clang::preserve_most]]
+#define COLD_HELPER [[gnu::noinline]] PRESERVE_MOST
 
 #define STATUS(_) \
   _(S_OK, "success")   \
