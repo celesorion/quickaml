@@ -2474,11 +2474,11 @@ _member_slot:                           ; @member_slot
 ; %bb.0:
 	mov	x8, x0
 	mov	x0, #0                          ; =0x0
-	cbz	x8, .L11
+	cbz	x8, .L16
 ; %bb.1:
 	and	x16, x8, #0xfffffffffffffffe
 	and	x16, x16, #0xfffe000000000003
-	cbnz	x16, .L11
+	cbnz	x16, .L16
 ; %bb.2:
 	str	x15, [sp, #-128]!               ; 8-byte Folded Spill
 	stp	x14, x13, [sp, #16]             ; 16-byte Folded Spill
@@ -2490,43 +2490,74 @@ _member_slot:                           ; @member_slot
 	stp	x29, x30, [sp, #112]            ; 16-byte Folded Spill
 	add	x29, sp, #112
 	and	x20, x8, #0x1fffffffffff8
-	ldrb	w8, [x20]
-	cmp	x8, #4
-	b.ne	.L9
+	ldr	x8, [x20]
+	mov	x16, #-562949953421312          ; =0xfffe000000000000
+	cmp	x1, x16
+	b.lo	.L6
 ; %bb.3:
+	and	w16, w8, #0xff
+	cmp	w16, #4
+	b.eq	.L14
+; %bb.4:
+	sxtb	w16, w8
+	cbnz	w16, .L13
+; %bb.5:
+	mov	w16, w1
+	lsr	x8, x8, #32
+	sub	x8, x8, #16
+	add	x17, x20, w1, uxtw #3
+	add	x17, x17, #16
+	cmp	x16, x8, lsr #3
+	csel	x0, x17, xzr, lo
+	b	.L15
+.L6:
+	and	x8, x8, #0xff
+	cmp	x8, #4
+	b.ne	.L13
+; %bb.7:
 	ldr	x8, [x20, #16]!
 	ldur	x8, [x8, #12]
 	and	x8, x8, #0xfffffffffffffff8
 	ldr	w21, [x8, #8]
-	cbz	w21, .L9
-; %bb.4:
+	cbz	w21, .L13
+; %bb.8:
 	sub	x22, x1, #5
 	ldur	w16, [x1, #-1]
 	sub	x19, x16, #9
 	add	x23, x8, #28
-	b	.L6
-.L5:                                ;   in Loop: Header=BB58_6 Depth=1
+	b	.L10
+.L9:                                ;   in Loop: Header=BB58_10 Depth=1
 	add	x23, x23, #16
 	subs	x21, x21, #1
-	b.eq	.L9
-.L6:                                ; =>This Inner Loop Header: Depth=1
+	b.eq	.L13
+.L10:                               ; =>This Inner Loop Header: Depth=1
 	ldur	w8, [x23, #-4]
 	cmp	x19, x8
-	b.ne	.L5
-; %bb.7:                                ;   in Loop: Header=BB58_6 Depth=1
+	b.ne	.L9
+; %bb.11:                               ;   in Loop: Header=BB58_10 Depth=1
 	ldur	x0, [x23, #-12]
 	add	x1, x22, #8
 	mov	x2, x19
 	bl	_memcmp
-	cbnz	w0, .L5
-; %bb.8:
+	cbnz	w0, .L9
+; %bb.12:
 	ldr	w8, [x23]
 	add	w8, w8, #1
 	add	x0, x20, w8, uxtw #3
-	b	.L10
-.L9:
+	b	.L15
+.L13:
 	mov	x0, #0                          ; =0x0
-.L10:
+	b	.L15
+.L14:
+	ldr	x8, [x20, #16]!
+	ldur	x8, [x8, #12]
+	and	x8, x8, #0xfffffffffffffff8
+	ldr	w8, [x8]
+	add	w16, w1, #1
+	add	x16, x20, w16, uxtw #3
+	cmp	w8, w1
+	csel	x0, x16, xzr, hi
+.L15:
 	ldp	x29, x30, [sp, #112]            ; 16-byte Folded Reload
 	ldp	x20, x19, [sp, #96]             ; 16-byte Folded Reload
 	ldp	x22, x21, [sp, #80]             ; 16-byte Folded Reload
@@ -2535,7 +2566,7 @@ _member_slot:                           ; @member_slot
 	ldp	x12, x11, [sp, #32]             ; 16-byte Folded Reload
 	ldp	x14, x13, [sp, #16]             ; 16-byte Folded Reload
 	ldr	x15, [sp], #128                 ; 8-byte Folded Reload
-.L11:
+.L16:
 	ret
                                         ; -- End function
 	.p2align	5                               ; -- Begin function nomember

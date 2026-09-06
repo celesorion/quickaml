@@ -3288,26 +3288,46 @@ member_slot:                            # @member_slot
 	subq	$16, %rsp
 	xorl	%eax, %eax
 	testq	%rdi, %rdi
-	je	.L10
+	je	.L16
 # %bb.1:
-	movabsq	$-562949953421310, %r11         # imm = 0xFFFE000000000002
-	andq	%rdi, %r11
-	jne	.L10
+	movabsq	$-562949953421313, %r11         # imm = 0xFFFDFFFFFFFFFFFF
+	leaq	3(%r11), %rcx
+	andq	%rdi, %rcx
+	jne	.L16
 # %bb.2:
+	movq	%rsi, %r14
 	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
 	andq	%rax, %rdi
-	cmpb	$4, (%rdi)
-	jne	.L9
+	movq	(%rdi), %rcx
+	cmpq	%r11, %rsi
+	jbe	.L8
 # %bb.3:
+	cmpb	$4, %cl
+	je	.L7
+# %bb.4:
+	movsbl	%cl, %r11d
+	testl	%r11d, %r11d
+	jne	.L15
+# %bb.5:
+	movl	%r14d, %r11d
+	shrq	$32, %rcx
+	addq	$-16, %rcx
+	shrq	$3, %rcx
+	xorl	%eax, %eax
+	cmpq	%r11, %rcx
+	jmp	.L6
+.L8:
+	cmpb	$4, %cl
+	jne	.L15
+# %bb.9:
 	movq	16(%rdi), %rax
 	movq	12(%rax), %r13
 	andq	$-8, %r13
 	movl	8(%r13), %r15d
 	testq	%r15, %r15
-	je	.L9
-# %bb.4:
-	movq	%rsi, %r14
-	movl	-1(%rsi), %r12d
+	je	.L15
+# %bb.10:
+	movl	-1(%r14), %r12d
 	addq	$-5, %r14
 	addq	$-9, %r12
 	addq	$16, %rdi
@@ -3315,32 +3335,43 @@ member_slot:                            # @member_slot
 	addq	$8, %r14
 	shlq	$4, %r15
 	xorl	%ebx, %ebx
-	jmp	.L5
+	jmp	.L11
 	.p2align	4
-.L8:                               #   in Loop: Header=BB58_5 Depth=1
+.L14:                              #   in Loop: Header=BB58_11 Depth=1
 	addq	$16, %rbx
 	cmpq	%rbx, %r15
-	je	.L9
-.L5:                               # =>This Inner Loop Header: Depth=1
+	je	.L15
+.L11:                              # =>This Inner Loop Header: Depth=1
 	movl	24(%r13,%rbx), %eax
 	cmpq	%rax, %r12
-	jne	.L8
-# %bb.6:                                #   in Loop: Header=BB58_5 Depth=1
+	jne	.L14
+# %bb.12:                               #   in Loop: Header=BB58_11 Depth=1
 	movq	16(%r13,%rbx), %rdi
 	movq	%r14, %rsi
 	movq	%r12, %rdx
 	callq	bcmp@PLT
 	testl	%eax, %eax
-	jne	.L8
-# %bb.7:
+	jne	.L14
+# %bb.13:
 	movl	28(%r13,%rbx), %eax
 	addl	$1, %eax
 	movq	-104(%rbp), %r11                # 8-byte Reload
 	leaq	(%r11,%rax,8), %rax
-	jmp	.L10
-.L9:
+	jmp	.L16
+.L15:
 	xorl	%eax, %eax
-.L10:
+	jmp	.L16
+.L7:
+	movq	16(%rdi), %rax
+	movq	12(%rax), %rcx
+	andq	$-8, %rcx
+	leal	1(%r14), %r11d
+	xorl	%eax, %eax
+	cmpl	%r14d, (%rcx)
+.L6:
+	leaq	16(%rdi,%r11,8), %r11
+	cmovaq	%r11, %rax
+.L16:
 	addq	$16, %rsp
 	popq	%rbx
 	popq	%r12

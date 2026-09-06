@@ -135,11 +135,23 @@ INLINE const struct str *trap_expect_str(val_t value, uint64_t ft) {
   return val_is_str_macro(value, ft) ? val_as_str(value) : nullptr;
 }
 
-// Resolve a member name (a string constant) to the slot of a struct instance.
+// Resolve a member to a slot: a position (an int constant) counts the fields
+// of a tuple or of a struct, a name (a string constant) is looked up in the
+// struct's type description.
 COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
   if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
     return nullptr;
   struct object *inst = val_as_ptr(recv);
+  if (val_is_int(name)) {
+    uint32_t i = (uint32_t)val_as_i32(name);
+    if (obj_tag_of(inst) == TAG_TUPLE)
+      return i < object_nfields(inst) ? &inst->fields[i] : nullptr;
+    if (obj_tag_of(inst) == TAG_STRUCT) {
+      const struct type_desc *desc = type_desc_of(val_as_type(inst->fields[0]));
+      return i < desc->nfields ? &inst->fields[1 + i] : nullptr;
+    }
+    return nullptr;
+  }
   if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
     return nullptr;
 
