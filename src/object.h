@@ -67,6 +67,26 @@ enum tag {
   TAG_FLOAT = 6,
   TAG_ARRAY = 7,
   TAG_MAP = 8,
+  TAG_TYPE = 9,
+  TAG_STRUCT = 10,
+};
+
+/* Immutable, image-owned description of a struct type. A runtime type value
+ * is an OBJ_WORDS object tagged TAG_TYPE holding the description pointer in
+ * slot 0 and its method closures after it. A struct instance is tagged
+ * TAG_STRUCT and holds its type value in slot 0 followed by one slot per
+ * member: the declared fields first, then a copy of the method closures. */
+struct member_desc {
+  const char *name;
+  uint32_t len;
+  uint32_t slot;
+};
+
+struct type_desc {
+  uint32_t nfields;
+  uint32_t nslots;
+  uint32_t nmembers;
+  struct member_desc members[];
 };
 
 /*
@@ -265,6 +285,10 @@ INLINE void *obj_gclist(const void *ref) {
 INLINE void obj_set_gclist(void *ref, void *next) {
   struct gc_header *gc = ref;
   gc->gclist = next;
+}
+
+INLINE const struct type_desc *type_desc_of(const struct object *type) {
+  return val_as_ptr(type->fields[0]);
 }
 
 COLD_HELPER val_t val_from_tag(uint8_t tag);

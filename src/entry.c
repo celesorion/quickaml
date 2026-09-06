@@ -55,6 +55,43 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
 
 void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
+struct type_desc *vm_type_alloc(uint32_t nfields, uint32_t nslots,
+                                const struct member_desc *members,
+                                size_t nmembers) {
+  if (nfields > nslots || (nmembers != 0 && members == nullptr) ||
+      nmembers > UINT32_MAX)
+    return nullptr;
+
+  size_t names = 0;
+  for (size_t i = 0; i < nmembers; i++) {
+    if (members[i].slot >= nslots ||
+        (members[i].len != 0 && members[i].name == nullptr))
+      return nullptr;
+    names += members[i].len + 1;
+  }
+
+  struct type_desc *desc = malloc(sizeof(*desc) +
+                                  nmembers * sizeof(*members) + names);
+  if (desc == nullptr)
+    return nullptr;
+
+  desc->nfields = nfields;
+  desc->nslots = nslots;
+  desc->nmembers = (uint32_t)nmembers;
+  char *name = (char *)&desc->members[nmembers];
+  for (size_t i = 0; i < nmembers; i++) {
+    desc->members[i] = members[i];
+    desc->members[i].name = name;
+    if (members[i].len != 0)
+      memcpy(name, members[i].name, members[i].len);
+    name[members[i].len] = '\0';
+    name += members[i].len + 1;
+  }
+  return desc;
+}
+
+void vm_type_free(struct type_desc *desc) { free(desc); }
+
 bool vm_const_from_i64(int64_t value, val_t *out) {
   if (value < INT32_MIN || value > INT32_MAX || out == nullptr)
     return false;
@@ -244,7 +281,8 @@ const char *vm_status_name(status_t status) {
 }
 
 status_t vm_exec_with(struct heap *heap, struct thunk *entry,
-                      struct thunk **fns, size_t numfn, size_t numobject,
+                      struct thunk **fns, struct type_desc **types,
+                      size_t numfn, size_t numobject, size_t numtype,
                       size_t stack_slots, val_t *result,
                       struct gc_stats *stats_out) {
   struct state st;
@@ -265,8 +303,10 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
 
   st.entry = entry;
   st.fns = fns;
+  st.types = types;
   st.numfn = numfn;
   st.numobject = numobject;
+  st.numtype = numtype;
 
   fiber->state = &st;
   fiber->parent = nullptr;
@@ -292,27 +332,29 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
 }
 
 status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
-                           size_t numfn, size_t numobject, size_t stack_slots,
-                           val_t *result, struct runtime_args *rargs,
+                           struct type_desc **types, size_t numfn,
+                           size_t numobject, size_t numtype,
+                           size_t stack_slots, val_t *result,
+                           struct runtime_args *rargs,
                            struct gc_stats *stats_out) {
   struct heap *heap = vm_heap_alloc(rargs);
   if (heap == nullptr)
     return S_HEAP_INIT_FAILED;
-  status_t status =
-      vm_exec_with(heap, entry, fns, numfn, numobject, stack_slots, result,
-                   stats_out);
+  status_t status = vm_exec_with(heap, entry, fns, types, numfn, numobject,
+                                 numtype, stack_slots, result, stats_out);
   vm_heap_free(heap);
   return status;
 }
 
-status_t vm_exec(struct thunk *entry, struct thunk **fns, size_t numfn,
-                 size_t numobject, size_t stack_slots, val_t *result) {
+status_t vm_exec(struct thunk *entry, struct thunk **fns,
+                 struct type_desc **types, size_t numfn, size_t numobject,
+                 size_t numtype, size_t stack_slots, val_t *result) {
   struct runtime_args rargs = {.align = 8,
                                .base_size = 1024 * 1024,
                                .descspace_size = 4 * 4 * 4096,
                                .trace_level = TRACE_0};
-  return vm_exec_with_args(entry, fns, numfn, numobject, stack_slots, result,
-                           &rargs, nullptr);
+  return vm_exec_with_args(entry, fns, types, numfn, numobject, numtype,
+                           stack_slots, result, &rargs, nullptr);
 }
 
 int main(int argc, const char *const argv[]) {

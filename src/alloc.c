@@ -49,6 +49,7 @@ static void *freelist_alloc(struct heap *h, size_t n) {
         *prev = blk->next;
       }
       h->allocated_bytes += n;
+      h->stats.total_allocated_bytes += n;
       return blk;
     }
     prev = &blk->next;
@@ -365,8 +366,9 @@ COLD_HELPER void gc_poll_slow(struct fiber_segment *restrict fiber,
 void heap_stat_print(struct heap *restrict h) {
   fprintf(stderr, "heap: base=%p limit=%p size=%zu\n", h->base, h->limit,
           h->heap_size);
-  fprintf(stderr, "  allocated=%zu live=%zu trigger=%zu phase=%d\n",
-          h->allocated_bytes, h->live_bytes, h->trigger_bytes, h->phase);
+  fprintf(stderr, "  allocated=%zu live=%zu trigger=%zu phase=%d total=%zu\n",
+          h->allocated_bytes, h->live_bytes, h->trigger_bytes, h->phase,
+          h->stats.total_allocated_bytes);
   size_t free_total = 0;
   size_t free_count = 0;
   for (struct free_block *fb = h->free_list; fb; fb = fb->next) {

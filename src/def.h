@@ -73,6 +73,7 @@ struct runtime_args {
 };
 
 struct gc_stats {
+  size_t total_allocated_bytes;
   size_t mark_to_sweep_transitions;
   size_t forced_finish_cycles;
   size_t sweep_assist_steps;

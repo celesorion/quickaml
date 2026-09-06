@@ -139,6 +139,12 @@ void obj_print(FILE *out, val_t value) {
     case TAG_MAP:
       fprintf(out, "<map fields=%zu>", nfields);
       break;
+    case TAG_TYPE:
+      fprintf(out, "<type methods=%zu>", nfields - 1);
+      break;
+    case TAG_STRUCT:
+      fprintf(out, "<struct members=%zu>", nfields - 1);
+      break;
     default:
       fprintf(out, "<object tag=%u fields=%zu>", obj_layout_tag(obj), nfields);
       break;

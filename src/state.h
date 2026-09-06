@@ -31,8 +31,10 @@ struct state {
   struct heap *heap;
   struct thunk *entry;
   struct thunk **fns;
+  struct type_desc **types;
   size_t numfn;
   size_t numobject;
+  size_t numtype;
   struct runtime_args *rtargs;
 };
 

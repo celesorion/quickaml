@@ -111,6 +111,18 @@ void notaoffset(PARAMS) {
 }
 
 THREADED
+void notafunction(PARAMS) {
+  fns = (struct thunk **)(void *)"not a function";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
+void nomember(PARAMS) {
+  fns = (struct thunk **)(void *)"no such member";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void diverge(PARAMS) {
   for (;;)
     ;
@@ -128,6 +140,26 @@ INLINE const struct str *trap_expect_str(val_t value) {
     return nullptr;
 
   return ref;
+}
+
+// Resolve a member name (a string constant) to the slot of a struct instance.
+COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
+  if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
+    return nullptr;
+  struct object *inst = val_as_ptr(recv);
+  if (unlikely(obj_kind_of(inst) != OBJ_WORDS ||
+               obj_layout_tag(inst) != TAG_STRUCT))
+    return nullptr;
+
+  const struct str *s = val_as_ptr(name);
+  size_t len = str_len(s);
+  const struct type_desc *desc = type_desc_of(val_as_ptr(inst->fields[0]));
+  for (uint32_t i = 0; i < desc->nmembers; i++) {
+    const struct member_desc *m = &desc->members[i];
+    if (m->len == len && memcmp(m->name, s->bytes, len) == 0)
+      return &inst->fields[1 + m->slot];
+  }
+  return nullptr;
 }
 
 INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
@@ -393,7 +425,21 @@ OP_DEFINITION(LoadC) {
   DISPATCH();
 }
 
-OP_DEFINITION(LoadF) {
+OP_DEFINITION(LoadType) {
+  struct state *state = fiber->state;
+  ssz_t dst = ARG2A;
+  ssz_t tidx = ARG2B;
+
+  if (unlikely(tidx >= state->numtype)) {
+    MUSTTAIL return badop(ARGS);
+  }
+
+  bp[dst] = val_from_ptr(state->types[tidx]);
+
+  DISPATCH();
+}
+
+OP_DEFINITION(LoadFree) {
   ssz_t dst = ARG2A;
   val_t fidx = ARG2B;
   struct thunk *thunk = val_as_ptr(frame_rv(bp));
@@ -410,13 +456,32 @@ OP_DEFINITION(LoadF) {
   DISPATCH();
 }
 
-OP_DEFINITION(SetF) {
-  ssz_t dst = ARG2A;
-  val_t fidx = ARG2B;
+OP_DEFINITION(LoadField) {
+  ssz_t dst = ARG3A;
+  ssz_t recv = ARG3B;
+  val_t *slot = member_slot(bp[recv], fiber->ctbl[ARG3C]);
 
-  (void)dst;
-  (void)fidx;
-  MUSTTAIL return unimplemented(ARGS);
+  if (unlikely(slot == nullptr)) {
+    MUSTTAIL return nomember(ARGS);
+  }
+
+  bp[dst] = *slot;
+
+  DISPATCH();
+}
+
+OP_DEFINITION(SetField) {
+  ssz_t src = ARG3A;
+  ssz_t recv = ARG3B;
+  val_t *slot = member_slot(bp[recv], fiber->ctbl[ARG3C]);
+
+  if (unlikely(slot == nullptr)) {
+    MUSTTAIL return nomember(ARGS);
+  }
+
+  gc_store_field(fiber->state->heap, val_as_ptr(bp[recv]), slot, bp[src]);
+
+  DISPATCH();
 }
 
 OP_DEFINITION(Move) {
@@ -430,8 +495,14 @@ OP_DEFINITION(Move) {
 
 OP_DEFINITION(Apply) {
   ssz_t ithunk = ARG2A;
+  val_t fv = bp[ithunk];
 
-  struct thunk *thunk = val_as_ptr(bp[ithunk]);
+  if (unlikely(val_is_empty(fv) || !val_is_ptr(fv) ||
+               obj_kind_of(val_as_ptr(fv)) != OBJ_THUNK)) {
+    MUSTTAIL return notafunction(ARGS);
+  }
+
+  struct thunk *thunk = val_as_ptr(fv);
 
   bc_t *oldip = ip;
   ip = thunk->ops;
@@ -448,6 +519,21 @@ OP_DEFINITION(Apply) {
   fiber->ctbl = thunk->ctbl;
 
   DISPATCH();
+}
+
+OP_DEFINITION(Invoke) {
+  ssz_t dst = ARG3A;
+  ssz_t base = ARG3B;
+  val_t *slot = member_slot(bp[base], fiber->ctbl[ARG3C]);
+
+  if (unlikely(slot == nullptr)) {
+    MUSTTAIL return nomember(ARGS);
+  }
+
+  // The call region starts at dst exactly like an ordinary application, so
+  // the member closure only has to be moved into place.
+  bp[dst] = *slot;
+  MUSTTAIL return vm_op_Apply(ARGS);
 }
 
 OP_DEFINITION(Call) {
@@ -584,19 +670,41 @@ OP_DEFINITION(WObj) {
   ssz_t fld = ARG3A;
   ssz_t tag = ARG3B;
   ssz_t len = ARG3C;
+  ssz_t nslots = len;
 
   if (unlikely(tag > state->numobject)) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
-  struct object *obj = alloc_object(object_size(len), fiber, bp);
-  object_init(obj, (uint16_t)tag, len);
+  // A type value wraps its description handle and method closures. A struct
+  // instance wraps its type value and field values; the method closures of
+  // the type value are appended so every member lives in one slot array.
+  if (tag == TAG_TYPE) {
+    const struct type_desc *desc = val_as_ptr(bp[fld]);
+    if (unlikely(len != 1 + desc->nslots - desc->nfields)) {
+      MUSTTAIL return invalidlayout(ARGS);
+    }
+  } else if (tag == TAG_STRUCT) {
+    const struct type_desc *desc = type_desc_of(val_as_ptr(bp[fld]));
+    if (unlikely(len != 1 + desc->nfields)) {
+      MUSTTAIL return invalidlayout(ARGS);
+    }
+    nslots = 1 + desc->nslots;
+  }
+
+  struct object *obj = alloc_object(object_size(nslots), fiber, bp);
+  object_init(obj, (uint16_t)tag, nslots);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
+  if (nslots > len) {
+    const struct object *type = val_as_ptr(bp[fld]);
+    for (ssz_t i = len; i < nslots; i++)
+      obj->fields[i] = type->fields[1 + i - len];
+  }
 
   gc_publish_new_object(state->heap, obj, OBJ_WORDS);
   bp[fld] = val_from_ptr(obj);
-  gc_poll(fiber, bp, object_size(len));
+  gc_poll(fiber, bp, object_size(nslots));
 
   DISPATCH();
 }
