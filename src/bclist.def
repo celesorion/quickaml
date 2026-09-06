@@ -20,7 +20,6 @@
   _(Retn      , "retn"      )\
   _(Clos      , "clos"      )\
   _(WObj      , "wrap"      )\
-  _(MObj      , "mobj"      )\
   _(Jmp       , "jmp"       )\
   _(Goto      , "goto"      )\
   _(AddDC     , "add.dc"    )\

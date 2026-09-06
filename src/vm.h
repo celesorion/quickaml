@@ -163,17 +163,15 @@
 
 status_t vm_entry(struct fiber_segment *fiber);
 status_t vm_exec(struct thunk *entry, struct thunk **fns,
-                 struct type_desc **types, size_t numfn, size_t numobject,
-                 size_t numtype, size_t stack_slots, val_t *result);
+                 struct type_desc **types, size_t numfn, size_t numtype,
+                 size_t stack_slots, val_t *result);
 status_t vm_exec_with(struct heap *heap, struct thunk *entry,
                       struct thunk **fns, struct type_desc **types,
-                      size_t numfn, size_t numobject, size_t numtype,
-                      size_t stack_slots, val_t *result,
-                      struct gc_stats *stats_out);
+                      size_t numfn, size_t numtype, size_t stack_slots,
+                      val_t *result, struct gc_stats *stats_out);
 status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            struct type_desc **types, size_t numfn,
-                           size_t numobject, size_t numtype,
-                           size_t stack_slots, val_t *result,
+                           size_t numtype, size_t stack_slots, val_t *result,
                            struct runtime_args *rargs,
                            struct gc_stats *stats_out);
 struct type_desc *vm_type_alloc(uint32_t nfields, uint32_t nslots,

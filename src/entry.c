@@ -135,10 +135,10 @@ struct str *vm_alloc_str(const char *data, uint32_t len,
   struct str *s = heap_alloc_preload(heap, str_size(len));
   if (s == nullptr)
     return nullptr;
-  str_init(s, TAG_STR, len);
+  str_init(s, len);
   if (len != 0)
     memcpy(s->bytes, data, len);
-  gc_publish_new_object(heap, s, OBJ_STRING);
+  gc_publish_new_object(heap, s);
   return s;
 }
 
@@ -249,26 +249,22 @@ bool vm_format_result(val_t value, char *buf, size_t len) {
     n = snprintf(buf, len, "%.17g", val_as_f64(value));
   else if (val_is_cell(value) && !val_is_empty(value)) {
     void *ref = val_as_ptr(value);
-    if (obj_kind_of(ref) == OBJ_STRING) {
-      struct str *s = ref;
-      return format_str_result(s, buf, len);
-    } else if (obj_kind_of(ref) == OBJ_WORDS) {
-      struct object *obj = ref;
-      size_t nfields = (obj_size(obj) - sizeof(*obj)) / sizeof(val_t);
-      if (nfields != 0)
+    switch (obj_tag_of(ref)) {
+    case TAG_STR:
+      return format_str_result(ref, buf, len);
+    case TAG_ARRAY:
+      if (object_nfields(ref) != 0)
         return false;
-      switch ((enum tag)obj_layout_tag(obj)) {
-      case TAG_ARRAY:
-        n = snprintf(buf, len, "[]");
-        break;
-      case TAG_MAP:
-        n = snprintf(buf, len, "{}");
-        break;
-      default:
+      n = snprintf(buf, len, "[]");
+      break;
+    case TAG_MAP:
+      if (object_nfields(ref) != 0)
         return false;
-      }
-    } else
+      n = snprintf(buf, len, "{}");
+      break;
+    default:
       return false;
+    }
   } else
     return false;
 
@@ -282,9 +278,8 @@ const char *vm_status_name(status_t status) {
 
 status_t vm_exec_with(struct heap *heap, struct thunk *entry,
                       struct thunk **fns, struct type_desc **types,
-                      size_t numfn, size_t numobject, size_t numtype,
-                      size_t stack_slots, val_t *result,
-                      struct gc_stats *stats_out) {
+                      size_t numfn, size_t numtype, size_t stack_slots,
+                      val_t *result, struct gc_stats *stats_out) {
   struct state st;
   if (heap == nullptr)
     return S_HEAP_INIT_FAILED;
@@ -305,7 +300,6 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
   st.fns = fns;
   st.types = types;
   st.numfn = numfn;
-  st.numobject = numobject;
   st.numtype = numtype;
 
   fiber->state = &st;
@@ -333,28 +327,27 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
 
 status_t vm_exec_with_args(struct thunk *entry, struct thunk **fns,
                            struct type_desc **types, size_t numfn,
-                           size_t numobject, size_t numtype,
-                           size_t stack_slots, val_t *result,
+                           size_t numtype, size_t stack_slots, val_t *result,
                            struct runtime_args *rargs,
                            struct gc_stats *stats_out) {
   struct heap *heap = vm_heap_alloc(rargs);
   if (heap == nullptr)
     return S_HEAP_INIT_FAILED;
-  status_t status = vm_exec_with(heap, entry, fns, types, numfn, numobject,
-                                 numtype, stack_slots, result, stats_out);
+  status_t status = vm_exec_with(heap, entry, fns, types, numfn, numtype,
+                                 stack_slots, result, stats_out);
   vm_heap_free(heap);
   return status;
 }
 
 status_t vm_exec(struct thunk *entry, struct thunk **fns,
-                 struct type_desc **types, size_t numfn, size_t numobject,
-                 size_t numtype, size_t stack_slots, val_t *result) {
+                 struct type_desc **types, size_t numfn, size_t numtype,
+                 size_t stack_slots, val_t *result) {
   struct runtime_args rargs = {.align = 8,
                                .base_size = 1024 * 1024,
                                .descspace_size = 4 * 4 * 4096,
                                .trace_level = TRACE_0};
-  return vm_exec_with_args(entry, fns, types, numfn, numobject, numtype,
-                           stack_slots, result, &rargs, nullptr);
+  return vm_exec_with_args(entry, fns, types, numfn, numtype, stack_slots,
+                           result, &rargs, nullptr);
 }
 
 int main(int argc, const char *const argv[]) {

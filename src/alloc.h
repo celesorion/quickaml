@@ -43,7 +43,7 @@ void heap_stat_print(struct heap *restrict h);
 
 COLD_HELPER void gc_poll_slow(struct fiber_segment *restrict fiber,
                               val_t *restrict bp, size_t credit);
-COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref, uint8_t kind);
+COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref);
 
 COLD_HELPER void gc_store_field_slow(struct heap *h, val_t value);
 

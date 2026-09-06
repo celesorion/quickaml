@@ -136,7 +136,7 @@ INLINE const struct str *trap_expect_str(val_t value) {
     return nullptr;
 
   void *ref = val_as_ptr(value);
-  if (obj_kind_of(ref) != OBJ_STRING)
+  if (obj_tag_of(ref) != TAG_STR)
     return nullptr;
 
   return ref;
@@ -147,8 +147,7 @@ COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
   if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
     return nullptr;
   struct object *inst = val_as_ptr(recv);
-  if (unlikely(obj_kind_of(inst) != OBJ_WORDS ||
-               obj_layout_tag(inst) != TAG_STRUCT))
+  if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
     return nullptr;
 
   const struct str *s = val_as_ptr(name);
@@ -498,7 +497,7 @@ OP_DEFINITION(Apply) {
   val_t fv = bp[ithunk];
 
   if (unlikely(val_is_empty(fv) || !val_is_ptr(fv) ||
-               obj_kind_of(val_as_ptr(fv)) != OBJ_THUNK)) {
+               obj_tag_of(val_as_ptr(fv)) != TAG_THUNK)) {
     MUSTTAIL return notafunction(ARGS);
   }
 
@@ -659,7 +658,7 @@ OP_DEFINITION(Clos) {
     thunk->freevars[i] = value;
   }
 
-  gc_publish_new_object(state->heap, thunk, OBJ_THUNK);
+  gc_publish_new_object(state->heap, thunk);
   bp[dst] = val_from_ptr(thunk);
   gc_poll(fiber, bp, obj_size(thunk));
   DISPATCH();
@@ -672,7 +671,7 @@ OP_DEFINITION(WObj) {
   ssz_t len = ARG3C;
   ssz_t nslots = len;
 
-  if (unlikely(tag > state->numobject)) {
+  if (unlikely(!obj_is_words((enum tag)tag))) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
@@ -693,7 +692,7 @@ OP_DEFINITION(WObj) {
   }
 
   struct object *obj = alloc_object(object_size(nslots), fiber, bp);
-  object_init(obj, (uint16_t)tag, nslots);
+  object_init(obj, (enum tag)tag, nslots);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];
   if (nslots > len) {
@@ -702,32 +701,9 @@ OP_DEFINITION(WObj) {
       obj->fields[i] = type->fields[1 + i - len];
   }
 
-  gc_publish_new_object(state->heap, obj, OBJ_WORDS);
+  gc_publish_new_object(state->heap, obj);
   bp[fld] = val_from_ptr(obj);
   gc_poll(fiber, bp, object_size(nslots));
-
-  DISPATCH();
-}
-
-OP_DEFINITION(MObj) {
-  struct state *state = fiber->state;
-  ssz_t dst = ARG3A;
-  ssz_t tag = ARG3B;
-  ssz_t src = ARG3C;
-  (void)src;
-
-  if (tag < TAG_INT) {
-    bp[dst] = val_from_tag((uint8_t)tag);
-    DISPATCH();
-  }
-
-  if (unlikely(tag > state->numobject)) {
-    MUSTTAIL return invalidlayout(ARGS);
-  }
-
-  // TODO: allocate and materialize heap-backed objects here once the allocator
-  // and GC semantics are ready.
-  bp[dst] = bp[src];
 
   DISPATCH();
 }
@@ -775,7 +751,7 @@ COLD_HELPER static bool val_eq(val_t lhs, val_t rhs, uint64_t ft) {
     return l == r;
   if (val_is_ptr(lhs) && val_is_ptr(rhs)) {
     void *lp = val_as_ptr(lhs), *rp = val_as_ptr(rhs);
-    if (obj_kind_of(lp) == OBJ_STRING && obj_kind_of(rp) == OBJ_STRING) {
+    if (obj_tag_of(lp) == TAG_STR && obj_tag_of(rp) == TAG_STR) {
       struct str *ls = lp, *rs = rp;
       size_t ll = str_len(ls);
       return ll == str_len(rs) && memcmp(ls->bytes, rs->bytes, ll) == 0;

@@ -69,8 +69,7 @@ COLD_HELPER void *heap_alloc_preload(struct heap *h, size_t n) {
 static void shade_gray(struct heap *h, void *ref) {
   if (obj_gc_bits(ref) != OBJ_FLAG_GC_WHITE)
     return;
-  enum obj_kind kind = obj_kind_of(ref);
-  if (obj_has_gclist(kind)) {
+  if (obj_has_gclist(obj_tag_of(ref))) {
     obj_set_gc_bits(ref, OBJ_FLAG_GC_GRAY);
     obj_set_gclist(ref, h->gray);
     h->gray = ref;
@@ -158,15 +157,8 @@ static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
 /* ---------- marking ---------- */
 
 static void gc_scan_object(struct heap *h, void *ref) {
-  switch (obj_kind_of(ref)) {
-  case OBJ_WORDS: {
-    struct object *obj = ref;
-    size_t nfields = (obj_size(obj) - sizeof(*obj)) / sizeof(val_t);
-    for (size_t i = 0; i < nfields; i++)
-      shade_value(h, obj->fields[i]);
-    break;
-  }
-  case OBJ_THUNK: {
+  switch (obj_tag_of(ref)) {
+  case TAG_THUNK: {
     struct thunk *thunk = ref;
     for (size_t i = 0; i < thunk->nconst; i++)
       shade_value(h, thunk->ctbl[i]);
@@ -174,9 +166,16 @@ static void gc_scan_object(struct heap *h, void *ref) {
       shade_value(h, thunk->freevars[i]);
     break;
   }
-  case OBJ_STRING:
-  case OBJ_FREE:
+  case TAG_STR:
+  case TAG_FREE:
     break;
+  default: {
+    struct object *obj = ref;
+    size_t nfields = object_nfields(obj);
+    for (size_t i = 0; i < nfields; i++)
+      shade_value(h, obj->fields[i]);
+    break;
+  }
   }
 }
 
@@ -207,13 +206,12 @@ static size_t gc_sweep_step(struct heap *h, size_t budget) {
   while (cursor < end && work < budget) {
     size_t run_size = 0;
     uint8_t *run_start = cursor;
-    bool leading_is_free = (obj_kind_of(cursor) == OBJ_FREE);
+    bool leading_is_free = (obj_tag_of(cursor) == TAG_FREE);
 
     while (cursor < end) {
-      enum obj_kind kind = obj_kind_of(cursor);
       size_t block_size = object_align(obj_size(cursor));
 
-      if (kind == OBJ_FREE) {
+      if (obj_tag_of(cursor) == TAG_FREE) {
         if (run_size > 0)
           freelist_unlink(h, (struct free_block *)cursor);
         run_size += block_size;
@@ -419,10 +417,9 @@ void heap_deinit(struct heap *restrict h) {
 
 /* ---------- allocation ---------- */
 
-COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref,
-                                       uint8_t kind) {
+COLD_HELPER void gc_publish_new_object(struct heap *h, void *ref) {
   if (h->phase == GC_MARK) {
-    if (obj_has_gclist((enum obj_kind)kind)) {
+    if (obj_has_gclist(obj_tag_of(ref))) {
       obj_set_gc_bits(ref, OBJ_FLAG_GC_GRAY);
       obj_set_gclist(ref, h->gray);
       h->gray = ref;

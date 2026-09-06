@@ -31,7 +31,6 @@ typedef uint64_t metainfo;
   _(S_INVALID_FNID, "invalid function id") \
   _(S_INVALID_NUMFN, "invalid number of functions") \
   _(S_INVALID_NUMBC, "invalid number of bytecodes") \
-  _(S_INVALID_NUMOBJECT, "invalid number of objects") \
   _(S_INVALID_LAYOUT_KIND, "invalid layout kind") \
   _(S_INVALID_LAYOUT_SIZE, "invalid layout size") \
   _(S_NOT_AN_OPERAND, "not an operand") \

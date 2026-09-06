@@ -43,36 +43,28 @@ struct thunk {
   val_t freevars[];
 };
 
-enum obj_kind {
-  OBJ_WORDS,
-  OBJ_STRING,
-  OBJ_THUNK,
-  OBJ_FREE,
-};
-
-enum {
-  OBJ_TAG_THUNK = 0xffff,
-};
-
-/* Bytecode-level type tags.  Must stay in sync with Tag in bytecode.rs.
- * Tags below TAG_INT are encoded directly as values by `mobj`;
- * tags >= TAG_INT require heap-backed materialization. */
+/* Object tags, shared with Tag in bytecode.rs.  Words objects come first,
+ * every slot of theirs is a val_t; from TAG_THUNK on the collector knows each
+ * exotic layout one by one.  A negative tag marks a block that is not an
+ * object at all.  Values the encoding carries itself have no tag. */
 enum tag {
-  TAG_UNIT = 0,
-  TAG_TUPLE = 1,
-  TAG_FALSE = 2,
-  TAG_TRUE = 3,
-  TAG_INT = 4,
-  TAG_STR = 5,
-  TAG_FLOAT = 6,
-  TAG_ARRAY = 7,
-  TAG_MAP = 8,
-  TAG_TYPE = 9,
-  TAG_STRUCT = 10,
+  TAG_TUPLE = 0,
+  TAG_ARRAY = 1,
+  TAG_MAP = 2,
+  TAG_TYPE = 3,
+  TAG_STRUCT = 4,
+  TAG_THUNK = 5, /* exotic from here */
+  TAG_STR = 6,
+  TAG_FREE = -1, /* not an object */
 };
+
+INLINE bool obj_is_words(enum tag tag) { return (uint8_t)tag < TAG_THUNK; }
+
+/* Words objects and thunks are scanned, so they queue on the gray list. */
+INLINE bool obj_has_gclist(enum tag tag) { return (uint8_t)tag <= TAG_THUNK; }
 
 /* Immutable, image-owned description of a struct type. A runtime type value
- * is an OBJ_WORDS object tagged TAG_TYPE holding the description pointer in
+ * is a words object tagged TAG_TYPE holding the description pointer in
  * slot 0 and its method closures after it. A struct instance is tagged
  * TAG_STRUCT and holds its type value in slot 0 followed by one slot per
  * member: the declared fields first, then a copy of the method closures. */
@@ -90,11 +82,30 @@ struct type_desc {
 };
 
 /*
- * NuN-boxed value layout:
- * - low canonical 48-bit values are raw heap pointers
- * - 0xfffe:0000:iiii:iiii are tagged 32-bit signed integers
- * - low non-pointer values are reserved for trivial tagged-pointer values
- * - everything else is a double encoded by adding 2^49 to the IEEE754 bits
+ * NuN-boxed value layout.  A value is a double's IEEE754 bits plus 2^49 unless
+ * its top 15 bits are all zero (a cell) or all one (an int).  This displaces
+ * the 2^50 negative NaNs 0xfffc_0000_0000_0000..0xffff_ffff_ffff_ffff, about
+ * the budget NaN boxing spends, split into two 49-bit spaces:
+ *
+ *   63           49 48  47                              3 2  1 0
+ *  +---------------+---+---------------------------------+--+-+-+
+ *  |000000000000000| 0 | object address, 8-byte aligned  |x |0|x| pointer
+ *  |000000000000000| 0 |                0                |b |1|v| trivial
+ *  +---------------+-----------------+--------------------------+
+ *  |111111111111111|00000000000000000| int32, two's complement  | int
+ *  +------------------------------------------------------------+
+ *  |           otherwise: IEEE754 double bits + 2^49            | float
+ *  +------------------------------------------------------------+
+ *
+ * pointer  bit 1 clear.  Bit 48 and the alignment bits 0 and 2 are always zero
+ *          today and free for tags.  VAL_EMPTY is the null pointer, so callers
+ *          of val_is_ptr exclude it separately.
+ * trivial  bit 1 (VAL_OTHER_TAG) set: VAL_NULL 0b010, then with bit 2
+ *          (VAL_BOOL_TAG) VAL_FALSE 0b110 and VAL_TRUE 0b111.
+ * int      val_is_int tests only the top 15 bits, so bits 48..32 are free.
+ * float    val_as_f64 subtracts 2^49.  Nothing canonicalizes NaNs: a negative
+ *          signalling NaN 0xfff4..0xfff7 is a legal float, but quieting it
+ *          sets bit 51 and the result lands in the int space.
  */
 #define VAL_NUN_BIAS UINT64_C(0x0002000000000000)
 #define VAL_FLOAT_TAG UINT64_C(0xfffe000000000000)
@@ -232,36 +243,32 @@ INLINE double val_as_f64(val_t value) {
   return val_as_f64_macro(value, VAL_FLOAT_TAG);
 }
 
-INLINE metainfo obj_meta_pack(uint32_t size, uint16_t tag, uint8_t kind,
-                              uint8_t flags) {
-  return (metainfo)size | ((metainfo)tag << 32) | ((metainfo)kind << 48) |
-         ((metainfo)flags << 56);
+/* Object header: tag(8) | flags(8) | spare(16) | size(32).  The tag sits in
+ * the low byte so a tag test is one byte load and one compare. */
+INLINE metainfo obj_meta_pack(uint32_t size, enum tag tag, uint8_t flags) {
+  return (metainfo)(uint8_t)tag | ((metainfo)flags << 8) |
+         ((metainfo)size << 32);
 }
 
 INLINE size_t obj_size(const void *ref) {
   const struct object *obj = ref;
-  return (size_t)(obj->hd & UINT64_C(0xffffffff));
+  return (size_t)(obj->hd >> 32);
 }
 
-INLINE uint16_t obj_layout_tag(const void *ref) {
+INLINE enum tag obj_tag_of(const void *ref) {
   const struct object *obj = ref;
-  return (uint16_t)((obj->hd >> 32) & UINT64_C(0xffff));
-}
-
-INLINE enum obj_kind obj_kind_of(const void *ref) {
-  const struct object *obj = ref;
-  return (enum obj_kind)((obj->hd >> 48) & UINT64_C(0xff));
+  return (enum tag)(int8_t)obj->hd;
 }
 
 INLINE uint8_t obj_flags_of(const void *ref) {
   const struct object *obj = ref;
-  return (uint8_t)((obj->hd >> 56) & UINT64_C(0xff));
+  return (uint8_t)(obj->hd >> 8);
 }
 
-#define OBJ_FLAG_GC_MASK (UINT64_C(0x03) << 56)
-#define OBJ_FLAG_GC_WHITE (UINT64_C(0x00) << 56)
-#define OBJ_FLAG_GC_GRAY (UINT64_C(0x01) << 56)
-#define OBJ_FLAG_GC_BLACK (UINT64_C(0x02) << 56)
+#define OBJ_FLAG_GC_MASK (UINT64_C(0x03) << 8)
+#define OBJ_FLAG_GC_WHITE (UINT64_C(0x00) << 8)
+#define OBJ_FLAG_GC_GRAY (UINT64_C(0x01) << 8)
+#define OBJ_FLAG_GC_BLACK (UINT64_C(0x02) << 8)
 
 INLINE metainfo obj_gc_bits(const void *ref) {
   const struct object *obj = ref;
@@ -271,10 +278,6 @@ INLINE metainfo obj_gc_bits(const void *ref) {
 INLINE void obj_set_gc_bits(void *ref, metainfo bits) {
   struct object *obj = (struct object *)ref;
   obj->hd = (obj->hd & ~OBJ_FLAG_GC_MASK) | bits;
-}
-
-INLINE bool obj_has_gclist(enum obj_kind kind) {
-  return kind == OBJ_WORDS || kind == OBJ_THUNK;
 }
 
 INLINE void *obj_gclist(const void *ref) {
@@ -290,9 +293,6 @@ INLINE void obj_set_gclist(void *ref, void *next) {
 INLINE const struct type_desc *type_desc_of(const struct object *type) {
   return val_as_ptr(type->fields[0]);
 }
-
-COLD_HELPER val_t val_from_tag(uint8_t tag);
-COLD_HELPER uint8_t val_tag(val_t value);
 
 INLINE size_t object_align(size_t n) { return (n + 7u) & ~7u; }
 
@@ -319,6 +319,10 @@ INLINE size_t object_size(size_t nfields) {
   return object_align(sizeof(struct object) + nfields * sizeof(val_t));
 }
 
+INLINE size_t object_nfields(const void *ref) {
+  return (obj_size(ref) - sizeof(struct object)) / sizeof(val_t);
+}
+
 INLINE size_t str_len(const void *ref) {
   return obj_size(ref) - sizeof(struct str) - 1;
 }
@@ -334,12 +338,12 @@ struct free_block {
 
 INLINE void free_block_init(struct free_block *blk, size_t size,
                             struct free_block *next) {
-  blk->hd = obj_meta_pack((uint32_t)size, 0, OBJ_FREE, 0);
+  blk->hd = obj_meta_pack((uint32_t)size, TAG_FREE, 0);
   blk->next = next;
 }
 
-COLD_HELPER void object_init(struct object *obj, uint16_t tag, size_t nfields);
-COLD_HELPER void str_init(struct str *str, uint16_t tag, size_t len);
+COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields);
+COLD_HELPER void str_init(struct str *str, size_t len);
 COLD_HELPER void thunk_init(struct thunk *thunk, size_t nops, size_t nconst,
                             uint8_t nregs, size_t nfree);
 COLD_HELPER void thunk_instance_init(struct thunk *thunk,
