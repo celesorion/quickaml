@@ -7,10 +7,10 @@
   _(LoaduI    , "loadui"    )\
   _(LoadR     , "loadr"     )\
   _(LoadC     , "loadc"     )\
-  _(LoadType  , "loadtype"  )\
-  _(LoadFree  , "loadfree"  )\
-  _(LoadField , "load.field")\
-  _(SetField  , "set.field" )\
+  _(LoadType  , "loadty"    )\
+  _(LoadFree  , "loadfv"    )\
+  _(LoadField , "loadfld"   )\
+  _(SetField  , "setfld"    )\
   _(Move      , "move"      )\
   _(Apply     , "apply"     )\
   _(Invoke    , "invoke"    )\
