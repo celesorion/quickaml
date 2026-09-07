@@ -159,13 +159,6 @@ static const val_t *print_fields(val_t value, size_t *n) {
   }
 }
 
-static const struct member_desc *type_member(const struct type_desc *desc,
-                                             uint32_t slot) {
-  for (uint32_t i = 0; i < desc->nmembers; i++)
-    if (desc->members[i].slot == slot)
-      return &desc->members[i];
-  return nullptr;
-}
 
 static void print_value(struct printer *p, val_t value, int depth);
 
@@ -234,13 +227,9 @@ static void print_value(struct printer *p, val_t value, int depth) {
     print_bytes(p, desc->name, desc->namelen);
     print_text(p, "{");
     for (size_t i = 0; i < n; i++) {
-      const struct member_desc *member = type_member(desc, (uint32_t)i);
       if (i != 0)
         print_text(p, ", ");
-      if (member != nullptr)
-        print_bytes(p, member->name, member->len);
-      else
-        print_text(p, "?");
+      print_bytes(p, desc->members[i].name, desc->members[i].len);
       print_text(p, " = ");
       print_value(p, fields[i], depth + 1);
     }

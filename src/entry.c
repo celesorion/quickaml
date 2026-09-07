@@ -51,38 +51,38 @@ void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 /* The type value, its description and the member names share one block:
  * the description follows the value's slots, the names the member table. */
 struct object *vm_type_alloc(const char *name, uint32_t namelen,
-                             uint32_t nfields,
                              const struct member_desc *members,
-                             size_t nmembers, struct thunk *const *methods,
-                             size_t nmethods) {
+                             uint32_t nfields, uint32_t nmethods,
+                             uint32_t nfunctions,
+                             struct thunk *const *thunks) {
+  size_t nmembers = (size_t)nfields + nmethods + nfunctions;
+  size_t nthunks = (size_t)nmethods + nfunctions;
   if ((namelen != 0 && name == nullptr) ||
-      (nmembers != 0 && members == nullptr) || nmembers > UINT32_MAX)
+      (nmembers != 0 && members == nullptr))
     return nullptr;
 
-  uint32_t nslots = nfields + (uint32_t)nmethods;
   size_t names = namelen + 1;
   for (size_t i = 0; i < nmembers; i++) {
-    if (members[i].slot >= nslots ||
-        (members[i].len != 0 && members[i].name == nullptr))
+    if (members[i].len != 0 && members[i].name == nullptr)
       return nullptr;
     names += members[i].len + 1;
   }
 
-  size_t value_size = object_size(1 + nmethods);
+  size_t value_size = object_size(1 + nthunks);
   struct object *type = malloc(value_size + sizeof(struct type_desc) +
                                nmembers * sizeof(*members) + names);
   if (type == nullptr)
     return nullptr;
 
   struct type_desc *desc = (struct type_desc *)((char *)type + value_size);
-  object_init(type, TAG_TYPE, 1 + nmethods);
+  object_init(type, TAG_TYPE, 1 + nthunks);
   type->fields[0] = val_from_ptr(desc);
-  for (size_t i = 0; i < nmethods; i++)
-    type->fields[1 + i] = val_from_closure(methods[i]);
+  for (size_t i = 0; i < nthunks; i++)
+    type->fields[1 + i] = val_from_closure(thunks[i]);
 
   desc->nfields = nfields;
-  desc->nslots = nslots;
-  desc->nmembers = (uint32_t)nmembers;
+  desc->nmethods = nmethods;
+  desc->nfunctions = nfunctions;
   char *text = (char *)&desc->members[nmembers];
   desc->name = text;
   desc->namelen = namelen;

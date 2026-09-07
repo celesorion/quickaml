@@ -129,6 +129,12 @@ void notafield(PARAMS) {
 }
 
 THREADED
+void notaninstance(PARAMS) {
+  fns = (struct thunk **)(void *)"not an instance";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void diverge(PARAMS) {
   for (;;)
     ;
@@ -141,50 +147,56 @@ INLINE const struct str *trap_expect_str(val_t value, uint64_t ft) {
   return val_is_str_macro(value, ft) ? val_as_str(value) : nullptr;
 }
 
-// The member of a type description with the given name.
-static const struct member_desc *member_named(const struct type_desc *desc,
-                                              const struct str *name) {
+// The index of the member called `name` among `n` names, or `n`.
+static uint32_t member_index(const struct member_desc *names, uint32_t n,
+                             const struct str *name) {
   size_t len = str_len(name);
-  for (uint32_t i = 0; i < desc->nmembers; i++) {
-    const struct member_desc *m = &desc->members[i];
-    if (m->len == len && memcmp(m->name, name->bytes, len) == 0)
-      return m;
+  for (uint32_t i = 0; i < n; i++) {
+    if (names[i].len == len && memcmp(names[i].name, name->bytes, len) == 0)
+      return i;
   }
-  return nullptr;
+  return n;
 }
 
 // Resolve a member to a slot: a position (an int constant) counts the fields
 // of a tuple or of a struct, a name (a string constant) is looked up in the
-// struct's type description.  A field lives in the instance, a method in its
-// type value.
+// type description.  An instance has its fields and the methods of its type
+// value, a type value its methods and functions.
 COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
   if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
     return nullptr;
-  struct object *inst = val_as_ptr(recv);
+  struct object *obj = val_as_ptr(recv);
   if (val_is_int(name)) {
     uint32_t i = (uint32_t)val_as_i32(name);
-    if (obj_tag_of(inst) == TAG_TUPLE)
-      return i < object_nfields(inst) ? &inst->fields[i] : nullptr;
-    if (obj_tag_of(inst) == TAG_STRUCT) {
-      const struct type_desc *desc = type_desc_of(val_as_type(inst->fields[0]));
-      return i < desc->nfields ? &inst->fields[1 + i] : nullptr;
+    if (obj_tag_of(obj) == TAG_TUPLE)
+      return i < object_nfields(obj) ? &obj->fields[i] : nullptr;
+    if (obj_tag_of(obj) == TAG_STRUCT) {
+      const struct type_desc *desc = type_desc_of(val_as_type(obj->fields[0]));
+      return i < desc->nfields ? &obj->fields[1 + i] : nullptr;
     }
     return nullptr;
   }
-  if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
+  if (obj_tag_of(obj) == TAG_TYPE) {
+    const struct type_desc *desc = type_desc_of(obj);
+    uint32_t n = desc->nmethods + desc->nfunctions;
+    uint32_t i = member_index(desc->members + desc->nfields, n, val_as_str(name));
+    return i < n ? &obj->fields[1 + i] : nullptr;
+  }
+  if (unlikely(obj_tag_of(obj) != TAG_STRUCT))
     return nullptr;
 
-  struct object *type = val_as_type(inst->fields[0]);
+  struct object *type = val_as_type(obj->fields[0]);
   const struct type_desc *desc = type_desc_of(type);
-  const struct member_desc *m = member_named(desc, val_as_str(name));
-  if (m == nullptr)
-    return nullptr;
-  return m->slot < desc->nfields ? &inst->fields[1 + m->slot]
-                                 : &type->fields[1 + m->slot - desc->nfields];
+  uint32_t i = member_index(desc->members, desc->nfields, val_as_str(name));
+  if (i < desc->nfields)
+    return &obj->fields[1 + i];
+  i = member_index(desc->members + desc->nfields, desc->nmethods,
+                   val_as_str(name));
+  return i < desc->nmethods ? &type->fields[1 + i] : nullptr;
 }
 
-// The slot an assignment may write: a declared field of a struct, by name or
-// by position.  Methods and tuple fields are read-only, so they are not found.
+// The slot an assignment may write: a field of a struct, by name or by
+// position.  Methods and tuple fields are read-only, so they are not found.
 COLD_HELPER static val_t *field_slot(val_t recv, val_t name) {
   if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
     return nullptr;
@@ -192,16 +204,10 @@ COLD_HELPER static val_t *field_slot(val_t recv, val_t name) {
   if (unlikely(obj_tag_of(inst) != TAG_STRUCT))
     return nullptr;
   const struct type_desc *desc = type_desc_of(val_as_type(inst->fields[0]));
-  uint32_t slot;
-  if (val_is_int(name)) {
-    slot = (uint32_t)val_as_i32(name);
-  } else {
-    const struct member_desc *m = member_named(desc, val_as_str(name));
-    if (m == nullptr)
-      return nullptr;
-    slot = m->slot;
-  }
-  return slot < desc->nfields ? &inst->fields[1 + slot] : nullptr;
+  uint32_t i = val_is_int(name) ? (uint32_t)val_as_i32(name)
+                                : member_index(desc->members, desc->nfields,
+                                               val_as_str(name));
+  return i < desc->nfields ? &inst->fields[1 + i] : nullptr;
 }
 
 INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
@@ -568,6 +574,10 @@ OP_DEFINITION(Apply) {
 OP_DEFINITION(Invoke) {
   ssz_t dst = ARG3A;
   ssz_t base = ARG3B;
+
+  if (unlikely(val_is_type_macro(bp[base], ft))) {
+    MUSTTAIL return notaninstance(ARGS);
+  }
   val_t *slot = member_slot(bp[base], fiber->ctbl[ARG3C]);
 
   if (unlikely(slot == nullptr)) {

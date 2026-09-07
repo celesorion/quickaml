@@ -166,10 +166,10 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
                       size_t numfn, size_t numtype, size_t stack_slots,
                       val_t *result, struct gc_stats *stats_out);
 struct object *vm_type_alloc(const char *name, uint32_t namelen,
-                             uint32_t nfields,
                              const struct member_desc *members,
-                             size_t nmembers, struct thunk *const *methods,
-                             size_t nmethods);
+                             uint32_t nfields, uint32_t nmethods,
+                             uint32_t nfunctions,
+                             struct thunk *const *thunks);
 void vm_type_free(struct object *type);
 struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
                              size_t nconst, uint8_t nregs,

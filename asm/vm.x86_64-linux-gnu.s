@@ -825,13 +825,18 @@ vm_op_Invoke:                           # @vm_op_Invoke
 	movl	%edi, %ebx
 	movzbl	%bl, %eax
 	movq	(%r13,%rax,8), %rdi
+	leaq	7(%r14), %rax
+	andq	%rdi, %rax
+	cmpq	$4, %rax
+	je	.L3
+# %bb.1:
 	movq	16(%r15), %rax
 	movl	%ebx, %esi
 	shrl	$8, %esi
 	movq	(%rax,%rsi,8), %rsi
 	callq	member_slot
 	testq	%rax, %rax
-	je	.L1
+	je	.L4
 # %bb.2:
 	movq	(%rax), %rax
 	movzbl	%r8b, %esi
@@ -839,7 +844,12 @@ vm_op_Invoke:                           # @vm_op_Invoke
 	movzwl	%bx, %edi
 	popq	%rbp
 	jmp	vm_op_Apply                     # TAILCALL
-.L1:
+.L3:
+	movzwl	%bx, %edi
+	movzbl	%r8b, %esi
+	popq	%rbp
+	jmp	notaninstance                   # TAILCALL
+.L4:
 	movzwl	%bx, %edi
 	movzbl	%r8b, %esi
 	popq	%rbp
@@ -3169,102 +3179,212 @@ member_slot:                            # @member_slot
 	pushq	%r13
 	pushq	%r12
 	pushq	%rbx
-	subq	$16, %rsp
+	subq	$32, %rsp
 	xorl	%eax, %eax
 	testq	%rdi, %rdi
-	je	.L18
+	je	.L37
 # %bb.1:
-	movabsq	$-562949953421313, %r11         # imm = 0xFFFDFFFFFFFFFFFF
-	leaq	3(%r11), %rcx
-	andq	%rdi, %rcx
-	jne	.L18
+	movq	%rdi, %r14
+	movabsq	$-562949953421313, %rcx         # imm = 0xFFFDFFFFFFFFFFFF
+	leaq	3(%rcx), %r11
+	andq	%rdi, %r11
+	jne	.L37
 # %bb.2:
-	movq	%rsi, %r14
 	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
-	andq	%rax, %rdi
-	movq	(%rdi), %rcx
-	cmpq	%r11, %rsi
+	andq	%rax, %r14
+	movq	(%r14), %r11
+	movsbl	%r11b, %eax
+	cmpq	%rcx, %rsi
 	jbe	.L6
 # %bb.3:
-	cmpb	$4, %cl
-	je	.L15
+	cmpl	$4, %eax
+	je	.L21
 # %bb.4:
-	movsbl	%cl, %r11d
-	testl	%r11d, %r11d
-	jne	.L17
+	testl	%eax, %eax
+	jne	.L23
 # %bb.5:
-	movl	%r14d, %r11d
-	shrq	$32, %rcx
-	addq	$-16, %rcx
-	shrq	$3, %rcx
+	movl	%esi, %ecx
+	shrq	$32, %r11
+	addq	$-16, %r11
+	shrq	$3, %r11
 	xorl	%eax, %eax
-	cmpq	%r11, %rcx
-	jmp	.L16
+	cmpq	%rcx, %r11
+	jmp	.L22
 .L6:
-	cmpb	$4, %cl
-	jne	.L17
+	xorl	%r13d, %r13d
+	cmpl	$3, %eax
+	jne	.L13
 # %bb.7:
-	movq	16(%rdi), %rax
-	movq	12(%rax), %r13
-	andq	$-8, %r13
-	movl	8(%r13), %r15d
-	testq	%r15, %r15
-	je	.L17
+	movq	16(%r14), %rax
+	addq	$16, %r14
+	andq	$-8, %rax
+	movl	8(%rax), %ecx
+	addl	4(%rax), %ecx
+	je	.L25
 # %bb.8:
-	addq	$16, %rdi
-	movq	%rdi, -112(%rbp)                # 8-byte Spill
-	addq	$12, %rax
-	movq	%rax, -104(%rbp)                # 8-byte Spill
-	movl	-1(%r14), %r12d
-	addq	$-5, %r14
-	addq	$-9, %r12
-	addq	$8, %r14
-	shlq	$4, %r15
-	xorl	%ebx, %ebx
+	movl	(%rax), %r11d
+	movl	-1(%rsi), %r15d
+	addq	$-5, %rsi
+	addq	$-9, %r15
+	addq	$8, %rsi
+	movq	%rsi, -120(%rbp)                # 8-byte Spill
+	movl	%ecx, -112(%rbp)                # 4-byte Spill
+	movl	%ecx, %ebx
+	shlq	$4, %r11
+	leaq	(%r11,%rax), %r12
+	addq	$32, %r12
+	xorl	%r13d, %r13d
 	jmp	.L10
 	.p2align	4
 .L9:                               #   in Loop: Header=BB58_10 Depth=1
-	addq	$16, %rbx
-	cmpq	%rbx, %r15
-	je	.L17
+	addq	$1, %r13
+	addq	$16, %r12
+	cmpq	%r13, %rbx
+	je	.L24
 .L10:                              # =>This Inner Loop Header: Depth=1
-	movl	32(%r13,%rbx), %eax
-	cmpq	%rax, %r12
+	movl	(%r12), %eax
+	cmpq	%rax, %r15
 	jne	.L9
 # %bb.11:                               #   in Loop: Header=BB58_10 Depth=1
-	movq	24(%r13,%rbx), %rdi
-	movq	%r14, %rsi
-	movq	%r12, %rdx
+	movq	-8(%r12), %rdi
+	movq	-120(%rbp), %rsi                # 8-byte Reload
+	movq	%r15, %rdx
 	callq	bcmp@PLT
 	testl	%eax, %eax
 	jne	.L9
 # %bb.12:
-	movl	36(%r13,%rbx), %eax
-	movl	(%r13), %r11d
-	leal	1(%rax), %ecx
-	movq	-112(%rbp), %rdx                # 8-byte Reload
-	leaq	(%rdx,%rcx,8), %rdx
-	subl	%r11d, %ecx
-	cmpl	%r11d, %eax
-	movq	-104(%rbp), %rax                # 8-byte Reload
-	leaq	(%rax,%rcx,8), %rax
-	cmovbq	%rdx, %rax
-	jmp	.L18
-.L17:
+	movl	-112(%rbp), %ecx                # 4-byte Reload
+	jmp	.L25
+.L13:
+	cmpl	$4, %eax
+	jne	.L23
+# %bb.14:
+	movq	16(%r14), %rax
+	movq	%rax, -104(%rbp)                # 8-byte Spill
+	movq	12(%rax), %rax
+	andq	$-8, %rax
+	movl	(%rax), %r13d
+	movl	-1(%rsi), %r15d
+	addq	$-5, %rsi
+	addq	$-9, %r15
+	testq	%r13, %r13
+	movq	%rsi, -120(%rbp)                # 8-byte Spill
+	movq	%rax, -128(%rbp)                # 8-byte Spill
+	je	.L26
+# %bb.15:
+	leaq	8(%rsi), %r11
+	movq	%r11, -112(%rbp)                # 8-byte Spill
+	leaq	32(%rax), %r12
+	xorl	%ebx, %ebx
+	jmp	.L17
+	.p2align	4
+.L16:                              #   in Loop: Header=BB58_17 Depth=1
+	addq	$1, %rbx
+	addq	$16, %r12
+	cmpq	%rbx, %r13
+	je	.L27
+.L17:                              # =>This Inner Loop Header: Depth=1
+	movl	(%r12), %eax
+	cmpq	%rax, %r15
+	jne	.L16
+# %bb.18:                               #   in Loop: Header=BB58_17 Depth=1
+	movq	-8(%r12), %rdi
+	movq	-112(%rbp), %rsi                # 8-byte Reload
+	movq	%r15, %rdx
+	callq	bcmp@PLT
+	testl	%eax, %eax
+	jne	.L16
+# %bb.19:
+	cmpl	%r13d, %ebx
+	jae	.L27
+.L20:
+	addq	$16, %r14
+	movl	%ebx, %eax
+	leaq	(%r14,%rax,8), %rax
+	addq	$8, %rax
+	jmp	.L37
+.L23:
 	xorl	%eax, %eax
-	jmp	.L18
-.L15:
-	movq	16(%rdi), %rax
-	movq	12(%rax), %rcx
-	andq	$-8, %rcx
-	leal	1(%r14), %r11d
+	jmp	.L37
+.L21:
+	movq	16(%r14), %rax
+	movq	12(%rax), %r11
+	andq	$-8, %r11
+	leal	1(%rsi), %ecx
 	xorl	%eax, %eax
-	cmpl	%r14d, (%rcx)
-.L16:
-	leaq	16(%rdi,%r11,8), %r11
+	cmpl	%esi, (%r11)
+.L22:
+	leaq	16(%r14,%rcx,8), %r11
 	cmovaq	%r11, %rax
-.L18:
-	addq	$16, %rsp
+	jmp	.L37
+.L24:
+	movl	-112(%rbp), %ecx                # 4-byte Reload
+	movl	%ecx, %r13d
+.L25:
+	cmpl	%ecx, %r13d
+	movl	%ecx, %r11d
+	cmovbl	%r13d, %r11d
+	addl	$1, %r11d
+	xorl	%eax, %eax
+	cmpl	%ecx, %r13d
+	leaq	(%r14,%r11,8), %r11
+	jmp	.L36
+.L26:
+	xorl	%ebx, %ebx
+	cmpl	%r13d, %ebx
+	jb	.L20
+.L27:
+	movq	-104(%rbp), %rcx                # 8-byte Reload
+	addq	$12, %rcx
+	movq	-128(%rbp), %rax                # 8-byte Reload
+	movl	4(%rax), %r14d
+	testq	%r14, %r14
+	je	.L34
+# %bb.28:
+	movq	%rcx, -104(%rbp)                # 8-byte Spill
+	addq	$8, -120(%rbp)                  # 8-byte Folded Spill
+	shlq	$4, %r13
+	leaq	(%rax,%r13), %rbx
+	addq	$32, %rbx
+	xorl	%r12d, %r12d
+	jmp	.L30
+	.p2align	4
+.L29:                              #   in Loop: Header=BB58_30 Depth=1
+	addq	$1, %r12
+	addq	$16, %rbx
+	cmpq	%r12, %r14
+	je	.L32
+.L30:                              # =>This Inner Loop Header: Depth=1
+	movl	(%rbx), %eax
+	cmpq	%rax, %r15
+	jne	.L29
+# %bb.31:                               #   in Loop: Header=BB58_30 Depth=1
+	movq	-8(%rbx), %rdi
+	movq	-120(%rbp), %rsi                # 8-byte Reload
+	movq	%r15, %rdx
+	callq	bcmp@PLT
+	testl	%eax, %eax
+	jne	.L29
+	jmp	.L33
+.L32:
+	movl	%r14d, %r12d
+.L33:
+	movq	-104(%rbp), %rcx                # 8-byte Reload
+	jmp	.L35
+.L34:
+	xorl	%r12d, %r12d
+.L35:
+	cmpl	%r14d, %r12d
+	movl	%r14d, %r11d
+	cmovbl	%r12d, %r11d
+	addl	$1, %r11d
+	xorl	%eax, %eax
+	cmpl	%r14d, %r12d
+	leaq	(%rcx,%r11,8), %r11
+.L36:
+	cmovbq	%r11, %rax
+.L37:
+	addq	$32, %rsp
 	popq	%rbx
 	popq	%r12
 	popq	%r13
@@ -3317,67 +3437,74 @@ field_slot:                             # @field_slot
 	subq	$16, %rsp
 	xorl	%eax, %eax
 	testq	%rdi, %rdi
-	je	.L13
+	je	.L15
 # %bb.1:
-	movq	%rdi, %rbx
-	movabsq	$-562949953421313, %rcx         # imm = 0xFFFDFFFFFFFFFFFF
-	leaq	3(%rcx), %r11
-	andq	%rdi, %r11
-	jne	.L13
+	movabsq	$-562949953421313, %r11         # imm = 0xFFFDFFFFFFFFFFFF
+	leaq	3(%r11), %rcx
+	andq	%rdi, %rcx
+	jne	.L15
 # %bb.2:
-	movabsq	$562949953421304, %r11          # imm = 0x1FFFFFFFFFFF8
-	andq	%r11, %rbx
-	cmpb	$4, (%rbx)
-	jne	.L12
-# %bb.3:
-	movq	16(%rbx), %r11
-	movq	12(%r11), %r13
+	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
+	andq	%rax, %rdi
+	cmpb	$4, (%rdi)
+	jne	.L3
+# %bb.4:
+	movq	%rsi, %rbx
+	movq	16(%rdi), %rax
+	addq	$16, %rdi
+	movq	12(%rax), %r13
 	andq	$-8, %r13
-	cmpq	%rcx, %rsi
-	jbe	.L5
-.L4:
-	addq	$16, %rbx
-	xorl	%eax, %eax
-	cmpl	(%r13), %esi
-	leal	1(%rsi), %r11d
-	leaq	(%rbx,%r11,8), %r11
-	cmovbq	%r11, %rax
-	jmp	.L13
-.L5:
-	movl	8(%r13), %r15d
-	testq	%r15, %r15
-	je	.L12
-# %bb.6:
-	movl	-1(%rsi), %r12d
-	addq	$-5, %rsi
-	addq	$-9, %r12
-	addq	$8, %rsi
-	movq	%rsi, -104(%rbp)                # 8-byte Spill
-	shlq	$4, %r15
-	xorl	%r14d, %r14d
+	movl	(%r13), %r14d
+	cmpq	%r11, %rsi
+	ja	.L14
+# %bb.5:
+	testq	%r14, %r14
+	je	.L6
+# %bb.7:
+	movq	%rdi, -104(%rbp)                # 8-byte Spill
+	movl	-1(%rbx), %r15d
+	addq	$-5, %rbx
+	addq	$-9, %r15
+	addq	$8, %rbx
+	addq	$32, %r13
+	xorl	%r12d, %r12d
 	jmp	.L8
 	.p2align	4
-.L7:                               #   in Loop: Header=BB60_8 Depth=1
-	addq	$16, %r14
-	cmpq	%r14, %r15
-	je	.L12
+.L10:                              #   in Loop: Header=BB60_8 Depth=1
+	addq	$1, %r12
+	addq	$16, %r13
+	cmpq	%r12, %r14
+	je	.L11
 .L8:                               # =>This Inner Loop Header: Depth=1
-	movl	32(%r13,%r14), %eax
-	cmpq	%rax, %r12
-	jne	.L7
+	movl	(%r13), %eax
+	cmpq	%rax, %r15
+	jne	.L10
 # %bb.9:                                #   in Loop: Header=BB60_8 Depth=1
-	movq	24(%r13,%r14), %rdi
-	movq	-104(%rbp), %rsi                # 8-byte Reload
-	movq	%r12, %rdx
+	movq	-8(%r13), %rdi
+	movq	%rbx, %rsi
+	movq	%r15, %rdx
 	callq	bcmp@PLT
 	testl	%eax, %eax
-	jne	.L7
-# %bb.10:
-	movl	36(%r13,%r14), %esi
-	jmp	.L4
+	jne	.L10
+	jmp	.L12
+.L11:
+	movl	%r14d, %r12d
 .L12:
-	xorl	%eax, %eax
+	movq	-104(%rbp), %rdi                # 8-byte Reload
+	jmp	.L13
+.L6:
+	xorl	%r12d, %r12d
 .L13:
+	cmpl	%r14d, %r12d
+	movl	%r14d, %ebx
+	cmovbl	%r12d, %ebx
+.L14:
+	leal	1(%rbx), %r11d
+	xorl	%eax, %eax
+	cmpl	%r14d, %ebx
+	leaq	(%rdi,%r11,8), %r11
+	cmovbq	%r11, %rax
+.L15:
 	addq	$16, %rsp
 	popq	%rbx
 	popq	%r12
@@ -3393,6 +3520,9 @@ field_slot:                             # @field_slot
 	popq	%r10
 	popq	%rbp
 	retq
+.L3:
+	xorl	%eax, %eax
+	jmp	.L15
 .Lfunc_end:
 	.size	field_slot, .Lfunc_end-field_slot
                                         # -- End function
@@ -3432,6 +3562,18 @@ stackoverflow:                          # @stackoverflow
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
 	.size	stackoverflow, .Lfunc_end-stackoverflow
+                                        # -- End function
+	.p2align	5                               # -- Begin function notaninstance
+	.type	notaninstance,@function
+notaninstance:                          # @notaninstance
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	leaq	.L.str.31(%rip), %rcx
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	notaninstance, .Lfunc_end-notaninstance
                                         # -- End function
 	.text
 	.p2align	4                               # -- Begin function thunk_alloc_instance
@@ -3514,7 +3656,7 @@ invalidlayout:                          # @invalidlayout
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.31(%rip), %rcx
+	leaq	.L.str.32(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3526,7 +3668,7 @@ notaoffset:                             # @notaoffset
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.32(%rip), %rcx
+	leaq	.L.str.33(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3652,7 +3794,7 @@ notanumber:                             # @notanumber
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.33(%rip), %rcx
+	leaq	.L.str.34(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3801,7 +3943,7 @@ unimplemented:                          # @unimplemented
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.34(%rip), %rcx
+	leaq	.L.str.35(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -5756,23 +5898,28 @@ dispatch:
 
 	.type	.L.str.31,@object               # @.str.31
 .L.str.31:
-	.asciz	"invalid layout"
-	.size	.L.str.31, 15
+	.asciz	"not an instance"
+	.size	.L.str.31, 16
 
 	.type	.L.str.32,@object               # @.str.32
 .L.str.32:
-	.asciz	"not a offset"
-	.size	.L.str.32, 13
+	.asciz	"invalid layout"
+	.size	.L.str.32, 15
 
 	.type	.L.str.33,@object               # @.str.33
 .L.str.33:
-	.asciz	"not a number"
+	.asciz	"not a offset"
 	.size	.L.str.33, 13
 
 	.type	.L.str.34,@object               # @.str.34
 .L.str.34:
+	.asciz	"not a number"
+	.size	.L.str.34, 13
+
+	.type	.L.str.35,@object               # @.str.35
+.L.str.35:
 	.asciz	"unimplemented"
-	.size	.L.str.34, 14
+	.size	.L.str.35, 14
 
 	.type	dispatch_setc,@object           # @dispatch_setc
 	.section	.data.rel.ro,"aw",@progbits
