@@ -476,7 +476,7 @@ OP_DEFINITION(LoadType) {
     MUSTTAIL return badop(ARGS);
   }
 
-  bp[dst] = val_from_ptr(state->types[tidx]);
+  bp[dst] = val_from_type(state->types[tidx]);
 
   DISPATCH();
 }
@@ -715,18 +715,13 @@ OP_DEFINITION(WObj) {
   ssz_t tag = ARG3B;
   ssz_t len = ARG3C;
 
-  if (unlikely(!obj_is_words((enum tag)tag))) {
+  // Type values come from the image, see vm_type_alloc.
+  if (unlikely(!obj_is_words((enum tag)tag) || tag == TAG_TYPE)) {
     MUSTTAIL return invalidlayout(ARGS);
   }
 
-  // A type value wraps its description handle and method closures, a struct
-  // instance its type value and field values.
-  if (tag == TAG_TYPE) {
-    const struct type_desc *desc = val_as_ptr(bp[fld]);
-    if (unlikely(len != 1 + desc->nslots - desc->nfields)) {
-      MUSTTAIL return invalidlayout(ARGS);
-    }
-  } else if (tag == TAG_STRUCT) {
+  // A struct instance wraps its type value and field values.
+  if (tag == TAG_STRUCT) {
     if (unlikely(!val_is_type_macro(bp[fld], ft))) {
       MUSTTAIL return invalidlayout(ARGS);
     }
@@ -742,7 +737,7 @@ OP_DEFINITION(WObj) {
     obj->fields[i] = bp[fld + i];
 
   gc_publish_new_object(state->heap, obj);
-  bp[fld] = tag == TAG_TYPE ? val_from_type(obj) : val_from_ptr(obj);
+  bp[fld] = val_from_ptr(obj);
   gc_poll(fiber, bp, object_size(len));
 
   DISPATCH();

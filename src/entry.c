@@ -48,14 +48,18 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
 
 void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
-struct type_desc *vm_type_alloc(const char *name, uint32_t namelen,
-                                uint32_t nfields, uint32_t nslots,
-                                const struct member_desc *members,
-                                size_t nmembers) {
-  if (nfields > nslots || (namelen != 0 && name == nullptr) ||
+/* The type value, its description and the member names share one block:
+ * the description follows the value's slots, the names the member table. */
+struct object *vm_type_alloc(const char *name, uint32_t namelen,
+                             uint32_t nfields,
+                             const struct member_desc *members,
+                             size_t nmembers, struct thunk *const *methods,
+                             size_t nmethods) {
+  if ((namelen != 0 && name == nullptr) ||
       (nmembers != 0 && members == nullptr) || nmembers > UINT32_MAX)
     return nullptr;
 
+  uint32_t nslots = nfields + (uint32_t)nmethods;
   size_t names = namelen + 1;
   for (size_t i = 0; i < nmembers; i++) {
     if (members[i].slot >= nslots ||
@@ -64,10 +68,17 @@ struct type_desc *vm_type_alloc(const char *name, uint32_t namelen,
     names += members[i].len + 1;
   }
 
-  struct type_desc *desc = malloc(sizeof(*desc) +
-                                  nmembers * sizeof(*members) + names);
-  if (desc == nullptr)
+  size_t value_size = object_size(1 + nmethods);
+  struct object *type = malloc(value_size + sizeof(struct type_desc) +
+                               nmembers * sizeof(*members) + names);
+  if (type == nullptr)
     return nullptr;
+
+  struct type_desc *desc = (struct type_desc *)((char *)type + value_size);
+  object_init(type, TAG_TYPE, 1 + nmethods);
+  type->fields[0] = val_from_ptr(desc);
+  for (size_t i = 0; i < nmethods; i++)
+    type->fields[1 + i] = val_from_closure(methods[i]);
 
   desc->nfields = nfields;
   desc->nslots = nslots;
@@ -87,10 +98,10 @@ struct type_desc *vm_type_alloc(const char *name, uint32_t namelen,
     text[members[i].len] = '\0';
     text += members[i].len + 1;
   }
-  return desc;
+  return type;
 }
 
-void vm_type_free(struct type_desc *desc) { free(desc); }
+void vm_type_free(struct object *type) { free(type); }
 
 bool vm_const_from_i64(int64_t value, val_t *out) {
   if (value < INT32_MIN || value > INT32_MAX || out == nullptr)
@@ -168,7 +179,7 @@ const char *vm_status_name(status_t status) {
 }
 
 status_t vm_exec_with(struct heap *heap, struct thunk *entry,
-                      struct thunk **fns, struct type_desc **types,
+                      struct thunk **fns, struct object **types,
                       size_t numfn, size_t numtype, size_t stack_slots,
                       val_t *result, struct gc_stats *stats_out) {
   struct state st;
