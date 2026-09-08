@@ -45,412 +45,17 @@ vm_entry:                               # @vm_entry
 .Lfunc_end:
 	.size	vm_entry, .Lfunc_end-vm_entry
                                         # -- End function
-	.p2align	5                               # -- Begin function vm_op_Trap
-	.type	vm_op_Trap,@function
-vm_op_Trap:                             # @vm_op_Trap
+	.p2align	5                               # -- Begin function vm_op_Halt
+	.type	vm_op_Halt,@function
+vm_op_Halt:                             # @vm_op_Halt
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	subq	$48, %rsp
-	movq	%rdx, %r8
-	movl	%edi, %ebx
-	cmpl	$11, %esi
-	ja	.L40
-# %bb.1:
-	movl	%esi, %eax
-	leaq	.LJTI0(%rip), %rdx
-	movslq	(%rdx,%rax,4), %rax
-	addq	%rdx, %rax
-	jmpq	*%rax
-.L2:
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movzwl	%bx, %eax
-	movzbl	%al, %ecx
-	shrl	$8, %eax
-	cmpl	%eax, %ecx
-	jae	.L35
-# %bb.3:
-	cmpb	$5, %sil
-	leaq	.L.str.2(%rip), %rcx
-	leaq	.L.str.3(%rip), %rdx
-	cmoveq	%rcx, %rdx
-	movq	%rdx, -16(%rbp)                 # 8-byte Spill
-	movzbl	%bl, %ebx
-	movl	%eax, %eax
-	movq	%rax, -40(%rbp)                 # 8-byte Spill
-.L4:                                # =>This Inner Loop Header: Depth=1
-	movq	stderr@GOTPCREL(%rip), %rax
-	movq	(%rax), %rdi
-	movq	(%r13,%rbx,8), %rcx
-	movq	-16(%rbp), %rsi                 # 8-byte Reload
-	movl	%ebx, %edx
-	xorl	%eax, %eax
-	movq	%r13, %r15
-	movq	%r14, %r13
-	movq	%r8, %r14
-	callq	fprintf@PLT
-	movq	%r14, %r8
-	movq	%r13, %r14
-	movq	%r15, %r13
-	addq	$1, %rbx
-	cmpq	%rbx, -40(%rbp)                 # 8-byte Folded Reload
-	jne	.L4
-	jmp	.L35
-.L5:
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movzwl	%bx, %ebx
-	movzbl	%bl, %eax
-	movq	(%r13,%rax,8), %rdx
-	movl	%ebx, %eax
-	shrl	$8, %eax
-	movq	(%r13,%rax,8), %rcx
-	cmpq	%rcx, %rdx
-	je	.L35
-# %bb.6:
-	movq	stderr@GOTPCREL(%rip), %rax
-	movq	(%rax), %rdi
-	leaq	.L.str.4(%rip), %rsi
-	xorl	%eax, %eax
-	movq	%r8, -16(%rbp)                  # 8-byte Spill
-	callq	fprintf@PLT
-	movl	%ebx, %edi
-	movl	$6, %esi
-	movq	-8(%rbp), %r15                  # 8-byte Reload
-	movq	-16(%rbp), %rdx                 # 8-byte Reload
-	movq	-32(%rbp), %rcx                 # 8-byte Reload
-	addq	$48, %rsp
-	popq	%rbp
-	jmp	assertionfailed                 # TAILCALL
-.L7:
-	movzwl	%bx, %edi
-	movl	$1, %esi
-	movq	%r8, %rdx
-	addq	$48, %rsp
-	popq	%rbp
-	jmp	diverge                         # TAILCALL
-.L8:
-	movq	vm_op_Trap.edit_file(%rip), %rdi
-	testq	%rdi, %rdi
-	je	.L41
-# %bb.9:
-	movzwl	%bx, %ebx
-	movzbl	%bl, %eax
-	movq	(%r13,%rax,8), %rsi
-	movq	%rsi, %rax
-	notq	%rax
-	testq	%rax, %r14
-	jne	.L44
-# %bb.10:
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movl	%ebx, %eax
-	shrl	$8, %eax
-	movq	(%r13,%rax,8), %r15
-	movq	%r15, %rax
-	notq	%rax
-	testq	%rax, %r14
-	jne	.L45
-# %bb.11:
-	testl	%esi, %esi
-	js	.L48
-# %bb.12:
-	cmpl	$256, %r15d                     # imm = 0x100
-	jae	.L50
-# %bb.13:
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r8, -16(%rbp)                  # 8-byte Spill
-	andl	$2147483647, %esi               # imm = 0x7FFFFFFF
-	xorl	%edx, %edx
-	callq	fseek@PLT
-	testl	%eax, %eax
-	jne	.L56
-# %bb.14:
-	movq	vm_op_Trap.edit_file(%rip), %rsi
-	movl	%r15d, %edi
-	callq	fputc@PLT
-	cmpl	$-1, %eax
-	je	.L57
-# %bb.15:
-	movq	vm_op_Trap.edit_file(%rip), %rdi
-	callq	fflush@PLT
-	testl	%eax, %eax
-	movq	-16(%rbp), %r8                  # 8-byte Reload
-	je	.L35
-# %bb.16:
-	leaq	.L.str.20(%rip), %rcx
-	jmp	.L51
-.L17:
-	movzbl	%bl, %eax
-	movq	(%r13,%rax,8), %rax
-	cmpq	$5, %rax
-	je	.L42
-# %bb.18:
-	leaq	7(%r14), %rdx
-	andq	%rdx, %rax
-	cmpq	$5, %rax
-	jne	.L42
-# %bb.19:
-	movq	vm_op_Trap.edit_file(%rip), %rdi
-	testq	%rdi, %rdi
-	je	.L43
-# %bb.20:
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movq	$0, vm_op_Trap.edit_file(%rip)
-	movq	%r14, %r15
-	movq	%r8, %r14
-	callq	fclose@PLT
-	movq	%r14, %r8
-	movq	%r15, %r14
-	testl	%eax, %eax
-	je	.L35
-# %bb.21:
-	movzwl	%bx, %edi
-	leaq	.L.str(%rip), %rcx
-	movl	$10, %esi
-	jmp	.L52
-.L22:
-	movzwl	%bx, %edi
-	movzbl	%dil, %eax
-	movq	(%r13,%rax,8), %rbx
-	leaq	7(%r14), %rax
-	andq	%rbx, %rax
-	cmpq	$5, %rax
-	jne	.L36
-# %bb.23:
-	addq	$-5, %rbx
-	je	.L36
-# %bb.24:
-	cmpq	$0, vm_op_Trap.edit_file(%rip)
-	jne	.L46
-# %bb.25:
-	movl	%edi, -20(%rbp)                 # 4-byte Spill
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r14, -40(%rbp)                 # 8-byte Spill
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movq	%r8, -16(%rbp)                  # 8-byte Spill
-	callq	__errno_location@PLT
-	movq	%rax, %r14
-	movl	$0, (%rax)
-	addq	$8, %rbx
-	leaq	.L.str.9(%rip), %rsi
-	movq	%rbx, %rdi
-	callq	fopen@PLT
-	testq	%rax, %rax
-	jne	.L28
-# %bb.26:
-	cmpl	$2, (%r14)
-	jne	.L60
-# %bb.27:
-	leaq	.L.str.10(%rip), %rsi
-	movq	%rbx, %rdi
-	callq	fopen@PLT
-	testq	%rax, %rax
-	je	.L60
-.L28:
-	movq	%rax, %r15
-	movq	-40(%rbp), %r14                 # 8-byte Reload
-	movq	%rax, %rdi
-	xorl	%esi, %esi
-	movl	$2, %edx
-	callq	fseek@PLT
-	testl	%eax, %eax
-	jne	.L49
-# %bb.29:
-	movq	%r15, %rdi
-	callq	ftell@PLT
-	testq	$-2147483648, %rax              # imm = 0x80000000
-	jne	.L54
-# %bb.30:
-	movl	-20(%rbp), %edx                 # 4-byte Reload
-	shrl	$8, %edx
-	movq	%r15, vm_op_Trap.edit_file(%rip)
-	movabsq	$-562949953421312, %rcx         # imm = 0xFFFE000000000000
-	orq	%rcx, %rax
-	movl	%edx, %ecx
-	movq	%rax, (%r13,%rcx,8)
-	movq	-16(%rbp), %r8                  # 8-byte Reload
-	jmp	.L35
-.L31:
-	movq	%r8, -16(%rbp)                  # 8-byte Spill
-	movq	vm_op_Trap.edit_file(%rip), %rdi
-	testq	%rdi, %rdi
-	je	.L33
-# %bb.32:
-	movq	$0, vm_op_Trap.edit_file(%rip)
-	callq	fclose@PLT
-	testl	%eax, %eax
-	jne	.L59
-.L33:
-	addq	$48, %rsp
 	popq	%rbp
 	retq
-.L34:
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movq	(%r15), %rax
-	movq	(%rax), %rdi
-	movq	%r8, %rbx
-	callq	heap_stat_print@PLT
-	movq	%rbx, %r8
-.L35:
-	movzbl	(%r12), %eax
-	movq	(%r8,%rax,8), %rax
-	movzbl	1(%r12), %esi
-	movzwl	2(%r12), %edi
-	addq	$4, %r12
-	movq	-8(%rbp), %r15                  # 8-byte Reload
-	movq	%r8, %rdx
-	movq	-32(%rbp), %rcx                 # 8-byte Reload
-	addq	$48, %rsp
-	popq	%rbp
-	jmpq	*%rax                           # TAILCALL
-.L36:
-	leaq	.L.str.7(%rip), %rcx
-	jmp	.L47
-.L37:
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	%r15, -8(%rbp)                  # 8-byte Spill
-	movzbl	%bl, %ebx
-	movq	%r14, -40(%rbp)                 # 8-byte Spill
-	movq	stderr@GOTPCREL(%rip), %r14
-	movq	(%r14), %rdi
-	leaq	.L.str.5(%rip), %rsi
-	movl	%ebx, %edx
-	xorl	%eax, %eax
-	movq	%r8, %r15
-	callq	fprintf@PLT
-	movq	(%r14), %rdi
-	movq	(%r13,%rbx,8), %rsi
-	callq	obj_print@PLT
-	movq	(%r14), %rsi
-	movq	-40(%rbp), %r14                 # 8-byte Reload
-	movl	$10, %edi
-	callq	fputc@PLT
-	movq	%r15, %r8
-	jmp	.L35
-.L38:
-	movzwl	%bx, %edi
-	xorl	%esi, %esi
-	movq	%r8, %rdx
-	addq	$48, %rsp
-	popq	%rbp
-	jmp	undefined                       # TAILCALL
-.L39:
-	movzwl	%bx, %edi
-	movl	$3, %esi
-	movq	%r8, %rdx
-	addq	$48, %rsp
-	popq	%rbp
-	jmp	unusedexta                      # TAILCALL
-.L40:
-	movzwl	%bx, %edi
-	movzbl	%sil, %esi
-	movq	%r8, %rdx
-	addq	$48, %rsp
-	popq	%rbp
-	jmp	invalidtrap                     # TAILCALL
-.L41:
-	movzwl	%bx, %edi
-	leaq	.L.str.14(%rip), %rcx
-	movl	$11, %esi
-	jmp	.L53
-.L42:
-	movzwl	%bx, %edi
-	leaq	.L.str.7(%rip), %rcx
-	movl	$10, %esi
-	jmp	.L53
-.L43:
-	movzwl	%bx, %edi
-	leaq	.L.str.14(%rip), %rcx
-	movl	$10, %esi
-	jmp	.L53
-.L44:
-	leaq	.L.str.15(%rip), %rcx
-	movl	%ebx, %edi
-	movl	$11, %esi
-	jmp	.L53
-.L45:
-	leaq	.L.str.16(%rip), %rcx
-	jmp	.L51
-.L46:
-	leaq	.L.str.8(%rip), %rcx
-.L47:
-	movl	$9, %esi
-	jmp	.L53
-.L48:
-	leaq	.L.str.17(%rip), %rcx
-	jmp	.L51
-.L49:
-	movq	%r15, %rdi
-	callq	fclose@PLT
-	leaq	.L.str.12(%rip), %rcx
-	jmp	.L55
-.L50:
-	leaq	.L.str.18(%rip), %rcx
-.L51:
-	movl	%ebx, %edi
-	movl	$11, %esi
-.L52:
-	movq	-8(%rbp), %r15                  # 8-byte Reload
-.L53:
-	movq	%r8, %rdx
-	jmp	.L63
-.L54:
-	movq	%r15, %rdi
-	callq	fclose@PLT
-	leaq	.L.str.13(%rip), %rcx
-.L55:
-	movl	-20(%rbp), %edi                 # 4-byte Reload
-	movl	$9, %esi
-	jmp	.L61
-.L56:
-	leaq	.L.str.12(%rip), %rcx
-	jmp	.L58
-.L57:
-	leaq	.L.str.19(%rip), %rcx
-.L58:
-	movl	%ebx, %edi
-	movl	$11, %esi
-	jmp	.L61
-.L59:
-	movzwl	%bx, %edi
-	leaq	.L.str(%rip), %rcx
-	movl	$2, %esi
-	jmp	.L62
-.L60:
-	leaq	.L.str.11(%rip), %rcx
-	movl	-20(%rbp), %edi                 # 4-byte Reload
-	movl	$9, %esi
-	movq	-40(%rbp), %r14                 # 8-byte Reload
-.L61:
-	movq	-8(%rbp), %r15                  # 8-byte Reload
-.L62:
-	movq	-16(%rbp), %rdx                 # 8-byte Reload
-.L63:
-	addq	$48, %rsp
-	popq	%rbp
-	jmp	panic                           # TAILCALL
 .Lfunc_end:
-	.size	vm_op_Trap, .Lfunc_end-vm_op_Trap
-	.section	.rodata,"a",@progbits
-	.p2align	2, 0x0
-.LJTI0:
-	.long	.L38-.LJTI0
-	.long	.L7-.LJTI0
-	.long	.L31-.LJTI0
-	.long	.L39-.LJTI0
-	.long	.L2-.LJTI0
-	.long	.L2-.LJTI0
-	.long	.L5-.LJTI0
-	.long	.L37-.LJTI0
-	.long	.L34-.LJTI0
-	.long	.L22-.LJTI0
-	.long	.L17-.LJTI0
-	.long	.L8-.LJTI0
+	.size	vm_op_Halt, .Lfunc_end-vm_op_Halt
                                         # -- End function
-	.text
 	.p2align	5                               # -- Begin function vm_op_Nop
 	.type	vm_op_Nop,@function
 vm_op_Nop:                              # @vm_op_Nop
@@ -907,6 +512,71 @@ vm_op_Call:                             # @vm_op_Call
 .Lfunc_end:
 	.size	vm_op_Call, .Lfunc_end-vm_op_Call
                                         # -- End function
+	.p2align	5                               # -- Begin function vm_op_Native
+	.type	vm_op_Native,@function
+vm_op_Native:                           # @vm_op_Native
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$32, %rsp
+	movl	%edi, %ebx
+	movl	%edi, %eax
+	movq	nnatives@GOTPCREL(%rip), %rdi
+	cmpq	%rax, (%rdi)
+	jbe	.L3
+# %bb.1:
+	movq	%r12, -16(%rbp)                 # 8-byte Spill
+	movl	%esi, %r12d
+	movq	%rcx, -24(%rbp)                 # 8-byte Spill
+	movq	%rdx, -8(%rbp)                  # 8-byte Spill
+	leaq	(%rax,%rax,2), %rax
+	movq	natives@GOTPCREL(%rip), %rcx
+	leaq	-32(%rbp), %rdx
+	movq	%r15, %rdi
+	movq	%r13, %rsi
+	callq	*16(%rcx,%rax,8)
+	testq	%rax, %rax
+	jne	.L4
+# %bb.2:
+	movq	-32(%rbp), %rcx
+	leaq	-16(%r13), %rax
+	movq	%rcx, -16(%r13)
+	movq	-8(%r13), %r12
+	movzbl	-3(%r12), %ecx
+	shll	$3, %ecx
+	subq	%rcx, %rax
+	movq	-16(%rax), %rcx
+	movq	31(%rcx), %rcx
+	movq	%rcx, 16(%r15)
+	movzbl	(%r12), %ecx
+	movq	-8(%rbp), %rdx                  # 8-byte Reload
+	movq	(%rdx,%rcx,8), %r8
+	movzbl	1(%r12), %esi
+	movzwl	2(%r12), %edi
+	addq	$4, %r12
+	movq	%rax, %r13
+	movq	-24(%rbp), %rcx                 # 8-byte Reload
+	addq	$32, %rsp
+	popq	%rbp
+	jmpq	*%r8                            # TAILCALL
+.L3:
+	movzwl	%bx, %edi
+	movzbl	%sil, %esi
+	addq	$32, %rsp
+	popq	%rbp
+	jmp	badop                           # TAILCALL
+.L4:
+	movzwl	%bx, %edi
+	movzbl	%r12b, %esi
+	movq	-16(%rbp), %r12                 # 8-byte Reload
+	movq	-8(%rbp), %rdx                  # 8-byte Reload
+	movq	%rax, %rcx
+	addq	$32, %rsp
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	vm_op_Native, .Lfunc_end-vm_op_Native
+                                        # -- End function
 	.p2align	5                               # -- Begin function vm_op_Retu
 	.type	vm_op_Retu,@function
 vm_op_Retu:                             # @vm_op_Retu
@@ -1059,7 +729,7 @@ vm_op_Clos:                             # @vm_op_Clos
 	callq	capture_loc_resolve
 	testb	%al, %al
 	je	.L7
-# %bb.3:                                #   in Loop: Header=BB19_2 Depth=1
+# %bb.3:                                #   in Loop: Header=BB20_2 Depth=1
 	movq	-40(%rbp), %rax
 	movq	%rax, 56(%r9,%r8,8)
 	addq	$1, %r8
@@ -2105,7 +1775,7 @@ vm_op_SetCond:                          # @vm_op_SetCond
 	movb	$0, 56(%r15)
 	movzbl	(%r12), %eax
 	addq	$4, %r12
-	addl	$-35, %eax
+	addl	$-36, %eax
 	cmpl	$15, %eax
 	jae	.L1
 # %bb.2:
@@ -2133,7 +1803,7 @@ vm_op_SetCondJ:                         # @vm_op_SetCondJ
 	movb	$1, 56(%r15)
 	movzbl	(%r12), %eax
 	addq	$4, %r12
-	addl	$-35, %eax
+	addl	$-36, %eax
 	cmpl	$15, %eax
 	jae	.L1
 # %bb.2:
@@ -3069,32 +2739,18 @@ vm_op_CmpGeDD:                          # @vm_op_CmpGeDD
 	.size	vm_op_CmpGeDD, .Lfunc_end-vm_op_CmpGeDD
                                         # -- End function
 	.section	.text.unlikely.,"ax",@progbits
-	.p2align	5                               # -- Begin function undefined
-	.type	undefined,@function
-undefined:                              # @undefined
+	.p2align	5                               # -- Begin function unusedexta
+	.type	unusedexta,@function
+unusedexta:                             # @unusedexta
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.21(%rip), %rcx
+	leaq	.L.str(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
-	.size	undefined, .Lfunc_end-undefined
+	.size	unusedexta, .Lfunc_end-unusedexta
                                         # -- End function
-	.text
-	.p2align	5                               # -- Begin function diverge
-	.type	diverge,@function
-diverge:                                # @diverge
-# %bb.0:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	.p2align	4
-.L1:                               # =>This Inner Loop Header: Depth=1
-	jmp	.L1
-.Lfunc_end:
-	.size	diverge, .Lfunc_end-diverge
-                                        # -- End function
-	.section	.text.unlikely.,"ax",@progbits
 	.p2align	5                               # -- Begin function panic
 	.type	panic,@function
 panic:                                  # @panic
@@ -3103,7 +2759,7 @@ panic:                                  # @panic
 	movq	%rsp, %rbp
 	movq	stderr@GOTPCREL(%rip), %rax
 	movq	(%rax), %rdi
-	leaq	.L.str.22(%rip), %rsi
+	leaq	.L.str.2(%rip), %rsi
 	movq	%rcx, %rdx
 	xorl	%eax, %eax
 	callq	fprintf@PLT
@@ -3112,49 +2768,13 @@ panic:                                  # @panic
 .Lfunc_end:
 	.size	panic, .Lfunc_end-panic
                                         # -- End function
-	.p2align	5                               # -- Begin function unusedexta
-	.type	unusedexta,@function
-unusedexta:                             # @unusedexta
-# %bb.0:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	leaq	.L.str.23(%rip), %rcx
-	popq	%rbp
-	jmp	panic                           # TAILCALL
-.Lfunc_end:
-	.size	unusedexta, .Lfunc_end-unusedexta
-                                        # -- End function
-	.p2align	5                               # -- Begin function assertionfailed
-	.type	assertionfailed,@function
-assertionfailed:                        # @assertionfailed
-# %bb.0:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	leaq	.L.str.24(%rip), %rcx
-	popq	%rbp
-	jmp	panic                           # TAILCALL
-.Lfunc_end:
-	.size	assertionfailed, .Lfunc_end-assertionfailed
-                                        # -- End function
-	.p2align	5                               # -- Begin function invalidtrap
-	.type	invalidtrap,@function
-invalidtrap:                            # @invalidtrap
-# %bb.0:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	leaq	.L.str.25(%rip), %rcx
-	popq	%rbp
-	jmp	panic                           # TAILCALL
-.Lfunc_end:
-	.size	invalidtrap, .Lfunc_end-invalidtrap
-                                        # -- End function
 	.p2align	5                               # -- Begin function badop
 	.type	badop,@function
 badop:                                  # @badop
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.26(%rip), %rcx
+	leaq	.L.str.3(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3236,7 +2856,7 @@ member_slot:                            # @member_slot
 	xorl	%r13d, %r13d
 	jmp	.L10
 	.p2align	4
-.L9:                               #   in Loop: Header=BB58_10 Depth=1
+.L9:                               #   in Loop: Header=BB55_10 Depth=1
 	addq	$1, %r13
 	addq	$16, %r12
 	cmpq	%r13, %rbx
@@ -3245,7 +2865,7 @@ member_slot:                            # @member_slot
 	movl	(%r12), %eax
 	cmpq	%rax, %r15
 	jne	.L9
-# %bb.11:                               #   in Loop: Header=BB58_10 Depth=1
+# %bb.11:                               #   in Loop: Header=BB55_10 Depth=1
 	movq	-8(%r12), %rdi
 	movq	-120(%rbp), %rsi                # 8-byte Reload
 	movq	%r15, %rdx
@@ -3278,7 +2898,7 @@ member_slot:                            # @member_slot
 	xorl	%ebx, %ebx
 	jmp	.L17
 	.p2align	4
-.L16:                              #   in Loop: Header=BB58_17 Depth=1
+.L16:                              #   in Loop: Header=BB55_17 Depth=1
 	addq	$1, %rbx
 	addq	$16, %r12
 	cmpq	%rbx, %r13
@@ -3287,7 +2907,7 @@ member_slot:                            # @member_slot
 	movl	(%r12), %eax
 	cmpq	%rax, %r15
 	jne	.L16
-# %bb.18:                               #   in Loop: Header=BB58_17 Depth=1
+# %bb.18:                               #   in Loop: Header=BB55_17 Depth=1
 	movq	-8(%r12), %rdi
 	movq	-112(%rbp), %rsi                # 8-byte Reload
 	movq	%r15, %rdx
@@ -3349,7 +2969,7 @@ member_slot:                            # @member_slot
 	xorl	%r12d, %r12d
 	jmp	.L30
 	.p2align	4
-.L29:                              #   in Loop: Header=BB58_30 Depth=1
+.L29:                              #   in Loop: Header=BB55_30 Depth=1
 	addq	$1, %r12
 	addq	$16, %rbx
 	cmpq	%r12, %r14
@@ -3358,7 +2978,7 @@ member_slot:                            # @member_slot
 	movl	(%rbx), %eax
 	cmpq	%rax, %r15
 	jne	.L29
-# %bb.31:                               #   in Loop: Header=BB58_30 Depth=1
+# %bb.31:                               #   in Loop: Header=BB55_30 Depth=1
 	movq	-8(%rbx), %rdi
 	movq	-120(%rbp), %rsi                # 8-byte Reload
 	movq	%r15, %rdx
@@ -3409,7 +3029,7 @@ nomember:                               # @nomember
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.27(%rip), %rcx
+	leaq	.L.str.4(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3470,7 +3090,7 @@ field_slot:                             # @field_slot
 	xorl	%r12d, %r12d
 	jmp	.L8
 	.p2align	4
-.L10:                              #   in Loop: Header=BB60_8 Depth=1
+.L10:                              #   in Loop: Header=BB57_8 Depth=1
 	addq	$1, %r12
 	addq	$16, %r13
 	cmpq	%r12, %r14
@@ -3479,7 +3099,7 @@ field_slot:                             # @field_slot
 	movl	(%r13), %eax
 	cmpq	%rax, %r15
 	jne	.L10
-# %bb.9:                                #   in Loop: Header=BB60_8 Depth=1
+# %bb.9:                                #   in Loop: Header=BB57_8 Depth=1
 	movq	-8(%r13), %rdi
 	movq	%rbx, %rsi
 	movq	%r15, %rdx
@@ -3533,7 +3153,7 @@ notafield:                              # @notafield
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.28(%rip), %rcx
+	leaq	.L.str.5(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3545,7 +3165,7 @@ notafunction:                           # @notafunction
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.29(%rip), %rcx
+	leaq	.L.str.6(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3557,7 +3177,7 @@ stackoverflow:                          # @stackoverflow
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.30(%rip), %rcx
+	leaq	.L.str.7(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3569,7 +3189,7 @@ notaninstance:                          # @notaninstance
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.31(%rip), %rcx
+	leaq	.L.str.8(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3656,7 +3276,7 @@ invalidlayout:                          # @invalidlayout
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.32(%rip), %rcx
+	leaq	.L.str.9(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3668,7 +3288,7 @@ notaoffset:                             # @notaoffset
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.33(%rip), %rcx
+	leaq	.L.str.10(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3714,7 +3334,7 @@ vm_op_arith_dc_fallback:                # @vm_op_arith_dc_fallback
 	movq	%rax, %xmm1
 .L8:
 	movzbl	-4(%r12), %eax
-	addl	$-22, %eax
+	addl	$-23, %eax
 	cmpl	$4, %eax
 	ja	.L14
 # %bb.9:
@@ -3794,7 +3414,7 @@ notanumber:                             # @notanumber
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.34(%rip), %rcx
+	leaq	.L.str.11(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3823,7 +3443,7 @@ vm_op_arith_dd_fallback:                # @vm_op_arith_dd_fallback
 	movq	%rdi, %xmm0
 .L4:
 	movzbl	-4(%r12), %edi
-	cmpl	$32, %edi
+	cmpl	$33, %edi
 	jne	.L6
 # %bb.5:
 	movq	%xmm0, %rsi
@@ -3851,7 +3471,7 @@ vm_op_arith_dd_fallback:                # @vm_op_arith_dd_fallback
 	addq	%r14, %rax
 	movq	%rax, %xmm1
 .L10:
-	addl	$-27, %edi
+	addl	$-28, %edi
 	cmpl	$4, %edi
 	ja	.L16
 # %bb.11:
@@ -3943,7 +3563,7 @@ unimplemented:                          # @unimplemented
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.35(%rip), %rcx
+	leaq	.L.str.12(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -5189,7 +4809,7 @@ vm_op_compare_setc_fallback:            # @vm_op_compare_setc_fallback
 	movzbl	%dl, %r10d
 	movzbl	%dh, %eax
 	movq	%r13, %rsi
-	cmpl	$43, %r10d
+	cmpl	$44, %r10d
 	ja	.L2
 # %bb.1:
 	movq	16(%r15), %rsi
@@ -5199,7 +4819,7 @@ vm_op_compare_setc_fallback:            # @vm_op_compare_setc_fallback
 	shrl	$16, %r8d
 	movq	(%rsi,%r8,8), %rsi
 	movzbl	%dl, %edx
-	addl	$-38, %edx
+	addl	$-39, %edx
 	cmpl	$7, %edx
 	ja	.L6
 # %bb.3:
@@ -5424,7 +5044,7 @@ cmp_f64:                                # @cmp_f64
 	pushq	%rbp
 	movq	%rsp, %rbp
 	pushq	%rdi
-	addl	$-38, %edi
+	addl	$-39, %edi
 	leaq	.LJTI0(%rip), %rax
 	movslq	(%rax,%rdi,4), %r11
 	addq	%rax, %r11
@@ -5497,7 +5117,7 @@ vm_op_compare_dc_fallback:              # @vm_op_compare_dc_fallback
 	movl	%r9d, %esi
 	movq	(%rax,%rsi,8), %rsi
 	movzbl	-8(%r10), %ebx
-	leal	-38(%rbx), %eax
+	leal	-39(%rbx), %eax
 	cmpl	$7, %eax
 	ja	.L6
 # %bb.1:
@@ -5606,7 +5226,7 @@ vm_op_compare_dd_fallback:              # @vm_op_compare_dd_fallback
 	movl	%r9d, %eax
 	movq	(%r13,%rax,8), %rsi
 	movzbl	-8(%r10), %ebx
-	leal	-38(%rbx), %eax
+	leal	-39(%rbx), %eax
 	cmpl	$7, %eax
 	ja	.L6
 # %bb.1:
@@ -5695,7 +5315,7 @@ vm_op_compare_dd_fallback:              # @vm_op_compare_dd_fallback
 	.section	.data.rel.ro,"aw",@progbits
 	.p2align	4, 0x0
 dispatch:
-	.quad	vm_op_Trap
+	.quad	vm_op_Halt
 	.quad	vm_op_Nop
 	.quad	vm_op_Exta
 	.quad	vm_op_LoadI
@@ -5710,6 +5330,7 @@ dispatch:
 	.quad	vm_op_Apply
 	.quad	vm_op_Invoke
 	.quad	vm_op_Call
+	.quad	vm_op_Native
 	.quad	vm_op_Retu
 	.quad	vm_op_Ret
 	.quad	vm_op_Retn
@@ -5745,181 +5366,68 @@ dispatch:
 	.quad	vm_op_CmpLeDD
 	.quad	vm_op_CmpGtDD
 	.quad	vm_op_CmpGeDD
-	.size	dispatch, 400
+	.size	dispatch, 408
 
-	.type	vm_op_Trap.edit_file,@object    # @vm_op_Trap.edit_file
-	.local	vm_op_Trap.edit_file
-	.comm	vm_op_Trap.edit_file,8,8
 	.type	.L.str,@object                  # @.str
 	.section	.rodata.str1.1,"aMS",@progbits,1
 .L.str:
-	.asciz	"file close failed"
-	.size	.L.str, 18
+	.asciz	"unused extra arguments"
+	.size	.L.str, 23
 
 	.type	.L.str.2,@object                # @.str.2
 .L.str.2:
-	.asciz	"[%u] 0x%lx\n"
-	.size	.L.str.2, 12
+	.asciz	"panic: %s\n"
+	.size	.L.str.2, 11
 
 	.type	.L.str.3,@object                # @.str.3
 .L.str.3:
-	.asciz	"[%u] %lu\n"
-	.size	.L.str.3, 10
+	.asciz	"bad opcode"
+	.size	.L.str.3, 11
 
 	.type	.L.str.4,@object                # @.str.4
 .L.str.4:
-	.asciz	"0x%lx != 0x%lx\n"
-	.size	.L.str.4, 16
+	.asciz	"no such member"
+	.size	.L.str.4, 15
 
 	.type	.L.str.5,@object                # @.str.5
 .L.str.5:
-	.asciz	"r%u = "
-	.size	.L.str.5, 7
+	.asciz	"not a field"
+	.size	.L.str.5, 12
+
+	.type	.L.str.6,@object                # @.str.6
+.L.str.6:
+	.asciz	"not a function"
+	.size	.L.str.6, 15
 
 	.type	.L.str.7,@object                # @.str.7
 .L.str.7:
-	.asciz	"file path is not a string"
-	.size	.L.str.7, 26
+	.asciz	"stack overflow"
+	.size	.L.str.7, 15
 
 	.type	.L.str.8,@object                # @.str.8
 .L.str.8:
-	.asciz	"file already open"
-	.size	.L.str.8, 18
+	.asciz	"not an instance"
+	.size	.L.str.8, 16
 
 	.type	.L.str.9,@object                # @.str.9
 .L.str.9:
-	.asciz	"r+b"
-	.size	.L.str.9, 4
+	.asciz	"invalid layout"
+	.size	.L.str.9, 15
 
 	.type	.L.str.10,@object               # @.str.10
 .L.str.10:
-	.asciz	"w+b"
-	.size	.L.str.10, 4
+	.asciz	"not a offset"
+	.size	.L.str.10, 13
 
 	.type	.L.str.11,@object               # @.str.11
 .L.str.11:
-	.asciz	"file open failed"
-	.size	.L.str.11, 17
+	.asciz	"not a number"
+	.size	.L.str.11, 13
 
 	.type	.L.str.12,@object               # @.str.12
 .L.str.12:
-	.asciz	"file seek failed"
-	.size	.L.str.12, 17
-
-	.type	.L.str.13,@object               # @.str.13
-.L.str.13:
-	.asciz	"file offset out of range"
-	.size	.L.str.13, 25
-
-	.type	.L.str.14,@object               # @.str.14
-.L.str.14:
-	.asciz	"no open file"
-	.size	.L.str.14, 13
-
-	.type	.L.str.15,@object               # @.str.15
-.L.str.15:
-	.asciz	"file offset is not an int"
-	.size	.L.str.15, 26
-
-	.type	.L.str.16,@object               # @.str.16
-.L.str.16:
-	.asciz	"file byte is not an int"
-	.size	.L.str.16, 24
-
-	.type	.L.str.17,@object               # @.str.17
-.L.str.17:
-	.asciz	"file offset is negative"
-	.size	.L.str.17, 24
-
-	.type	.L.str.18,@object               # @.str.18
-.L.str.18:
-	.asciz	"file byte out of range"
-	.size	.L.str.18, 23
-
-	.type	.L.str.19,@object               # @.str.19
-.L.str.19:
-	.asciz	"file write failed"
-	.size	.L.str.19, 18
-
-	.type	.L.str.20,@object               # @.str.20
-.L.str.20:
-	.asciz	"file flush failed"
-	.size	.L.str.20, 18
-
-	.type	.L.str.21,@object               # @.str.21
-.L.str.21:
-	.asciz	"invalid bytecode"
-	.size	.L.str.21, 17
-
-	.type	.L.str.22,@object               # @.str.22
-.L.str.22:
-	.asciz	"panic: %s\n"
-	.size	.L.str.22, 11
-
-	.type	.L.str.23,@object               # @.str.23
-.L.str.23:
-	.asciz	"unused extra arguments"
-	.size	.L.str.23, 23
-
-	.type	.L.str.24,@object               # @.str.24
-.L.str.24:
-	.asciz	"assertion failed"
-	.size	.L.str.24, 17
-
-	.type	.L.str.25,@object               # @.str.25
-.L.str.25:
-	.asciz	"invalid trap id"
-	.size	.L.str.25, 16
-
-	.type	.L.str.26,@object               # @.str.26
-.L.str.26:
-	.asciz	"bad opcode"
-	.size	.L.str.26, 11
-
-	.type	.L.str.27,@object               # @.str.27
-.L.str.27:
-	.asciz	"no such member"
-	.size	.L.str.27, 15
-
-	.type	.L.str.28,@object               # @.str.28
-.L.str.28:
-	.asciz	"not a field"
-	.size	.L.str.28, 12
-
-	.type	.L.str.29,@object               # @.str.29
-.L.str.29:
-	.asciz	"not a function"
-	.size	.L.str.29, 15
-
-	.type	.L.str.30,@object               # @.str.30
-.L.str.30:
-	.asciz	"stack overflow"
-	.size	.L.str.30, 15
-
-	.type	.L.str.31,@object               # @.str.31
-.L.str.31:
-	.asciz	"not an instance"
-	.size	.L.str.31, 16
-
-	.type	.L.str.32,@object               # @.str.32
-.L.str.32:
-	.asciz	"invalid layout"
-	.size	.L.str.32, 15
-
-	.type	.L.str.33,@object               # @.str.33
-.L.str.33:
-	.asciz	"not a offset"
-	.size	.L.str.33, 13
-
-	.type	.L.str.34,@object               # @.str.34
-.L.str.34:
-	.asciz	"not a number"
-	.size	.L.str.34, 13
-
-	.type	.L.str.35,@object               # @.str.35
-.L.str.35:
 	.asciz	"unimplemented"
-	.size	.L.str.35, 14
+	.size	.L.str.12, 14
 
 	.type	dispatch_setc,@object           # @dispatch_setc
 	.section	.data.rel.ro,"aw",@progbits
@@ -5945,7 +5453,7 @@ dispatch_setc:
 	.ident	"clang version 20.1.2 (https://github.com/ziglang/zig-bootstrap c6bc9398c72c7a63fe9420a9055dcfd1845bc266)"
 	.section	".note.GNU-stack","",@progbits
 	.addrsig
-	.addrsig_sym vm_op_Trap
+	.addrsig_sym vm_op_Halt
 	.addrsig_sym vm_op_Nop
 	.addrsig_sym vm_op_Exta
 	.addrsig_sym vm_op_LoadI
@@ -5960,6 +5468,7 @@ dispatch_setc:
 	.addrsig_sym vm_op_Apply
 	.addrsig_sym vm_op_Invoke
 	.addrsig_sym vm_op_Call
+	.addrsig_sym vm_op_Native
 	.addrsig_sym vm_op_Retu
 	.addrsig_sym vm_op_Ret
 	.addrsig_sym vm_op_Retn

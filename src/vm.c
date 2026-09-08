@@ -2,13 +2,11 @@
 #include "alloc.h"
 #include "bc.h"
 #include "def.h"
+#include "native.h"
 #include "object.h"
 #include "state.h"
-#include "trap.h"
 
-#include <errno.h>
 #include <inttypes.h>
-#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -63,12 +61,6 @@ void unimplemented(PARAMS) {
 }
 
 THREADED
-void undefined(PARAMS) {
-  fns = (struct thunk **)(void *)"invalid bytecode";
-  MUSTTAIL return panic(ARGS);
-}
-
-THREADED
 void invalidlayout(PARAMS) {
   fns = (struct thunk **)(void *)"invalid layout";
   MUSTTAIL return panic(ARGS);
@@ -77,18 +69,6 @@ void invalidlayout(PARAMS) {
 THREADED
 void badop(PARAMS) {
   fns = (struct thunk **)(void *)"bad opcode";
-  MUSTTAIL return panic(ARGS);
-}
-
-THREADED
-void assertionfailed(PARAMS) {
-  fns = (struct thunk **)(void *)"assertion failed";
-  MUSTTAIL return panic(ARGS);
-}
-
-THREADED
-void invalidtrap(PARAMS) {
-  fns = (struct thunk **)(void *)"invalid trap id";
   MUSTTAIL return panic(ARGS);
 }
 
@@ -132,19 +112,6 @@ THREADED
 void notaninstance(PARAMS) {
   fns = (struct thunk **)(void *)"not an instance";
   MUSTTAIL return panic(ARGS);
-}
-
-THREADED
-void diverge(PARAMS) {
-  for (;;)
-    ;
-}
-
-THREADED
-void halt(PARAMS) { return; }
-
-INLINE const struct str *trap_expect_str(val_t value, uint64_t ft) {
-  return val_is_str_macro(value, ft) ? val_as_str(value) : nullptr;
 }
 
 // The index of the member called `name` among `n` names, or `n`.
@@ -263,173 +230,7 @@ INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
     }                                                                          \
   } while (0)
 
-OP_DEFINITION(Trap) {
-  struct state *state = fiber->state;
-  static FILE *edit_file = nullptr;
-  ssz_t tid = ARG3A;
-  switch (tid) {
-  case T_UNDEFINED: // no correspond builtin
-    MUSTTAIL return undefined(ARGS);
-  case T_DIVERGE: // no correspond builtin
-    MUSTTAIL return diverge(ARGS);
-  case T_HALT: { // halt()
-    if (edit_file != nullptr) {
-      FILE *file = edit_file;
-      edit_file = nullptr;
-      if (fclose(file) != 0) {
-        fns = (struct thunk **)(void *)"file close failed";
-        MUSTTAIL return panic(ARGS);
-      }
-    }
-    MUSTTAIL return halt(ARGS);
-  }
-  case T_UNUSEDEXTA:
-    MUSTTAIL return unusedexta(ARGS);
-  case T_PRINTREGS: // print_raw(value)
-  case T_PRINTREGSX: { // print_raw_hex(value)
-    ssz_t i1 = ARG3B;
-    ssz_t i2 = ARG3C;
-
-    for (ssz_t i = i1; i < i2; i++) {
-      fprintf(stderr,
-              tid == T_PRINTREGSX ? "[%u] 0x%" PRIx64 "\n"
-                                  : "[%u] %" PRIu64 "\n",
-              i, bp[i]);
-    }
-    break;
-  }
-  case T_ASSERT_EQ: { // assert_eq(v1, v2)
-    ssz_t i1 = ARG3B;
-    ssz_t i2 = ARG3C;
-
-    if (bp[i1] != bp[i2]) {
-      fprintf(stderr, "0x%" PRIx64 " != 0x%" PRIx64 "\n", bp[i1], bp[i2]);
-      MUSTTAIL return assertionfailed(ARGS);
-    }
-    break;
-  }
-  case T_PRINTOBJ: { // print_object(value)
-    ssz_t o = ARG3B;
-    fprintf(stderr, "r%u = ", o);
-    obj_print(stderr, bp[o]);
-    fprintf(stderr, "\n");
-    break;
-  }
-  case T_HEAPSTAT: { // print_heap_stat()
-    heap_stat_print(state->heap);
-    break;
-  }
-  case T_FILE_OPEN: { // open(path)
-    ssz_t path_reg = ARG3B;
-    ssz_t dst_reg = ARG3C;
-    const struct str *path = trap_expect_str(bp[path_reg], ft);
-    if (path == nullptr) {
-      fns = (struct thunk **)(void *)"file path is not a string";
-      MUSTTAIL return panic(ARGS);
-    }
-    if (edit_file != nullptr) {
-      fns = (struct thunk **)(void *)"file already open";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    errno = 0;
-    FILE *file = fopen(path->bytes, "r+b");
-    if (file == nullptr && errno == ENOENT)
-      file = fopen(path->bytes, "w+b");
-    if (file == nullptr) {
-      fns = (struct thunk **)(void *)"file open failed";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    if (fseek(file, 0, SEEK_END) != 0) {
-      fclose(file);
-      fns = (struct thunk **)(void *)"file seek failed";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    long offset = ftell(file);
-    if (offset < 0 || offset > INT32_MAX) {
-      fclose(file);
-      fns = (struct thunk **)(void *)"file offset out of range";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    edit_file = file;
-    bp[dst_reg] = val_from_i32((int32_t)offset);
-    break;
-  }
-  case T_FILE_CLOSE: { // close(path)
-    ssz_t path_reg = ARG3B;
-    const struct str *path = trap_expect_str(bp[path_reg], ft);
-    if (path == nullptr) {
-      fns = (struct thunk **)(void *)"file path is not a string";
-      MUSTTAIL return panic(ARGS);
-    }
-    (void)path;
-
-    if (edit_file == nullptr) {
-      fns = (struct thunk **)(void *)"no open file";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    FILE *file = edit_file;
-    edit_file = nullptr;
-    if (fclose(file) != 0) {
-      fns = (struct thunk **)(void *)"file close failed";
-      MUSTTAIL return panic(ARGS);
-    }
-    break;
-  }
-  case T_FILE_EDIT: { // edit(offset, byte)
-    if (edit_file == nullptr) {
-      fns = (struct thunk **)(void *)"no open file";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    ssz_t offset_reg = ARG3B;
-    ssz_t byte_reg = ARG3C;
-    val_t offset_value = bp[offset_reg];
-    val_t byte_value = bp[byte_reg];
-    if (!val_is_int_macro(offset_value, ft)) {
-      fns = (struct thunk **)(void *)"file offset is not an int";
-      MUSTTAIL return panic(ARGS);
-    }
-    if (!val_is_int_macro(byte_value, ft)) {
-      fns = (struct thunk **)(void *)"file byte is not an int";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    int32_t offset = val_as_i32_macro(offset_value, ft);
-    int32_t byte = val_as_i32_macro(byte_value, ft);
-    if (offset < 0) {
-      fns = (struct thunk **)(void *)"file offset is negative";
-      MUSTTAIL return panic(ARGS);
-    }
-    if (byte < 0 || byte > UCHAR_MAX) {
-      fns = (struct thunk **)(void *)"file byte out of range";
-      MUSTTAIL return panic(ARGS);
-    }
-
-    if (fseek(edit_file, offset, SEEK_SET) != 0) {
-      fns = (struct thunk **)(void *)"file seek failed";
-      MUSTTAIL return panic(ARGS);
-    }
-    if (fputc(byte, edit_file) == EOF) {
-      fns = (struct thunk **)(void *)"file write failed";
-      MUSTTAIL return panic(ARGS);
-    }
-    if (fflush(edit_file) != 0) {
-      fns = (struct thunk **)(void *)"file flush failed";
-      MUSTTAIL return panic(ARGS);
-    }
-    break;
-  }
-  default:
-    MUSTTAIL return invalidtrap(ARGS);
-  }
-
-  DISPATCH();
-}
+OP_DEFINITION(Halt) { return; }
 
 OP_DEFINITION(Nop) { DISPATCH(); }
 
@@ -609,6 +410,32 @@ OP_DEFINITION(Call) {
   frame_rv(bp) = val_from_closure(thunk);
   frame_ra(bp) = ptr2val(oldip);
   fiber->ctbl = thunk->ctbl;
+
+  DISPATCH();
+}
+
+OP_DEFINITION(Native) {
+  ssz_t idx = ARG2B;
+  val_t rv;
+
+  if (unlikely(idx >= nnatives)) {
+    MUSTTAIL return badop(ARGS);
+  }
+  const char *err = natives[idx].fn(fiber, bp, &rv);
+  if (unlikely(err != nullptr)) {
+    fns = (struct thunk **)(void *)err;
+    MUSTTAIL return panic(ARGS);
+  }
+
+  frame_rv(bp) = rv;
+
+  bc_t *ra = val2ptr(frame_ra(bp));
+
+  GET_FO(fo);
+
+  bp = prev_bp(bp, fo);
+  ip = ra;
+  fiber->ctbl = val_as_closure(frame_rv(bp))->ctbl;
 
   DISPATCH();
 }

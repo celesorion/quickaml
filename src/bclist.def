@@ -1,6 +1,6 @@
 // clang-format off
 #define OPS(_) \
-  _(Trap      , "trap"      )\
+  _(Halt      , "halt"      )\
   _(Nop       , "nop"       )\
   _(Exta      , "exta"      )\
   _(LoadI     , "loadi"     )\
@@ -15,6 +15,7 @@
   _(Apply     , "apply"     )\
   _(Invoke    , "invoke"    )\
   _(Call      , "call"      )\
+  _(Native    , "native"    )\
   _(Retu      , "retu"      )\
   _(Ret       , "ret"       )\
   _(Retn      , "retn"      )\

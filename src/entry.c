@@ -1,7 +1,6 @@
 #include "alloc.h"
 #include "bc.h"
 #include "state.h"
-#include "trap.h"
 #include "vm.h"
 
 #include <string.h>
@@ -215,6 +214,7 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
   fiber->gc_poll_not_required = heap_gc_poll_not_required(heap);
 
   status_t status = vm_entry(fiber);
+  state_deinit(&st);
   if (result != nullptr) {
     val_t *bp = next_bp(fiber->stk, FRAME_HEADER_SIZE);
     *result = bp[0];
