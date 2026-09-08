@@ -172,6 +172,8 @@ struct object *vm_type_alloc(const char *name, uint32_t namelen,
                              struct thunk *const *thunks);
 void vm_type_free(struct object *type);
 struct thunk *vm_native_thunk(const char *name, uint32_t len);
+struct opaque *vm_opaque_alloc(struct fiber_segment *fiber, val_t *bp,
+                               size_t n, finalize_fn *finalize);
 struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
                              size_t nconst, uint8_t nregs,
                              const struct capture_loc *fvlocs, size_t nfree);

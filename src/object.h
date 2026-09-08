@@ -55,6 +55,7 @@ enum tag {
   TAG_STRUCT = 4,
   TAG_THUNK = 5, /* exotic from here */
   TAG_STR = 6,
+  TAG_OPAQUE = 7,
   TAG_FREE = -1, /* not an object */
 };
 
@@ -146,6 +147,15 @@ struct str {
   metainfo hd;
   char bytes[];
 };
+
+/* Native data the collector leaves alone.  A finalizer, when one was given,
+ * fills the last word of the block and runs when the heap goes away. */
+struct opaque {
+  metainfo hd;
+  unsigned char data[];
+};
+
+typedef void finalize_fn(void *data);
 
 INLINE bool val_is_empty(val_t value) { return value == VAL_EMPTY; }
 
@@ -349,6 +359,8 @@ INLINE void obj_set_gc_bits(void *ref, metainfo bits) {
  * clear again when it returns. */
 #define OBJ_FLAG_PRINT_PATH (UINT64_C(0x04) << 8)
 
+#define OBJ_FLAG_FINALIZER (UINT64_C(0x08) << 8)
+
 INLINE void *obj_gclist(const void *ref) {
   const struct gc_header *gc = ref;
   return gc->gclist;
@@ -400,6 +412,25 @@ INLINE size_t str_size(size_t len) {
   return object_align(sizeof(struct str) + len + 1);
 }
 
+INLINE size_t opaque_size(size_t n, finalize_fn *finalize) {
+  return object_align(sizeof(struct opaque) + n) +
+         (finalize == nullptr ? 0 : sizeof finalize);
+}
+
+INLINE finalize_fn *opaque_finalizer(const struct opaque *o) {
+  finalize_fn *finalize = nullptr;
+  if (o->hd & OBJ_FLAG_FINALIZER)
+    memcpy(&finalize, (const char *)o + obj_size(o) - sizeof finalize,
+           sizeof finalize);
+  return finalize;
+}
+
+INLINE void opaque_finalize(struct opaque *o) {
+  finalize_fn *finalize = opaque_finalizer(o);
+  if (finalize != nullptr)
+    finalize(o->data);
+}
+
 struct free_block {
   metainfo hd;
   struct free_block *next;
@@ -413,6 +444,8 @@ INLINE void free_block_init(struct free_block *blk, size_t size,
 
 COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields);
 COLD_HELPER void str_init(struct str *str, size_t len);
+COLD_HELPER void opaque_init(struct opaque *o, size_t n,
+                             finalize_fn *finalize);
 COLD_HELPER void thunk_init(struct thunk *thunk, size_t nops, size_t nconst,
                             uint8_t nregs, size_t nfree);
 COLD_HELPER void thunk_instance_init(struct thunk *thunk,

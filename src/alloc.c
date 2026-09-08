@@ -166,6 +166,7 @@ static void gc_scan_object(struct heap *h, void *ref) {
     break;
   }
   case TAG_STR:
+  case TAG_OPAQUE:
   case TAG_FREE:
     break;
   default: {
@@ -409,6 +410,9 @@ bool heap_init(struct heap *restrict h,
 }
 
 void heap_deinit(struct heap *restrict h) {
+  for (uint8_t *p = h->base; p < h->limit; p += object_align(obj_size(p)))
+    if (obj_tag_of(p) == TAG_OPAQUE)
+      opaque_finalize((struct opaque *)p);
   free(h->base);
   h->base = nullptr;
   h->limit = nullptr;

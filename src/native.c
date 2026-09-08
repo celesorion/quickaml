@@ -11,6 +11,15 @@
 #include <string.h>
 #include <unistd.h>
 
+static struct opaque *opaque_arg(val_t value, finalize_fn *finalize) {
+  if (val_is_empty(value) || !val_is_ptr(value))
+    return nullptr;
+  struct opaque *o = val_as_ptr(value);
+  return obj_tag_of(o) == TAG_OPAQUE && opaque_finalizer(o) == finalize
+             ? o
+             : nullptr;
+}
+
 #define NATIVE(name)                                                           \
   static const char *name([[maybe_unused]] struct fiber_segment *fiber,        \
                           [[maybe_unused]] val_t *args, val_t *out)
@@ -49,36 +58,38 @@ NATIVE(heap_stat) {
   return nullptr;
 }
 
-static const char *file_of(struct state *state, val_t handle, int **fd) {
-  if (!val_is_int(handle))
-    return "file handle is not an int";
-  int32_t i = val_as_i32(handle);
-  if (i < 0 || i >= STATE_FILES || state->files[i] < 0)
-    return "no open file";
-  *fd = &state->files[i];
-  return nullptr;
+static void file_finalize(void *data) {
+  int fd = *(int *)data;
+  if (fd >= 0)
+    close(fd);
+}
+
+static const char *file_fd(val_t handle, int **fd) {
+  struct opaque *file = opaque_arg(handle, file_finalize);
+  if (file == nullptr)
+    return "not a file";
+  *fd = (int *)file->data;
+  return **fd < 0 ? "file is closed" : nullptr;
 }
 
 NATIVE(file_open) {
   if (!val_is_str(args[0]))
     return "file path is not a string";
-  struct state *state = fiber->state;
-  int32_t i = 0;
-  while (i < STATE_FILES && state->files[i] >= 0)
-    i++;
-  if (i == STATE_FILES)
-    return "too many open files";
-  int fd = open(val_as_str(args[0])->bytes, O_RDWR | O_CREAT, 0666);
-  if (fd < 0)
+  struct opaque *file =
+      vm_opaque_alloc(fiber, args, sizeof(int), file_finalize);
+  if (file == nullptr)
+    return "out of memory";
+  int *fd = (int *)file->data;
+  *fd = open(val_as_str(args[0])->bytes, O_RDWR | O_CREAT, 0666);
+  if (*fd < 0)
     return "file open failed";
-  state->files[i] = fd;
-  *out = val_from_i32(i);
+  *out = val_from_ptr(file);
   return nullptr;
 }
 
 NATIVE(file_size) {
   int *fd;
-  const char *err = file_of(fiber->state, args[0], &fd);
+  const char *err = file_fd(args[0], &fd);
   if (err != nullptr)
     return err;
   off_t end = lseek(*fd, 0, SEEK_END);
@@ -90,7 +101,7 @@ NATIVE(file_size) {
 
 NATIVE(file_edit) {
   int *fd;
-  const char *err = file_of(fiber->state, args[0], &fd);
+  const char *err = file_fd(args[0], &fd);
   if (err != nullptr)
     return err;
   if (!val_is_int(args[1]) || val_as_i32(args[1]) < 0)
@@ -108,7 +119,7 @@ NATIVE(file_edit) {
 
 NATIVE(file_close) {
   int *fd;
-  const char *err = file_of(fiber->state, args[0], &fd);
+  const char *err = file_fd(args[0], &fd);
   if (err != nullptr)
     return err;
   int closing = *fd;

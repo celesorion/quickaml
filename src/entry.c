@@ -102,6 +102,18 @@ struct object *vm_type_alloc(const char *name, uint32_t namelen,
 
 void vm_type_free(struct object *type) { free(type); }
 
+struct opaque *vm_opaque_alloc(struct fiber_segment *fiber, val_t *bp,
+                               size_t n, finalize_fn *finalize) {
+  size_t size = opaque_size(n, finalize);
+  gc_poll(fiber, bp, size);
+  struct opaque *o = alloc_object(size, fiber, bp);
+  if (o == nullptr)
+    return nullptr;
+  opaque_init(o, n, finalize);
+  gc_publish_new_object(fiber->state->heap, o);
+  return o;
+}
+
 bool vm_const_from_i64(int64_t value, val_t *out) {
   if (value < INT32_MIN || value > INT32_MAX || out == nullptr)
     return false;
@@ -214,7 +226,6 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
   fiber->gc_poll_not_required = heap_gc_poll_not_required(heap);
 
   status_t status = vm_entry(fiber);
-  state_deinit(&st);
   if (result != nullptr) {
     val_t *bp = next_bp(fiber->stk, FRAME_HEADER_SIZE);
     *result = bp[0];

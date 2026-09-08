@@ -6,8 +6,6 @@
 
 struct state;
 
-#define STATE_FILES 16
-
 union fiber_stklimit {
   val_t *active;
   struct {
@@ -37,7 +35,6 @@ struct state {
   size_t numfn;
   size_t numtype;
   struct runtime_args *rtargs;
-  int files[STATE_FILES];
 };
 
 INLINE val_t *fiber_activate_limit(struct fiber_segment *restrict fiber) {
@@ -55,6 +52,5 @@ INLINE void fiber_suspend(struct fiber_segment *restrict fiber,
 
 bool state_init(struct state *restrict s, struct heap *restrict heap,
                 struct runtime_args *restrict rtargs);
-void state_deinit(struct state *restrict s);
 
 #endif

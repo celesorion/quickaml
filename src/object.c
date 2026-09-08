@@ -21,6 +21,16 @@ COLD_HELPER void str_init(struct str *str, size_t len) {
   str->bytes[len] = '\0';
 }
 
+COLD_HELPER void opaque_init(struct opaque *o, size_t n,
+                             finalize_fn *finalize) {
+  size_t size = opaque_size(n, finalize);
+  o->hd = obj_meta_pack((uint32_t)size, TAG_OPAQUE, 0);
+  if (finalize != nullptr) {
+    o->hd |= OBJ_FLAG_FINALIZER;
+    memcpy((char *)o + size - sizeof finalize, &finalize, sizeof finalize);
+  }
+}
+
 COLD_HELPER void thunk_init(struct thunk *thunk, size_t nops, size_t nconst,
                             uint8_t nregs, size_t nfree) {
   thunk->hd = obj_meta_pack((uint32_t)thunk_size(nops, nconst, nfree),
@@ -248,6 +258,9 @@ static void print_value(struct printer *p, val_t value, int depth) {
     break;
   case TAG_THUNK:
     print_text(p, "<fn>");
+    break;
+  case TAG_OPAQUE:
+    print_text(p, "<opaque>");
     break;
   case TAG_FREE:
     print_text(p, "<free>");
