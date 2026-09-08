@@ -111,9 +111,6 @@ static void gc_scan_stack_roots(struct heap *h,
     for (uint8_t i = 0; i < nregs; i++)
       shade_value(h, cur_bp[i]);
 
-    for (size_t i = 0; i < thunk->nconst; i++)
-      shade_value(h, thunk->ctbl[i]);
-
     bc_t *ra = val2ptr(frame_ra(cur_bp));
     bc_t prev_insn = ra[-1];
     ssz_t fo = g3A(prev_insn);
@@ -128,8 +125,6 @@ static void gc_scan_stack_roots(struct heap *h,
       shade_value(h, fn_val);
       for (uint8_t i = 0; i < nregs; i++)
         shade_value(h, cur_bp[i]);
-      for (size_t i = 0; i < thunk->nconst; i++)
-        shade_value(h, thunk->ctbl[i]);
     }
   }
 }
@@ -156,6 +151,7 @@ static void gc_clear_dead_slots(struct fiber_segment *restrict fiber,
   }
 }
 
+/* Once to seed the marking, once to finish it; the barrier covers the rest. */
 static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
                           val_t *restrict bp) {
   struct state *state = fiber->state;
@@ -367,12 +363,11 @@ COLD_HELPER void gc_poll_slow(struct fiber_segment *restrict fiber,
   }
 
   if (h->phase == GC_MARK) {
-    gc_scan_roots(fiber, h, bp);
     size_t work = gc_mark_step(h, credit);
     credit = work < credit ? credit - work : 0;
 
     if (gc_mark_is_complete(h)) {
-      gc_begin_sweep(fiber, h, bp);
+      gc_finish_mark(fiber, h, bp);
       if (credit > 0)
         gc_sweep_step(h, credit);
     }
