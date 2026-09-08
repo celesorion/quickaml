@@ -375,9 +375,14 @@ vm_op_Apply:                            # @vm_op_Apply
 	cmpb	$0, 57(%r15)
 	je	.L2
 .L3:
+	leaq	(,%r9,8), %r10
+	addq	%r13, %r10
 	leaq	16(%r13,%r9,8), %r13
-	cmpq	48(%r15), %r13
-	jae	.L6
+	movzbl	51(%r8), %r9d
+	leaq	(%r10,%r9,8), %r9
+	addq	$16, %r9
+	cmpq	48(%r15), %r9
+	ja	.L6
 # %bb.4:
 	movq	%r8, -16(%r13)
 	movq	%r12, -8(%r13)
@@ -476,9 +481,14 @@ vm_op_Call:                             # @vm_op_Call
 	je	.L1
 .L2:
 	movzbl	%sil, %esi
+	leaq	(,%rsi,8), %r9
+	addq	%r13, %r9
 	leaq	16(%r13,%rsi,8), %r13
-	cmpq	48(%r15), %r13
-	jae	.L3
+	movzbl	52(%r8), %r10d
+	leaq	(%r9,%r10,8), %r9
+	addq	$16, %r9
+	cmpq	48(%r15), %r9
+	ja	.L3
 # %bb.4:
 	movq	%r8, %rsi
 	orq	$1, %rsi
@@ -703,49 +713,53 @@ vm_op_Clos:                             # @vm_op_Clos
 	pushq	%rbp
 	movq	%rsp, %rbp
 	subq	$48, %rsp
-	movq	%rdx, -24(%rbp)                 # 8-byte Spill
-	movq	%r14, -16(%rbp)                 # 8-byte Spill
+	movq	%rdx, %rbx
 	movl	%esi, -4(%rbp)                  # 4-byte Spill
-	movl	%edi, %r10d
-	movq	(%r15), %r14
+	movq	(%r15), %r9
+	movl	%edi, -8(%rbp)                  # 4-byte Spill
 	movl	%edi, %eax
-	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movq	(%rcx,%rax,8), %rbx
+	movq	(%rcx,%rax,8), %r8
 	movq	%r15, %rdi
-	movq	%rbx, %rsi
+	movq	%r8, %rsi
 	movq	%r13, %rdx
 	callq	thunk_alloc_instance
-	movq	%rax, %r9
-	movl	48(%rbx), %ecx
-	testq	%rcx, %rcx
-	je	.L4
+	testq	%rax, %rax
+	je	.L8
 # %bb.1:
-	xorl	%r8d, %r8d
+	movq	%rax, %r10
+	movq	%r14, -16(%rbp)                 # 8-byte Spill
+	movq	%rbx, -24(%rbp)                 # 8-byte Spill
+	movq	%rcx, -32(%rbp)                 # 8-byte Spill
+	movl	48(%r8), %ebx
+	testq	%rbx, %rbx
+	je	.L5
+# %bb.2:
+	xorl	%r14d, %r14d
 	leaq	-40(%rbp), %rdx
 	.p2align	4
-.L2:                               # =>This Inner Loop Header: Depth=1
-	movq	56(%rbx,%r8,8), %rdi
+.L3:                               # =>This Inner Loop Header: Depth=1
+	movq	56(%r8,%r14,8), %rdi
 	movq	%r13, %rsi
 	callq	capture_loc_resolve
 	testb	%al, %al
-	je	.L7
-# %bb.3:                                #   in Loop: Header=BB20_2 Depth=1
+	je	.L9
+# %bb.4:                                #   in Loop: Header=BB20_3 Depth=1
 	movq	-40(%rbp), %rax
-	movq	%rax, 56(%r9,%r8,8)
-	addq	$1, %r8
-	cmpq	%r8, %rcx
-	jne	.L2
-.L4:
-	movq	(%r14), %rdi
-	movq	%r9, %rsi
+	movq	%rax, 56(%r10,%r14,8)
+	addq	$1, %r14
+	cmpq	%r14, %rbx
+	jne	.L3
+.L5:
+	movq	(%r9), %rdi
+	movq	%r10, %rsi
 	callq	gc_publish_new_object@PLT
-	movq	%r9, %rax
+	movq	%r10, %rax
 	orq	$1, %rax
 	movzbl	-4(%rbp), %ecx                  # 1-byte Folded Reload
 	movq	%rax, (%r13,%rcx,8)
 	cmpb	$0, 57(%r15)
-	je	.L5
-.L6:
+	je	.L6
+.L7:
 	movzbl	(%r12), %eax
 	movq	-24(%rbp), %rdx                 # 8-byte Reload
 	movq	(%rdx,%rax,8), %rax
@@ -757,8 +771,8 @@ vm_op_Clos:                             # @vm_op_Clos
 	addq	$48, %rsp
 	popq	%rbp
 	jmpq	*%rax                           # TAILCALL
-.L7:
-	movzwl	%r10w, %edi
+.L9:
+	movzwl	-8(%rbp), %edi                  # 2-byte Folded Reload
 	movzbl	-4(%rbp), %esi                  # 1-byte Folded Reload
 	movq	-16(%rbp), %r14                 # 8-byte Reload
 	movq	-24(%rbp), %rdx                 # 8-byte Reload
@@ -766,12 +780,19 @@ vm_op_Clos:                             # @vm_op_Clos
 	addq	$48, %rsp
 	popq	%rbp
 	jmp	badop                           # TAILCALL
-.L5:
-	movl	4(%r9), %edx
+.L8:
+	movzwl	-8(%rbp), %edi                  # 2-byte Folded Reload
+	movzbl	-4(%rbp), %esi                  # 1-byte Folded Reload
+	movq	%rbx, %rdx
+	addq	$48, %rsp
+	popq	%rbp
+	jmp	outofmemory                     # TAILCALL
+.L6:
+	movl	4(%r10), %edx
 	movq	%r15, %rdi
 	movq	%r13, %rsi
 	callq	gc_poll_slow@PLT
-	jmp	.L6
+	jmp	.L7
 .Lfunc_end:
 	.size	vm_op_Clos, .Lfunc_end-vm_op_Clos
                                         # -- End function
@@ -782,125 +803,128 @@ vm_op_WObj:                             # @vm_op_WObj
 	pushq	%rbp
 	movq	%rsp, %rbp
 	subq	$48, %rsp
-	movl	%esi, %r10d
-	movl	%edi, %ebx
-	movzbl	%dil, %r8d
-	cmpl	$3, %r8d
-	je	.L21
+	movl	%esi, %r9d
+	movl	%edi, %r8d
+	movl	%r8d, %ebx
+	movzbl	%r8b, %r10d
+	cmpl	$3, %r10d
+	je	.L22
 # %bb.1:
-	cmpl	$5, %r8d
-	jae	.L21
+	cmpl	$5, %r10d
+	jae	.L22
 # %bb.2:
 	movq	(%r15), %rax
 	movq	%rax, -40(%rbp)                 # 8-byte Spill
-	shrl	$8, %edi
-	cmpl	$4, %r8d
+	shrl	$8, %r8d
+	cmpl	$4, %r10d
 	jne	.L5
 # %bb.3:
-	movzbl	%r10b, %esi
+	movzbl	%r9b, %esi
 	movq	(%r13,%rsi,8), %rax
-	leaq	7(%r14), %r9
-	andq	%rax, %r9
-	cmpq	$4, %r9
-	jne	.L22
+	leaq	7(%r14), %rdi
+	andq	%rax, %rdi
+	cmpq	$4, %rdi
+	jne	.L23
 # %bb.4:
 	movq	12(%rax), %rax
 	andq	$-8, %rax
 	movl	(%rax), %eax
 	addl	$1, %eax
-	cmpl	%eax, %edi
-	jne	.L22
+	cmpl	%eax, %r8d
+	jne	.L23
 .L5:
-	movl	%r10d, -4(%rbp)                 # 4-byte Spill
+	movl	%r9d, -4(%rbp)                  # 4-byte Spill
 	movq	%r14, -16(%rbp)                 # 8-byte Spill
 	movq	%rdx, -24(%rbp)                 # 8-byte Spill
 	movq	%rcx, -32(%rbp)                 # 8-byte Spill
-	movl	%edi, %r10d
-	leal	23(,%rdi,8), %r9d
+	leal	23(,%r8,8), %r9d
 	andl	$-8, %r9d
 	movq	%r9, %rdi
 	movq	%r15, %rsi
 	movq	%r13, %rdx
 	callq	alloc_object@PLT
-	movq	%rax, %rdi
-	movl	%r8d, %esi
-	movq	%r10, %rdx
-	callq	object_init@PLT
-	movzwl	%bx, %esi
-	cmpl	$256, %esi                      # imm = 0x100
-	jb	.L19
+	testq	%rax, %rax
+	je	.L25
 # %bb.6:
-	movzbl	-4(%rbp), %edx                  # 1-byte Folded Reload
-	cmpl	$3584, %esi                     # imm = 0xE00
-	jb	.L7
-# %bb.8:
-	leal	(,%rdx,8), %edi
-	movq	%rax, %r8
-	subq	%rdi, %r8
-	subq	%r13, %r8
-	addq	$16, %r8
-	cmpq	$32, %r8
-	jae	.L10
-.L7:
-	xorl	%esi, %esi
-.L13:
-	movq	%r10, %r8
-	movq	%rsi, %rdi
-	andq	$3, %r8
-	je	.L16
-# %bb.14:
-	leaq	(,%rdx,8), %r11
-	addq	%r13, %r11
-	movq	%rsi, %rdi
-	.p2align	4
-.L15:                              # =>This Inner Loop Header: Depth=1
-	movq	(%r11,%rdi,8), %r14
-	movq	%r14, 16(%rax,%rdi,8)
-	addq	$1, %rdi
-	addq	$-1, %r8
-	jne	.L15
-.L16:
-	subq	%r10, %rsi
-	cmpq	$-4, %rsi
-	ja	.L19
-# %bb.17:
-	leaq	24(,%rdx,8), %rdx
-	addq	%r13, %rdx
-	.p2align	4
-.L18:                              # =>This Inner Loop Header: Depth=1
-	movq	-24(%rdx,%rdi,8), %rsi
-	movq	%rsi, 16(%rax,%rdi,8)
-	movq	-16(%rdx,%rdi,8), %rsi
-	movq	%rsi, 24(%rax,%rdi,8)
-	movq	-8(%rdx,%rdi,8), %rsi
-	movq	%rsi, 32(%rax,%rdi,8)
-	movq	(%rdx,%rdi,8), %rsi
-	movq	%rsi, 40(%rax,%rdi,8)
-	addq	$4, %rdi
-	cmpq	%rdi, %r10
-	jne	.L18
-	jmp	.L19
-.L10:
+	movl	%r8d, %edx
+	movq	%rax, %rdi
 	movl	%r10d, %esi
-	andl	$-4, %esi
-	addq	%r13, %rdi
-	addq	$16, %rdi
+	callq	object_init@PLT
+	movzwl	%bx, %edi
+	cmpl	$256, %edi                      # imm = 0x100
+	jb	.L20
+# %bb.7:
+	movzbl	-4(%rbp), %esi                  # 1-byte Folded Reload
+	cmpl	$3584, %edi                     # imm = 0xE00
+	jb	.L8
+# %bb.9:
+	leal	(,%rsi,8), %r8d
+	movq	%rax, %r10
+	subq	%r8, %r10
+	subq	%r13, %r10
+	addq	$16, %r10
+	cmpq	$32, %r10
+	jae	.L11
+.L8:
+	xorl	%edi, %edi
+.L14:
+	movq	%rdx, %r10
+	movq	%rdi, %r8
+	andq	$3, %r10
+	je	.L17
+# %bb.15:
+	leaq	(,%rsi,8), %r11
+	addq	%r13, %r11
+	movq	%rdi, %r8
+	.p2align	4
+.L16:                              # =>This Inner Loop Header: Depth=1
+	movq	(%r11,%r8,8), %r14
+	movq	%r14, 16(%rax,%r8,8)
+	addq	$1, %r8
+	addq	$-1, %r10
+	jne	.L16
+.L17:
+	subq	%rdx, %rdi
+	cmpq	$-4, %rdi
+	ja	.L20
+# %bb.18:
+	leaq	24(,%rsi,8), %rsi
+	addq	%r13, %rsi
+	.p2align	4
+.L19:                              # =>This Inner Loop Header: Depth=1
+	movq	-24(%rsi,%r8,8), %rdi
+	movq	%rdi, 16(%rax,%r8,8)
+	movq	-16(%rsi,%r8,8), %rdi
+	movq	%rdi, 24(%rax,%r8,8)
+	movq	-8(%rsi,%r8,8), %rdi
+	movq	%rdi, 32(%rax,%r8,8)
+	movq	(%rsi,%r8,8), %rdi
+	movq	%rdi, 40(%rax,%r8,8)
+	addq	$4, %r8
+	cmpq	%r8, %rdx
+	jne	.L19
+	jmp	.L20
+.L11:
+	movl	%edx, %edi
+	andl	$-4, %edi
+	addq	%r13, %r8
+	addq	$16, %r8
 	shrl	$5, %ebx
 	andl	$2016, %ebx                     # imm = 0x7E0
-	xorl	%r8d, %r8d
+	xorl	%r10d, %r10d
 	.p2align	4
-.L11:                              # =>This Inner Loop Header: Depth=1
-	movups	-16(%rdi,%r8), %xmm0
-	movups	(%rdi,%r8), %xmm1
-	movups	%xmm0, 16(%rax,%r8)
-	movups	%xmm1, 32(%rax,%r8)
-	addq	$32, %r8
-	cmpq	%r8, %rbx
-	jne	.L11
-# %bb.12:
-	cmpl	%r10d, %esi
-	jne	.L13
-.L19:
+.L12:                              # =>This Inner Loop Header: Depth=1
+	movups	-16(%r8,%r10), %xmm0
+	movups	(%r8,%r10), %xmm1
+	movups	%xmm0, 16(%rax,%r10)
+	movups	%xmm1, 32(%rax,%r10)
+	addq	$32, %r10
+	cmpq	%r10, %rbx
+	jne	.L12
+# %bb.13:
+	cmpl	%edx, %edi
+	jne	.L14
+.L20:
 	movq	-40(%rbp), %rcx                 # 8-byte Reload
 	movq	(%rcx), %rdi
 	movq	%rax, %rsi
@@ -908,8 +932,8 @@ vm_op_WObj:                             # @vm_op_WObj
 	movzbl	-4(%rbp), %edx                  # 1-byte Folded Reload
 	movq	%rax, (%r13,%rdx,8)
 	cmpb	$0, 57(%r15)
-	je	.L24
-.L20:
+	je	.L26
+.L21:
 	movzbl	(%r12), %eax
 	movq	-24(%rbp), %rdx                 # 8-byte Reload
 	movq	(%rdx,%rax,8), %rax
@@ -921,22 +945,31 @@ vm_op_WObj:                             # @vm_op_WObj
 	addq	$48, %rsp
 	popq	%rbp
 	jmpq	*%rax                           # TAILCALL
-.L21:
-	movzwl	%bx, %edi
-	movzbl	%r10b, %esi
-	jmp	.L23
 .L22:
 	movzwl	%bx, %edi
+	movzbl	%r9b, %esi
+	jmp	.L24
 .L23:
+	movzwl	%bx, %edi
+.L24:
 	addq	$48, %rsp
 	popq	%rbp
 	jmp	invalidlayout                   # TAILCALL
-.L24:
+.L25:
+	movzwl	%bx, %edi
+	movzbl	-4(%rbp), %esi                  # 1-byte Folded Reload
+	movq	-16(%rbp), %r14                 # 8-byte Reload
+	movq	-24(%rbp), %rdx                 # 8-byte Reload
+	movq	-32(%rbp), %rcx                 # 8-byte Reload
+	addq	$48, %rsp
+	popq	%rbp
+	jmp	outofmemory                     # TAILCALL
+.L26:
 	movq	%r15, %rdi
 	movq	%r13, %rsi
 	movq	%r9, %rdx
 	callq	gc_poll_slow@PLT
-	jmp	.L20
+	jmp	.L21
 .Lfunc_end:
 	.size	vm_op_WObj, .Lfunc_end-vm_op_WObj
                                         # -- End function
@@ -3212,9 +3245,13 @@ thunk_alloc_instance:                   # @thunk_alloc_instance
 	leal	63(,%rax,8), %edi
 	andl	$-8, %edi
 	callq	alloc_object@PLT
+	testq	%rax, %rax
+	je	.L2
+# %bb.1:
 	movq	%rax, %rdi
 	movq	%rcx, %rsi
 	callq	thunk_instance_init@PLT
+.L2:
 	addq	$8, %rsp
 	popq	%rcx
 	popq	%rsi
@@ -3224,6 +3261,20 @@ thunk_alloc_instance:                   # @thunk_alloc_instance
 .Lfunc_end:
 	.size	thunk_alloc_instance, .Lfunc_end-thunk_alloc_instance
                                         # -- End function
+	.section	.text.unlikely.,"ax",@progbits
+	.p2align	5                               # -- Begin function outofmemory
+	.type	outofmemory,@function
+outofmemory:                            # @outofmemory
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	leaq	.L.str.9(%rip), %rcx
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	outofmemory, .Lfunc_end-outofmemory
+                                        # -- End function
+	.text
 	.p2align	4                               # -- Begin function capture_loc_resolve
 	.type	capture_loc_resolve,@function
 capture_loc_resolve:                    # @capture_loc_resolve
@@ -3276,7 +3327,7 @@ invalidlayout:                          # @invalidlayout
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.9(%rip), %rcx
+	leaq	.L.str.10(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3288,7 +3339,7 @@ notaoffset:                             # @notaoffset
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.10(%rip), %rcx
+	leaq	.L.str.11(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3414,7 +3465,7 @@ notanumber:                             # @notanumber
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.11(%rip), %rcx
+	leaq	.L.str.12(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3563,7 +3614,7 @@ unimplemented:                          # @unimplemented
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.12(%rip), %rcx
+	leaq	.L.str.13(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -5411,23 +5462,28 @@ dispatch:
 
 	.type	.L.str.9,@object                # @.str.9
 .L.str.9:
-	.asciz	"invalid layout"
-	.size	.L.str.9, 15
+	.asciz	"out of memory"
+	.size	.L.str.9, 14
 
 	.type	.L.str.10,@object               # @.str.10
 .L.str.10:
-	.asciz	"not a offset"
-	.size	.L.str.10, 13
+	.asciz	"invalid layout"
+	.size	.L.str.10, 15
 
 	.type	.L.str.11,@object               # @.str.11
 .L.str.11:
-	.asciz	"not a number"
+	.asciz	"not a offset"
 	.size	.L.str.11, 13
 
 	.type	.L.str.12,@object               # @.str.12
 .L.str.12:
+	.asciz	"not a number"
+	.size	.L.str.12, 13
+
+	.type	.L.str.13,@object               # @.str.13
+.L.str.13:
 	.asciz	"unimplemented"
-	.size	.L.str.12, 14
+	.size	.L.str.13, 14
 
 	.type	dispatch_setc,@object           # @dispatch_setc
 	.section	.data.rel.ro,"aw",@progbits

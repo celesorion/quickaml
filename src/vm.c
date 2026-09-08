@@ -79,6 +79,12 @@ void unusedexta(PARAMS) {
 }
 
 THREADED
+void outofmemory(PARAMS) {
+  fns = (struct thunk **)(void *)"out of memory";
+  MUSTTAIL return panic(ARGS);
+}
+
+THREADED
 void notanumber(PARAMS) {
   fns = (struct thunk **)(void *)"not a number";
   MUSTTAIL return panic(ARGS);
@@ -361,7 +367,7 @@ OP_DEFINITION(Apply) {
   gc_poll(fiber, bp, 256);
 
   bp = next_bp(bp, ithunk);
-  if (unlikely(bp >= fiber->stklimit.active)) {
+  if (unlikely(bp + thunk->nregs > fiber->stklimit.active)) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
@@ -403,7 +409,7 @@ OP_DEFINITION(Call) {
   gc_poll(fiber, bp, 256);
 
   bp = next_bp(bp, dst);
-  if (unlikely(bp >= fiber->stklimit.active)) {
+  if (unlikely(bp + thunk->nregs > fiber->stklimit.active)) {
     MUSTTAIL return stackoverflow(ARGS);
   }
 
@@ -495,6 +501,8 @@ thunk_alloc_instance(struct fiber_segment *restrict fiber,
                      struct thunk *template, val_t *restrict bp) {
   size_t size = thunk_instance_size(template->nfree);
   struct thunk *thunk = alloc_object(size, fiber, bp);
+  if (thunk == nullptr)
+    return nullptr;
   thunk_instance_init(thunk, template);
   return thunk;
 }
@@ -532,6 +540,9 @@ OP_DEFINITION(Clos) {
   struct thunk *template = fns[fx];
 
   struct thunk *thunk = thunk_alloc_instance(fiber, template, bp);
+  if (unlikely(thunk == nullptr)) {
+    MUSTTAIL return outofmemory(ARGS);
+  }
   for (size_t i = 0; i < template->nfree; i++) {
     val_t value;
     if (unlikely(!capture_loc_resolve(template->freevars[i], bp, &value))) {
@@ -569,6 +580,9 @@ OP_DEFINITION(WObj) {
   }
 
   struct object *obj = alloc_object(object_size(len), fiber, bp);
+  if (unlikely(obj == nullptr)) {
+    MUSTTAIL return outofmemory(ARGS);
+  }
   object_init(obj, (enum tag)tag, len);
   for (ssz_t i = 0; i < len; i++)
     obj->fields[i] = bp[fld + i];

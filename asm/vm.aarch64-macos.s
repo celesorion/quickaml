@@ -298,9 +298,11 @@ _vm_op_Apply:                           ; @vm_op_Apply
 .L2:
 	add	x8, x21, x11, lsl #3
 	add	x21, x8, #16
-	ldr	x8, [x23, #48]
-	cmp	x21, x8
-	b.hs	.L6
+	ldrb	w8, [x10, #51]
+	add	x8, x21, x8, lsl #3
+	ldr	x11, [x23, #48]
+	cmp	x8, x11
+	b.hi	.L6
 ; %bb.3:
 	stp	x10, x20, [x21, #-16]
 	ldur	x8, [x10, #31]
@@ -380,9 +382,11 @@ _vm_op_Call:                            ; @vm_op_Call
 .L1:
 	add	x8, x21, w1, uxtw #3
 	add	x21, x8, #16
-	ldr	x8, [x23, #48]
-	cmp	x21, x8
-	b.hs	.L4
+	ldrb	w8, [x10, #52]
+	add	x8, x21, x8, lsl #3
+	ldr	x11, [x23, #48]
+	cmp	x8, x11
+	b.hi	.L4
 ; %bb.2:
 	orr	x8, x10, #0x1
 	stp	x8, x9, [x21, #-16]
@@ -567,39 +571,41 @@ _vm_op_Clos:                            ; @vm_op_Clos
 	stp	x29, x30, [sp, #16]             ; 16-byte Folded Spill
 	add	x29, sp, #16
 	mov	x9, x1
-	mov	x11, x0
+	mov	x10, x0
 	ldr	x13, [x23]
 	ldr	x12, [x25, w0, uxtw #3]
 	mov	x0, x23
 	mov	x1, x12
 	mov	x2, x21
 	bl	_thunk_alloc_instance
-	mov	x10, x0
-	ldr	w14, [x12, #48]
-	cbz	w14, .L4
+	cbz	x0, .L8
 ; %bb.1:
+	mov	x11, x0
+	ldr	w14, [x12, #48]
+	cbz	w14, .L5
+; %bb.2:
 	add	x12, x12, #56
-	add	x15, x10, #56
-.L2:                                ; =>This Inner Loop Header: Depth=1
+	add	x15, x11, #56
+.L3:                                ; =>This Inner Loop Header: Depth=1
 	ldr	x0, [x12], #8
 	add	x2, sp, #8
 	mov	x1, x21
 	bl	_capture_loc_resolve
-	tbz	w0, #0, .L6
-; %bb.3:                                ;   in Loop: Header=BB20_2 Depth=1
+	tbz	w0, #0, .L7
+; %bb.4:                                ;   in Loop: Header=BB20_3 Depth=1
 	ldr	x8, [sp, #8]
 	str	x8, [x15], #8
 	subs	x14, x14, #1
-	b.ne	.L2
-.L4:
+	b.ne	.L3
+.L5:
 	ldr	x0, [x13]
-	mov	x1, x10
+	mov	x1, x11
 	bl	_gc_publish_new_object
-	orr	x8, x10, #0x1
+	orr	x8, x11, #0x1
 	str	x8, [x21, w9, uxtw #3]
 	ldrb	w8, [x23, #57]
-	tbz	w8, #0, .L7
-.L5:
+	tbz	w8, #0, .L9
+.L6:
 	ldrb	w8, [x20]
 	ldr	x2, [x24, x8, lsl #3]
 	ldrb	w1, [x20, #1]
@@ -608,28 +614,36 @@ _vm_op_Clos:                            ; @vm_op_Clos
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	br	x2
-.L6:
-	mov	x0, x11
+.L7:
+	mov	x0, x10
 	mov	x1, x9
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	b	_badop
-.L7:
-	ldr	w2, [x10, #4]
+.L8:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
+	add	sp, sp, #32
+	b	_outofmemory
+.L9:
+	ldr	w2, [x11, #4]
 	mov	x0, x23
 	mov	x1, x21
 	bl	_gc_poll_slow
-	b	.L5
+	b	.L6
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_WObj
 _vm_op_WObj:                            ; @vm_op_WObj
 ; %bb.0:
+	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
+	mov	x29, sp
 	mov	x9, x1
 	mov	x12, x0
 	and	w13, w0, #0xff
 	cmp	w13, #3
 	ccmp	w13, #5, #2, ne
-	b.hs	.L15
+	b.hs	.L16
 ; %bb.1:
 	ldr	x14, [x23]
 	lsr	w10, w12, #8
@@ -640,62 +654,62 @@ _vm_op_WObj:                            ; @vm_op_WObj
 	add	x11, x22, #7
 	and	x11, x8, x11
 	cmp	x11, #4
-	b.ne	.L15
+	b.ne	.L16
 ; %bb.3:
 	ldur	x8, [x8, #12]
 	and	x8, x8, #0xfffffffffffffff8
 	ldr	w8, [x8]
 	add	w8, w8, #1
 	cmp	w10, w8
-	b.ne	.L15
+	b.ne	.L16
 .L4:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
 	lsl	w8, w10, #3
 	add	w15, w8, #23
 	and	x0, x15, #0xff8
 	mov	x1, x23
 	mov	x2, x21
 	bl	_alloc_object
+	cbz	x0, .L17
+; %bb.5:
 	mov	x11, x0
 	mov	x1, x13
 	mov	x2, x10
 	bl	_object_init
 	cmp	w12, #256
-	b.lo	.L10
-; %bb.5:
+	b.lo	.L11
+; %bb.6:
 	mov	w8, w9
 	cmp	w12, #2560
-	b.lo	.L7
-; %bb.6:
+	b.lo	.L8
+; %bb.7:
 	lsl	x12, x8, #3
 	add	x16, x12, x21
 	sub	x12, x11, x16
 	add	x12, x12, #16
 	cmp	x12, #64
-	b.hs	.L12
-.L7:
-	mov	x12, #0                         ; =0x0
+	b.hs	.L13
 .L8:
+	mov	x12, #0                         ; =0x0
+.L9:
 	lsl	x13, x12, #3
 	add	x8, x13, x8, lsl #3
 	add	x8, x21, x8
 	add	x13, x13, x11
 	add	x13, x13, #16
 	sub	x10, x10, x12
-.L9:                                ; =>This Inner Loop Header: Depth=1
+.L10:                               ; =>This Inner Loop Header: Depth=1
 	ldr	x12, [x8], #8
 	str	x12, [x13], #8
 	subs	x10, x10, #1
-	b.ne	.L9
-.L10:
+	b.ne	.L10
+.L11:
 	ldr	x0, [x14]
 	mov	x1, x11
 	bl	_gc_publish_new_object
 	str	x11, [x21, w9, uxtw #3]
 	ldrb	w8, [x23, #57]
-	tbz	w8, #0, .L16
-.L11:
+	tbz	w8, #0, .L18
+.L12:
 	ldrb	w8, [x20]
 	ldr	x2, [x24, x8, lsl #3]
 	ldrb	w1, [x20, #1]
@@ -703,33 +717,39 @@ _vm_op_WObj:                            ; @vm_op_WObj
 	add	x20, x20, #4
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	br	x2
-.L12:
+.L13:
 	and	x12, x10, #0xf8
 	add	x13, x11, #64
 	add	x16, x16, #32
 	mov	x17, x12
-.L13:                               ; =>This Inner Loop Header: Depth=1
+.L14:                               ; =>This Inner Loop Header: Depth=1
 	ldp	q0, q1, [x16, #-32]
 	ldp	q2, q3, [x16], #64
 	stp	q0, q1, [x13, #-48]
 	stp	q2, q3, [x13, #-16]
 	add	x13, x13, #64
 	subs	x17, x17, #8
-	b.ne	.L13
-; %bb.14:
+	b.ne	.L14
+; %bb.15:
 	cmp	x12, x10
-	b.eq	.L10
-	b	.L8
-.L15:
+	b.eq	.L11
+	b	.L9
+.L16:
 	mov	x0, x12
 	mov	x1, x9
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	b	_invalidlayout
-.L16:
+.L17:
+	mov	x0, x12
+	mov	x1, x9
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	b	_outofmemory
+.L18:
 	and	x2, x15, #0xff8
 	mov	x0, x23
 	mov	x1, x21
 	bl	_gc_poll_slow
-	b	.L11
+	b	.L12
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_Jmp
 _vm_op_Jmp:                             ; @vm_op_Jmp
@@ -2372,13 +2392,26 @@ _thunk_alloc_instance:                  ; @thunk_alloc_instance
 	add	w8, w8, #63
 	and	x0, x8, #0xfffffff8
 	bl	_alloc_object
+	cbz	x0, .L2
+; %bb.1:
 	mov	x10, x0
 	mov	x1, x9
 	bl	_thunk_instance_init
 	mov	x0, x10
+.L2:
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	ldp	x10, x9, [sp], #32              ; 16-byte Folded Reload
 	ret
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function outofmemory
+_outofmemory:                           ; @outofmemory
+; %bb.0:
+Lloh30:
+	adrp	x25, l_.str.9@PAGE
+Lloh31:
+	add	x25, x25, l_.str.9@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh30, Lloh31
                                         ; -- End function
 	.p2align	2                               ; -- Begin function capture_loc_resolve
 _capture_loc_resolve:                   ; @capture_loc_resolve
@@ -2421,22 +2454,22 @@ _capture_loc_resolve:                   ; @capture_loc_resolve
 	.p2align	5                               ; -- Begin function invalidlayout
 _invalidlayout:                         ; @invalidlayout
 ; %bb.0:
-Lloh30:
-	adrp	x25, l_.str.9@PAGE
-Lloh31:
-	add	x25, x25, l_.str.9@PAGEOFF
-	b	_panic
-	.loh AdrpAdd	Lloh30, Lloh31
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function notaoffset
-_notaoffset:                            ; @notaoffset
-; %bb.0:
 Lloh32:
 	adrp	x25, l_.str.10@PAGE
 Lloh33:
 	add	x25, x25, l_.str.10@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh32, Lloh33
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function notaoffset
+_notaoffset:                            ; @notaoffset
+; %bb.0:
+Lloh34:
+	adrp	x25, l_.str.11@PAGE
+Lloh35:
+	add	x25, x25, l_.str.11@PAGEOFF
+	b	_panic
+	.loh AdrpAdd	Lloh34, Lloh35
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_arith_dc_fallback
 _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
@@ -2520,12 +2553,12 @@ _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
 	.p2align	5                               ; -- Begin function notanumber
 _notanumber:                            ; @notanumber
 ; %bb.0:
-Lloh34:
-	adrp	x25, l_.str.11@PAGE
-Lloh35:
-	add	x25, x25, l_.str.11@PAGEOFF
+Lloh36:
+	adrp	x25, l_.str.12@PAGE
+Lloh37:
+	add	x25, x25, l_.str.12@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh34, Lloh35
+	.loh AdrpAdd	Lloh36, Lloh37
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_arith_dd_fallback
 _vm_op_arith_dd_fallback:               ; @vm_op_arith_dd_fallback
@@ -2621,12 +2654,12 @@ _vm_op_setcond_bad_op:                  ; @vm_op_setcond_bad_op
 	.p2align	5                               ; -- Begin function unimplemented
 _unimplemented:                         ; @unimplemented
 ; %bb.0:
-Lloh36:
-	adrp	x25, l_.str.12@PAGE
-Lloh37:
-	add	x25, x25, l_.str.12@PAGEOFF
+Lloh38:
+	adrp	x25, l_.str.13@PAGE
+Lloh39:
+	add	x25, x25, l_.str.13@PAGEOFF
 	b	_panic
-	.loh AdrpAdd	Lloh36, Lloh37
+	.loh AdrpAdd	Lloh38, Lloh39
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_setc_CmpNotF
 _vm_op_setc_CmpNotF:                    ; @vm_op_setc_CmpNotF
@@ -3892,15 +3925,18 @@ l_.str.8:                               ; @.str.8
 	.asciz	"not an instance"
 
 l_.str.9:                               ; @.str.9
-	.asciz	"invalid layout"
+	.asciz	"out of memory"
 
 l_.str.10:                              ; @.str.10
-	.asciz	"not a offset"
+	.asciz	"invalid layout"
 
 l_.str.11:                              ; @.str.11
-	.asciz	"not a number"
+	.asciz	"not a offset"
 
 l_.str.12:                              ; @.str.12
+	.asciz	"not a number"
+
+l_.str.13:                              ; @.str.13
 	.asciz	"unimplemented"
 
 	.section	__DATA,__const
