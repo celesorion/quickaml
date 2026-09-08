@@ -44,7 +44,9 @@ static void *freelist_alloc(struct heap *h, size_t n) {
         free_block_init(split, (uint32_t)remainder, blk->next);
         *prev = split;
       } else {
-        n = blk_size;
+        assert(remainder == 0 || remainder == sizeof(metainfo));
+        if (remainder != 0)
+          pad_init((uint8_t *)blk + n);
         *prev = blk->next;
       }
       h->allocated_bytes += n;
@@ -168,6 +170,7 @@ static void gc_scan_object(struct heap *h, void *ref) {
   case TAG_STR:
   case TAG_OPAQUE:
   case TAG_FREE:
+  case TAG_PAD:
     break;
   default: {
     struct object *obj = ref;
@@ -219,6 +222,12 @@ static size_t gc_sweep_step(struct heap *h, size_t budget) {
         continue;
       }
 
+      if (obj_tag_of(cursor) == TAG_PAD) {
+        run_size += block_size;
+        cursor += block_size;
+        continue;
+      }
+
       metainfo bits = obj_gc_bits(cursor);
       if (bits == OBJ_FLAG_GC_WHITE) {
         h->allocated_bytes -= block_size;
@@ -231,10 +240,11 @@ static size_t gc_sweep_step(struct heap *h, size_t budget) {
     }
 
     if (run_size > 0) {
+      /* A run of one pad has no room for a free block and stays a pad. */
       if (leading_is_free) {
         struct free_block *blk = (struct free_block *)run_start;
         free_block_init(blk, (uint32_t)run_size, blk->next);
-      } else {
+      } else if (run_size >= object_align(sizeof(struct free_block))) {
         free_block_init((struct free_block *)run_start, (uint32_t)run_size,
                         h->free_list);
         h->free_list = (struct free_block *)run_start;

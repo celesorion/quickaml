@@ -57,6 +57,7 @@ enum tag {
   TAG_STR = 6,
   TAG_OPAQUE = 7,
   TAG_FREE = -1, /* not an object */
+  TAG_PAD = -2,  /* not an object: a header-sized gap between blocks */
 };
 
 INLINE bool obj_is_words(enum tag tag) { return (uint8_t)tag < TAG_THUNK; }
@@ -440,6 +441,13 @@ INLINE void free_block_init(struct free_block *blk, size_t size,
                             struct free_block *next) {
   blk->hd = obj_meta_pack((uint32_t)size, TAG_FREE, 0);
   blk->next = next;
+}
+
+/* A fit can leave less than a free block behind, which is one header's worth
+ * since sizes are aligned.  The pad is a block of its own, so the heap stays
+ * walkable; it is never on the free list and joins the next free run. */
+INLINE void pad_init(void *pad) {
+  *(metainfo *)pad = obj_meta_pack((uint32_t)sizeof(metainfo), TAG_PAD, 0);
 }
 
 COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields);

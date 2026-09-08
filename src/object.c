@@ -265,6 +265,9 @@ static void print_value(struct printer *p, val_t value, int depth) {
   case TAG_FREE:
     print_text(p, "<free>");
     break;
+  case TAG_PAD:
+    print_text(p, "<pad>");
+    break;
   }
 
   if (fields != nullptr)
