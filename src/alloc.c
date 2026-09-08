@@ -140,6 +140,26 @@ static void gc_scan_thunk_constants(struct heap *h,
     shade_value(h, thunk->ctbl[i]);
 }
 
+/* The slots above the live frames are what popped frames left behind.  They
+ * are no roots, so a sweep may free and the mutator reuse what they point to,
+ * yet a frame pushed over them later scans them as its own registers.  So
+ * they are cleared before every sweep: from then on a frame only inherits
+ * empty slots or pointers to objects the sweep leaves alone. */
+static void gc_clear_dead_slots(struct fiber_segment *restrict fiber,
+                                val_t *restrict bp) {
+  static_assert(VAL_EMPTY == 0, "dead slots are cleared with memset");
+  val_t *top = bp + val_as_closure(frame_rv(bp))->nregs;
+  memset(top, 0, (size_t)(fiber->stklimit.active - top) * sizeof *top);
+
+  for (struct fiber_segment *parent = fiber->parent; parent != nullptr;
+       parent = parent->parent) {
+    val_t *parent_bp = parent->stk + parent->stklimit.inactive.used_slots;
+    val_t *limit = parent->stk + parent->stklimit.inactive.allocated_slots;
+    top = parent_bp + val_as_closure(frame_rv(parent_bp))->nregs;
+    memset(top, 0, (size_t)(limit - top) * sizeof *top);
+  }
+}
+
 static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
                           val_t *restrict bp) {
   struct state *state = fiber->state;
@@ -284,8 +304,10 @@ static void gc_mark_to_fixpoint(struct heap *h) {
     gc_mark_step(h, SIZE_MAX);
 }
 
-static void gc_begin_sweep(struct heap *h) {
+static void gc_begin_sweep(struct fiber_segment *restrict fiber,
+                           struct heap *h, val_t *restrict bp) {
   assert(h->phase == GC_MARK);
+  gc_clear_dead_slots(fiber, bp);
   h->phase = GC_SWEEP;
   h->sweep_cursor = h->base;
   h->live_bytes = 0;
@@ -308,7 +330,7 @@ static void gc_finish_mark(struct fiber_segment *restrict fiber, struct heap *h,
                            val_t *restrict bp) {
   gc_scan_roots(fiber, h, bp);
   gc_mark_to_fixpoint(h);
-  gc_begin_sweep(h);
+  gc_begin_sweep(fiber, h, bp);
 }
 
 static void gc_finish_sweep(struct heap *h) {
@@ -355,7 +377,7 @@ COLD_HELPER void gc_poll_slow(struct fiber_segment *restrict fiber,
     credit = work < credit ? credit - work : 0;
 
     if (gc_mark_is_complete(h)) {
-      gc_begin_sweep(h);
+      gc_begin_sweep(fiber, h, bp);
       if (credit > 0)
         gc_sweep_step(h, credit);
     }
