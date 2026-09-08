@@ -140,11 +140,7 @@ static void gc_scan_thunk_constants(struct heap *h,
     shade_value(h, thunk->ctbl[i]);
 }
 
-/* The slots above the live frames are what popped frames left behind.  They
- * are no roots, so a sweep may free and the mutator reuse what they point to,
- * yet a frame pushed over them later scans them as its own registers.  So
- * they are cleared before every sweep: from then on a frame only inherits
- * empty slots or pointers to objects the sweep leaves alone. */
+/* Later frames inherit these slots; nothing the sweep frees may stay here. */
 static void gc_clear_dead_slots(struct fiber_segment *restrict fiber,
                                 val_t *restrict bp) {
   static_assert(VAL_EMPTY == 0, "dead slots are cleared with memset");
@@ -260,7 +256,6 @@ static size_t gc_sweep_step(struct heap *h, size_t budget) {
     }
 
     if (run_size > 0) {
-      /* A run of one pad has no room for a free block and stays a pad. */
       if (leading_is_free) {
         struct free_block *blk = (struct free_block *)run_start;
         free_block_init(blk, (uint32_t)run_size, blk->next);

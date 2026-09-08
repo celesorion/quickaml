@@ -443,9 +443,7 @@ INLINE void free_block_init(struct free_block *blk, size_t size,
   blk->next = next;
 }
 
-/* A fit can leave less than a free block behind, which is one header's worth
- * since sizes are aligned.  The pad is a block of its own, so the heap stays
- * walkable; it is never on the free list and joins the next free run. */
+/* Fills the header-sized gap a fit leaves behind; never on the free list. */
 INLINE void pad_init(void *pad) {
   *(metainfo *)pad = obj_meta_pack((uint32_t)sizeof(metainfo), TAG_PAD, 0);
 }
