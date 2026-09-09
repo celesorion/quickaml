@@ -16,6 +16,16 @@ COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields) {
   obj->gclist = nullptr;
 }
 
+COLD_HELPER void view_init(struct view *v, struct object *type,
+                           struct object *source, const uint8_t *idx) {
+  const struct type_desc *desc = type_desc_of(type);
+  v->hd = obj_meta_pack((uint32_t)view_size(desc->nfields), TAG_VIEW, 0);
+  v->gclist = nullptr;
+  v->type = val_from_type(type);
+  v->source = val_from_ptr(source);
+  memcpy(v->idx, idx, desc->nfields);
+}
+
 COLD_HELPER void str_init(struct str *str, size_t len) {
   str->hd = obj_meta_pack((uint32_t)(sizeof(struct str) + len + 1), TAG_STR, 0);
   str->bytes[len] = '\0';
@@ -150,7 +160,8 @@ static void print_str(struct printer *p, const struct str *str) {
 }
 
 /* The fields a value prints: all of a tuple or array, the declared ones of a
- * struct.  Every other value is a leaf. */
+ * struct, the source fields of a view, which print_struct picks from through
+ * the slot table.  Every other value is a leaf. */
 static const val_t *print_fields(val_t value, size_t *n) {
   *n = 0;
   if (!val_is_ptr(value) || val_is_empty(value))
@@ -164,6 +175,9 @@ static const val_t *print_fields(val_t value, size_t *n) {
   case TAG_STRUCT:
     *n = type_desc_of(val_as_type(obj->fields[0]))->nfields;
     return obj->fields + 1;
+  case TAG_VIEW:
+    *n = type_desc_of(view_type((const struct view *)obj))->nfields;
+    return view_source((const struct view *)obj)->fields + 1;
   default:
     return nullptr;
   }
@@ -179,6 +193,22 @@ static void print_list(struct printer *p, const val_t *fields, size_t n,
       print_text(p, ", ");
     print_value(p, fields[i], depth + 1);
   }
+}
+
+/* A struct or view prints as its type name and `field = value` pairs; idx
+ * maps the fields of the type to slots of fields, or is null for identity. */
+static void print_struct(struct printer *p, const struct type_desc *desc,
+                         const val_t *fields, const uint8_t *idx, int depth) {
+  print_bytes(p, desc->name, desc->namelen);
+  print_text(p, "{");
+  for (size_t i = 0; i < desc->nfields; i++) {
+    if (i != 0)
+      print_text(p, ", ");
+    print_bytes(p, desc->members[i].name, desc->members[i].len);
+    print_text(p, " = ");
+    print_value(p, fields[idx == nullptr ? i : idx[i]], depth + 1);
+  }
+  print_text(p, "}");
 }
 
 static void print_value(struct printer *p, val_t value, int depth) {
@@ -232,18 +262,13 @@ static void print_value(struct printer *p, val_t value, int depth) {
   case TAG_MAP:
     print_text(p, object_nfields(obj) == 0 ? "{}" : "{...}");
     break;
-  case TAG_STRUCT: {
-    const struct type_desc *desc = type_desc_of(val_as_type(obj->fields[0]));
-    print_bytes(p, desc->name, desc->namelen);
-    print_text(p, "{");
-    for (size_t i = 0; i < n; i++) {
-      if (i != 0)
-        print_text(p, ", ");
-      print_bytes(p, desc->members[i].name, desc->members[i].len);
-      print_text(p, " = ");
-      print_value(p, fields[i], depth + 1);
-    }
-    print_text(p, "}");
+  case TAG_STRUCT:
+    print_struct(p, type_desc_of(val_as_type(obj->fields[0])), fields, nullptr,
+                 depth);
+    break;
+  case TAG_VIEW: {
+    const struct view *v = (const struct view *)obj;
+    print_struct(p, type_desc_of(view_type(v)), fields, v->idx, depth);
     break;
   }
   case TAG_TYPE: {

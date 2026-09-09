@@ -82,6 +82,7 @@ struct object *vm_type_alloc(const char *name, uint32_t namelen,
   desc->nfields = nfields;
   desc->nmethods = nmethods;
   desc->nfunctions = nfunctions;
+  desc->views = nullptr;
   char *text = (char *)&desc->members[nmembers];
   desc->name = text;
   desc->namelen = namelen;
@@ -100,7 +101,15 @@ struct object *vm_type_alloc(const char *name, uint32_t namelen,
   return type;
 }
 
-void vm_type_free(struct object *type) { free(type); }
+void vm_type_free(struct object *type) {
+  struct view_tmpl *next;
+  for (struct view_tmpl *t = type_desc_of(type)->views; t != nullptr;
+       t = next) {
+    next = t->next;
+    free(t);
+  }
+  free(type);
+}
 
 struct opaque *vm_opaque_alloc(struct fiber_segment *fiber, val_t *bp,
                                size_t n, finalize_fn *finalize) {
@@ -218,6 +227,7 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
   fiber->state = &st;
   fiber->parent = nullptr;
   fiber->ctbl = entry->ctbl;
+  fiber->types = types;
   fiber->sync_addr = VAL_EMPTY;
   fiber->spawn_addr = VAL_EMPTY;
   fiber->effect_hnd = VAL_EMPTY;

@@ -18,6 +18,7 @@ struct fiber_segment {
   struct state *state;
   struct fiber_segment *parent;
   val_t *ctbl;
+  struct object **types;
   val_t sync_addr;
   val_t spawn_addr;
   val_t effect_hnd;

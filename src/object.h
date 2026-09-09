@@ -44,7 +44,7 @@ struct thunk {
 };
 
 /* Object tags, shared with Tag in bytecode.rs.  Words objects come first,
- * every slot of theirs is a val_t; from TAG_THUNK on the collector knows each
+ * every slot of theirs is a val_t; from TAG_VIEW on the collector knows each
  * exotic layout one by one.  A negative tag marks a block that is not an
  * object at all.  Values the encoding carries itself have no tag. */
 enum tag {
@@ -53,29 +53,40 @@ enum tag {
   TAG_MAP = 2,
   TAG_TYPE = 3,
   TAG_STRUCT = 4,
-  TAG_THUNK = 5, /* exotic from here */
-  TAG_STR = 6,
-  TAG_OPAQUE = 7,
+  TAG_VIEW = 5, /* exotic from here */
+  TAG_THUNK = 6,
+  TAG_STR = 7,
+  TAG_OPAQUE = 8,
   TAG_FREE = -1, /* not an object */
   TAG_PAD = -2,  /* not an object: a header-sized gap between blocks */
 };
 
-INLINE bool obj_is_words(enum tag tag) { return (uint8_t)tag < TAG_THUNK; }
+INLINE bool obj_is_words(enum tag tag) { return (uint8_t)tag < TAG_VIEW; }
 
-/* Words objects and thunks are scanned, so they queue on the gray list. */
+/* Words objects, views and thunks are scanned, so they queue on the gray
+ * list. */
 INLINE bool obj_has_gclist(enum tag tag) { return (uint8_t)tag <= TAG_THUNK; }
 
-/* Immutable, image-owned description of a struct type: its declared name and
- * the names of its fields, methods and functions, in three consecutive
- * groups. A runtime type value is a words object tagged TAG_TYPE holding the
+/* Image-owned description of a struct type: its declared name and the names
+ * of its fields, methods and functions, in three consecutive groups. A
+ * runtime type value is a words object tagged TAG_TYPE holding the
  * description pointer in slot 0, then the closure of each method and of each
  * function; the image builds one per declaration outside the heap, see
  * vm_type_alloc. A struct instance is tagged TAG_STRUCT and holds its type
  * value in slot 0 followed by one slot per field; its methods are those of
- * the type value. */
+ * the type value.
+ *
+ * The description also caches the views built from instances of its type:
+ * one template per target type, listing the slot of each target field. */
 struct member_desc {
   const char *name;
   uint32_t len;
+};
+
+struct view_tmpl {
+  const struct type_desc *target;
+  struct view_tmpl *next;
+  uint8_t idx[];
 };
 
 struct type_desc {
@@ -84,6 +95,7 @@ struct type_desc {
   uint32_t nfunctions;
   uint32_t namelen;
   const char *name;
+  struct view_tmpl *views;
   struct member_desc members[];
 };
 
@@ -156,6 +168,21 @@ struct opaque {
   unsigned char data[];
 };
 
+/* A struct instance seen as another type: field k of the view is slot
+ * idx[k] of source, which is never itself a view.  The type value comes
+ * first, in the slot where a struct instance keeps its own, so a typed field
+ * access compares the same slot of either. */
+struct view {
+  metainfo hd;
+  void *gclist;
+  val_t type;
+  val_t source;
+  uint8_t idx[];
+};
+
+static_assert(offsetof(struct view, type) == offsetof(struct object, fields),
+              "a view keeps its type where an instance keeps its own");
+
 typedef void finalize_fn(void *data);
 
 INLINE bool val_is_empty(val_t value) { return value == VAL_EMPTY; }
@@ -185,6 +212,9 @@ INLINE bool val_is_cell(val_t value) { return !(value & VAL_NOT_CELL_MASK); }
 INLINE bool val_is_ptr(val_t value) {
   return val_is_cell(value) /* && !val_is_empty(value) */;
 }
+
+#define val_is_ptr_macro(value, tag)                                           \
+  (((value) & ((tag) | VAL_OTHER_TAG)) == 0)
 
 #define val_is_number_macro(value, tag) ((value) & (tag))
 
@@ -341,6 +371,10 @@ INLINE uint8_t obj_flags_of(const void *ref) {
   return (uint8_t)(obj->hd >> 8);
 }
 
+INLINE bool obj_is_typed(enum tag tag) {
+  return tag == TAG_STRUCT || tag == TAG_VIEW;
+}
+
 #define OBJ_FLAG_GC_MASK (UINT64_C(0x03) << 8)
 #define OBJ_FLAG_GC_WHITE (UINT64_C(0x00) << 8)
 #define OBJ_FLAG_GC_GRAY (UINT64_C(0x01) << 8)
@@ -372,11 +406,23 @@ INLINE void obj_set_gclist(void *ref, void *next) {
   gc->gclist = next;
 }
 
-INLINE const struct type_desc *type_desc_of(const struct object *type) {
+INLINE struct type_desc *type_desc_of(const struct object *type) {
   return val_as_ptr(type->fields[0]);
 }
 
+INLINE struct object *view_source(const struct view *v) {
+  return val_as_ptr(v->source);
+}
+
+INLINE struct object *view_type(const struct view *v) {
+  return val_as_type(v->type);
+}
+
 INLINE size_t object_align(size_t n) { return (n + 7u) & ~7u; }
+
+INLINE size_t view_size(size_t nfields) {
+  return object_align(sizeof(struct view) + nfields);
+}
 
 INLINE size_t thunk_instance_size(size_t nfree) {
   return object_align(sizeof(struct thunk) + nfree * sizeof(val_t));
@@ -449,6 +495,8 @@ INLINE void pad_init(void *pad) {
 }
 
 COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields);
+COLD_HELPER void view_init(struct view *v, struct object *type,
+                           struct object *source, const uint8_t *idx);
 COLD_HELPER void str_init(struct str *str, size_t len);
 COLD_HELPER void opaque_init(struct opaque *o, size_t n,
                              finalize_fn *finalize);

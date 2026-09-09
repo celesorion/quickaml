@@ -11,6 +11,9 @@
   _(LoadFree  , "loadfv"    )\
   _(LoadField , "loadfld"   )\
   _(SetField  , "setfld"    )\
+  _(LoadInd   , "loadind"   )\
+  _(SetInd    , "setind"    )\
+  _(View      , "view"      )\
   _(Move      , "move"      )\
   _(Apply     , "apply"     )\
   _(Invoke    , "invoke"    )\

@@ -18,11 +18,11 @@ vm_entry:                               # @vm_entry
 	movq	(%rdi), %rax
 	movq	8(%rax), %rcx
 	movq	16(%rcx), %r12
-	leaq	96(%rdi), %r13
+	leaq	104(%rdi), %r13
 	movq	%rcx, %rdx
 	orq	$1, %rdx
-	movq	%rdx, 80(%rdi)
-	movq	$0, 88(%rdi)
+	movq	%rdx, 88(%rdi)
+	movq	$0, 96(%rdi)
 	movq	32(%rcx), %rcx
 	movq	%rcx, 16(%rdi)
 	movq	16(%rax), %rcx
@@ -285,57 +285,415 @@ vm_op_SetField:                         # @vm_op_SetField
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
+	subq	$16, %rsp
+	movq	%rcx, -8(%rbp)                  # 8-byte Spill
+	movq	%rdx, %rcx
 	movl	%esi, %ebx
-	movl	%edi, %r8d
-	movzbl	%r8b, %eax
+	movl	%edi, %r9d
+	movzbl	%r9b, %eax
 	movq	(%r13,%rax,8), %rdi
-	movq	16(%r15), %rax
-	movl	%r8d, %esi
-	shrl	$8, %esi
-	movq	(%rax,%rsi,8), %rsi
+	movq	16(%r15), %r10
+	movl	%r9d, %r8d
+	shrl	$8, %r8d
+	movq	(%r10,%r8,8), %rsi
+	leaq	-16(%rbp), %rdx
 	callq	field_slot
 	testq	%rax, %rax
 	je	.L1
 # %bb.3:
-	movq	(%r15), %rsi
-	movq	(%rsi), %r8
+	movq	(%r15), %rdx
+	movq	(%rdx), %rdi
+	movq	-16(%rbp), %rdx
 	movzbl	%bl, %esi
 	movq	(%r13,%rsi,8), %rsi
 	movq	%rsi, (%rax)
-	cmpl	$1, 40(%r8)
+	cmpl	$1, 40(%rdi)
 	jne	.L6
 # %bb.4:
-	andq	$-8, %rdi
 	movl	$768, %eax                      # imm = 0x300
-	andl	(%rdi), %eax
+	andl	(%rdx), %eax
 	cmpl	$512, %eax                      # imm = 0x200
 	je	.L5
 .L6:
+	movzbl	(%r12), %eax
+	movq	(%rcx,%rax,8), %rax
+	movzbl	1(%r12), %esi
+	movzwl	2(%r12), %edi
+	addq	$4, %r12
+	movq	%rcx, %rdx
+	movq	-8(%rbp), %rcx                  # 8-byte Reload
+	addq	$16, %rsp
+	popq	%rbp
+	jmpq	*%rax                           # TAILCALL
+.L1:
+	movq	(%r10,%r8,8), %rsi
+	callq	member_slot
+	movzwl	%r9w, %edi
+	movzbl	%bl, %esi
+	movq	%rcx, %rdx
+	testq	%rax, %rax
+	jne	.L2
+# %bb.7:
+	movq	-8(%rbp), %rcx                  # 8-byte Reload
+	addq	$16, %rsp
+	popq	%rbp
+	jmp	nomember                        # TAILCALL
+.L2:
+	movq	-8(%rbp), %rcx                  # 8-byte Reload
+	addq	$16, %rsp
+	popq	%rbp
+	jmp	notafield                       # TAILCALL
+.L5:
+	callq	gc_store_field_slow@PLT
+	jmp	.L6
+.Lfunc_end:
+	.size	vm_op_SetField, .Lfunc_end-vm_op_SetField
+                                        # -- End function
+	.p2align	5                               # -- Begin function vm_op_LoadInd
+	.type	vm_op_LoadInd,@function
+vm_op_LoadInd:                          # @vm_op_LoadInd
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movq	%rcx, %r8
+	movq	%rdx, %r9
+	movl	%esi, %ebx
+	movl	%edi, %r10d
+	movzbl	%r10b, %eax
+	movl	%edi, %ecx
+	shrl	$8, %ecx
+	movl	(%r12), %edx
+	shrl	$8, %edx
+	movq	(%r13,%rax,8), %rsi
+	testq	%rsi, %rsi
+	je	.L6
+# %bb.1:
+	movq	%r14, %rax
+	orq	$2, %rax
+	andq	%rsi, %rax
+	jne	.L6
+# %bb.2:
+	movq	%rsi, %rax
+	andq	$-8, %rax
+	movl	(%rax), %edi
+	movl	%edi, %r11d
+	andl	$254, %r11d
+	cmpl	$4, %r11d
+	jne	.L6
+# %bb.3:
+	movq	24(%r15), %r11
+	movq	(%r11,%rdx,8), %r11
+	orq	$4, %r11
+	cmpq	%r11, 16(%rax)
+	jne	.L6
+# %bb.4:
+	andl	$5, %edi
+	cmpl	$4, %edi
+	jne	.L8
+# %bb.5:
+	addq	$16, %rax
+	movl	%ecx, %ecx
+	leaq	(%rax,%rcx,8), %rax
+	addq	$8, %rax
+	jmp	.L9
+.L6:
+	movq	(%r15), %rdi
+	callq	typed_member_slow
+	testq	%rax, %rax
+	je	.L7
+.L9:
+	movq	(%rax), %rax
+	movzbl	%bl, %ecx
+	movq	%rax, (%r13,%rcx,8)
+	movzbl	4(%r12), %eax
+	movq	(%r9,%rax,8), %rax
+	movzbl	5(%r12), %esi
+	movzwl	6(%r12), %edi
+	addq	$8, %r12
+	movq	%r9, %rdx
+	movq	%r8, %rcx
+	popq	%rbp
+	jmpq	*%rax                           # TAILCALL
+.L8:
+	movq	24(%rax), %rdx
+	andq	$-8, %rdx
+	movzbl	32(%rax,%rcx), %eax
+	leaq	(%rdx,%rax,8), %rax
+	addq	$24, %rax
+	jmp	.L9
+.L7:
+	addq	$4, %r12
+	movzwl	%r10w, %edi
+	movzbl	%bl, %esi
+	movq	%r9, %rdx
+	movq	%r8, %rcx
+	popq	%rbp
+	jmp	nomember                        # TAILCALL
+.Lfunc_end:
+	.size	vm_op_LoadInd, .Lfunc_end-vm_op_LoadInd
+                                        # -- End function
+	.p2align	5                               # -- Begin function vm_op_SetInd
+	.type	vm_op_SetInd,@function
+vm_op_SetInd:                           # @vm_op_SetInd
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$16, %rsp
+	movq	%rcx, %r11
+	movq	%rdx, %r10
+	movl	%esi, %ebx
+	movl	%edi, %r9d
+	movzbl	%r9b, %eax
+	movl	%edi, %ecx
+	shrl	$8, %ecx
+	movl	(%r12), %edx
+	shrl	$8, %edx
+	movq	(%r13,%rax,8), %rsi
+	testq	%rsi, %rsi
+	je	.L6
+# %bb.1:
+	movq	%r14, %rax
+	orq	$2, %rax
+	andq	%rsi, %rax
+	jne	.L6
+# %bb.2:
+	movq	%rsi, %r8
+	andq	$-8, %r8
+	movl	(%r8), %eax
+	movl	%eax, %edi
+	andl	$254, %edi
+	cmpl	$4, %edi
+	jne	.L6
+# %bb.3:
+	movq	24(%r15), %rdi
+	movq	(%rdi,%rdx,8), %rdi
+	orq	$4, %rdi
+	cmpq	%rdi, 16(%r8)
+	jne	.L6
+# %bb.4:
+	andl	$5, %eax
+	cmpl	$4, %eax
+	jne	.L10
+# %bb.5:
+	leaq	16(%r8), %rax
+	movl	%ecx, %ecx
+	leaq	(%rax,%rcx,8), %rax
+	addq	$8, %rax
+	jmp	.L11
+.L6:
+	movq	%r11, -8(%rbp)                  # 8-byte Spill
+	movq	(%r15), %rdi
+	leaq	-16(%rbp), %r8
+	callq	typed_field_slow
+	testq	%rax, %rax
+	je	.L8
+# %bb.7:
+	movq	-16(%rbp), %r8
+	movq	-8(%rbp), %r11                  # 8-byte Reload
+.L11:
+	movq	(%r15), %rcx
+	movq	(%rcx), %rdi
+	movzbl	%bl, %ecx
+	movq	(%r13,%rcx,8), %rsi
+	movq	%rsi, (%rax)
+	cmpl	$1, 40(%rdi)
+	jne	.L14
+# %bb.12:
+	movl	$768, %eax                      # imm = 0x300
+	andl	(%r8), %eax
+	cmpl	$512, %eax                      # imm = 0x200
+	je	.L13
+.L14:
+	movzbl	4(%r12), %eax
+	movq	(%r10,%rax,8), %rax
+	movzbl	5(%r12), %esi
+	movzwl	6(%r12), %edi
+	addq	$8, %r12
+	movq	%r10, %rdx
+	movq	%r11, %rcx
+	addq	$16, %rsp
+	popq	%rbp
+	jmpq	*%rax                           # TAILCALL
+.L10:
+	movzbl	32(%r8,%rcx), %eax
+	movq	24(%r8), %r8
+	andq	$-8, %r8
+	leaq	(%r8,%rax,8), %rax
+	addq	$24, %rax
+	jmp	.L11
+.L8:
+	callq	typed_member_slow
+	addq	$4, %r12
+	movzwl	%r9w, %edi
+	movzbl	%bl, %esi
+	movq	%r10, %rdx
+	testq	%rax, %rax
+	jne	.L9
+# %bb.15:
+	movq	-8(%rbp), %rcx                  # 8-byte Reload
+	addq	$16, %rsp
+	popq	%rbp
+	jmp	nomember                        # TAILCALL
+.L13:
+	movq	%r11, %rax
+	callq	gc_store_field_slow@PLT
+	movq	%rax, %r11
+	jmp	.L14
+.L9:
+	movq	-8(%rbp), %rcx                  # 8-byte Reload
+	addq	$16, %rsp
+	popq	%rbp
+	jmp	notafield                       # TAILCALL
+.Lfunc_end:
+	.size	vm_op_SetInd, .Lfunc_end-vm_op_SetInd
+                                        # -- End function
+	.p2align	5                               # -- Begin function vm_op_View
+	.type	vm_op_View,@function
+vm_op_View:                             # @vm_op_View
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$48, %rsp
+	movl	%esi, %r8d
+	movl	%edi, %eax
+	shrl	$8, %eax
+	movq	(%r13,%rax,8), %r9
+	leaq	7(%r14), %rax
+	andq	%r9, %rax
+	cmpq	$4, %rax
+	jne	.L19
+# %bb.1:
+	movzbl	%dil, %eax
+	movq	(%r13,%rax,8), %r10
+	testq	%r10, %r10
+	je	.L20
+# %bb.2:
+	movq	%r14, %rax
+	orq	$2, %rax
+	andq	%r10, %rax
+	jne	.L20
+# %bb.3:
+	andq	$-8, %r10
+	movzbl	(%r10), %eax
+	cmpq	$5, %rax
+	jne	.L5
+# %bb.4:
+	movq	24(%r10), %r10
+	andq	$-8, %r10
+	movzbl	(%r10), %eax
+.L5:
+	cmpl	$4, %eax
+	jne	.L20
+# %bb.6:
+	movq	16(%r10), %rax
+	cmpq	%r9, %rax
+	jne	.L9
+# %bb.7:
+	movzbl	%r8b, %eax
+	movq	%r10, (%r13,%rax,8)
 	movzbl	(%r12), %eax
 	movq	(%rdx,%rax,8), %rax
 	movzbl	1(%r12), %esi
 	movzwl	2(%r12), %edi
 	addq	$4, %r12
+	jmp	.L8
+.L9:
+	movl	%edi, -8(%rbp)                  # 4-byte Spill
+	movq	%rdx, -24(%rbp)                 # 8-byte Spill
+	movq	(%r15), %rdx
+	movq	%rdx, -32(%rbp)                 # 8-byte Spill
+	addq	$-4, %r9
+	movq	12(%rax), %rdi
+	andq	$-8, %rdi
+	movq	16(%r9), %rsi
+	andq	$-8, %rsi
+	leaq	-40(%rbp), %rdx
+	callq	view_template
+	testq	%rax, %rax
+	je	.L10
+# %bb.14:
+	movq	%rax, %rbx
+	movl	%r8d, -12(%rbp)                 # 4-byte Spill
+	movl	(%rsi), %r8d
+	addl	$39, %r8d
+	andl	$-8, %r8d
+	movq	%r8, %rdi
+	movq	%r15, %rsi
+	movq	%r13, %rdx
+	callq	alloc_object@PLT
+	testq	%rax, %rax
+	je	.L15
+# %bb.16:
+	movq	%rcx, -8(%rbp)                  # 8-byte Spill
+	movq	%rax, %rdi
+	movq	%r9, %rsi
+	movq	%r10, %rdx
+	movq	%rbx, %rcx
+	callq	view_init@PLT
+	movq	-32(%rbp), %rcx                 # 8-byte Reload
+	movq	(%rcx), %rdi
+	movq	%rax, %rsi
+	callq	gc_publish_new_object@PLT
+	movzbl	-12(%rbp), %ecx                 # 1-byte Folded Reload
+	movq	%rax, (%r13,%rcx,8)
+	cmpb	$0, 65(%r15)
+	je	.L17
+.L18:
+	movzbl	(%r12), %eax
+	movq	-24(%rbp), %rdx                 # 8-byte Reload
+	movq	(%rdx,%rax,8), %rax
+	movzbl	1(%r12), %esi
+	movzwl	2(%r12), %edi
+	addq	$4, %r12
+	movq	-8(%rbp), %rcx                  # 8-byte Reload
+.L8:
+	addq	$48, %rsp
 	popq	%rbp
 	jmpq	*%rax                           # TAILCALL
-.L1:
-	callq	member_slot
-	movzwl	%r8w, %edi
-	movzbl	%bl, %esi
-	testq	%rax, %rax
-	jne	.L2
-# %bb.7:
+.L20:
+	movzwl	%di, %edi
+	movzbl	%r8b, %esi
+	addq	$48, %rsp
 	popq	%rbp
-	jmp	nomember                        # TAILCALL
-.L2:
+	jmp	notaninstance                   # TAILCALL
+.L19:
+	movzwl	%di, %edi
+	movzbl	%r8b, %esi
+	addq	$48, %rsp
 	popq	%rbp
-	jmp	notafield                       # TAILCALL
-.L5:
-	movq	%r8, %rdi
-	callq	gc_store_field_slow@PLT
-	jmp	.L6
+	jmp	notatype                        # TAILCALL
+.L10:
+	movq	-40(%rbp), %rdx
+	testq	%rdx, %rdx
+	jne	.L13
+# %bb.11:
+	movzwl	-8(%rbp), %edi                  # 2-byte Folded Reload
+	movzbl	%r8b, %esi
+	jmp	.L12
+.L15:
+	movzwl	-8(%rbp), %edi                  # 2-byte Folded Reload
+	movzbl	-12(%rbp), %esi                 # 1-byte Folded Reload
+.L12:
+	movq	-24(%rbp), %rdx                 # 8-byte Reload
+	addq	$48, %rsp
+	popq	%rbp
+	jmp	outofmemory                     # TAILCALL
+.L17:
+	movq	%r15, %rdi
+	movq	%r13, %rsi
+	movq	%r8, %rdx
+	callq	gc_poll_slow@PLT
+	jmp	.L18
+.L13:
+	callq	cannotview_format
+	movzwl	-8(%rbp), %edi                  # 2-byte Folded Reload
+	movzbl	%r8b, %esi
+	movq	-24(%rbp), %rdx                 # 8-byte Reload
+	addq	$48, %rsp
+	popq	%rbp
+	jmp	cannotview                      # TAILCALL
 .Lfunc_end:
-	.size	vm_op_SetField, .Lfunc_end-vm_op_SetField
+	.size	vm_op_View, .Lfunc_end-vm_op_View
                                         # -- End function
 	.p2align	5                               # -- Begin function vm_op_Move
 	.type	vm_op_Move,@function
@@ -372,7 +730,7 @@ vm_op_Apply:                            # @vm_op_Apply
 	jne	.L5
 # %bb.1:
 	movq	15(%r8), %rax
-	cmpb	$0, 57(%r15)
+	cmpb	$0, 65(%r15)
 	je	.L2
 .L3:
 	leaq	(,%r9,8), %r10
@@ -381,7 +739,7 @@ vm_op_Apply:                            # @vm_op_Apply
 	movzbl	51(%r8), %r9d
 	leaq	(%r10,%r9,8), %r9
 	addq	$16, %r9
-	cmpq	48(%r15), %r9
+	cmpq	56(%r15), %r9
 	ja	.L6
 # %bb.4:
 	movq	%r8, -16(%r13)
@@ -477,7 +835,7 @@ vm_op_Call:                             # @vm_op_Call
 	movl	%edi, %r8d
 	movq	(%rcx,%r8,8), %r8
 	movq	16(%r8), %r12
-	cmpb	$0, 57(%r15)
+	cmpb	$0, 65(%r15)
 	je	.L1
 .L2:
 	movzbl	%sil, %esi
@@ -487,7 +845,7 @@ vm_op_Call:                             # @vm_op_Call
 	movzbl	52(%r8), %r10d
 	leaq	(%r9,%r10,8), %r9
 	addq	$16, %r9
-	cmpq	48(%r15), %r9
+	cmpq	56(%r15), %r9
 	ja	.L3
 # %bb.4:
 	movq	%r8, %rsi
@@ -743,7 +1101,7 @@ vm_op_Clos:                             # @vm_op_Clos
 	callq	capture_loc_resolve
 	testb	%al, %al
 	je	.L9
-# %bb.4:                                #   in Loop: Header=BB20_3 Depth=1
+# %bb.4:                                #   in Loop: Header=BB23_3 Depth=1
 	movq	-40(%rbp), %rax
 	movq	%rax, 56(%r10,%r14,8)
 	addq	$1, %r14
@@ -757,7 +1115,7 @@ vm_op_Clos:                             # @vm_op_Clos
 	orq	$1, %rax
 	movzbl	-4(%rbp), %ecx                  # 1-byte Folded Reload
 	movq	%rax, (%r13,%rcx,8)
-	cmpb	$0, 57(%r15)
+	cmpb	$0, 65(%r15)
 	je	.L6
 .L7:
 	movzbl	(%r12), %eax
@@ -931,7 +1289,7 @@ vm_op_WObj:                             # @vm_op_WObj
 	callq	gc_publish_new_object@PLT
 	movzbl	-4(%rbp), %edx                  # 1-byte Folded Reload
 	movq	%rax, (%r13,%rdx,8)
-	cmpb	$0, 57(%r15)
+	cmpb	$0, 65(%r15)
 	je	.L26
 .L21:
 	movzbl	(%r12), %eax
@@ -1805,10 +2163,10 @@ vm_op_SetCond:                          # @vm_op_SetCond
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movb	$0, 56(%r15)
+	movb	$0, 64(%r15)
 	movzbl	(%r12), %eax
 	addq	$4, %r12
-	addl	$-36, %eax
+	addl	$-39, %eax
 	cmpl	$15, %eax
 	jae	.L1
 # %bb.2:
@@ -1833,10 +2191,10 @@ vm_op_SetCondJ:                         # @vm_op_SetCondJ
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movb	$1, 56(%r15)
+	movb	$1, 64(%r15)
 	movzbl	(%r12), %eax
 	addq	$4, %r12
-	addl	$-36, %eax
+	addl	$-39, %eax
 	cmpl	$15, %eax
 	jae	.L1
 # %bb.2:
@@ -2820,236 +3178,84 @@ member_slot:                            # @member_slot
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	pushq	%r10
-	pushq	%r9
-	pushq	%r8
 	pushq	%rdi
 	pushq	%rsi
 	pushq	%rdx
 	pushq	%rcx
-	pushq	%r15
-	pushq	%r14
-	pushq	%r13
-	pushq	%r12
-	pushq	%rbx
-	subq	$32, %rsp
+	movq	%rsi, %rax
+	shrq	$49, %rax
+	cmpl	$32766, %eax                    # imm = 0x7FFE
+	jbe	.L1
+# %bb.2:
 	xorl	%eax, %eax
 	testq	%rdi, %rdi
-	je	.L37
-# %bb.1:
-	movq	%rdi, %r14
-	movabsq	$-562949953421313, %rcx         # imm = 0xFFFDFFFFFFFFFFFF
-	leaq	3(%rcx), %r11
-	andq	%rdi, %r11
-	jne	.L37
-# %bb.2:
-	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
-	andq	%rax, %r14
-	movq	(%r14), %r11
-	movsbl	%r11b, %eax
-	cmpq	%rcx, %rsi
-	jbe	.L6
+	je	.L15
 # %bb.3:
-	cmpl	$4, %eax
-	je	.L21
+	movabsq	$-562949953421313, %r11         # imm = 0xFFFDFFFFFFFFFFFF
+	addq	$3, %r11
+	andq	%rdi, %r11
+	jne	.L15
 # %bb.4:
-	testl	%eax, %eax
-	jne	.L23
-# %bb.5:
+	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
+	andq	%rax, %rdi
+	movq	(%rdi), %r11
+	testb	%r11b, %r11b
+	je	.L5
+# %bb.6:
+	xorl	%eax, %eax
+	cmpb	$4, %r11b
+	je	.L7
+# %bb.8:
+	movsbl	%r11b, %r11d
+	cmpl	$5, %r11d
+	jne	.L15
+# %bb.9:
+	movq	24(%rdi), %r11
+	andq	$-8, %r11
+	leaq	32(%rdi), %rax
+	jmp	.L10
+.L1:
+	movl	-1(%rsi), %edx
+	addq	$3, %rsi
+	addq	$-9, %rdx
+	callq	member_slot_named
+	jmp	.L15
+.L5:
 	movl	%esi, %ecx
 	shrq	$32, %r11
 	addq	$-16, %r11
 	shrq	$3, %r11
 	xorl	%eax, %eax
 	cmpq	%rcx, %r11
-	jmp	.L22
-.L6:
-	xorl	%r13d, %r13d
-	cmpl	$3, %eax
-	jne	.L13
-# %bb.7:
-	movq	16(%r14), %rax
-	addq	$16, %r14
-	andq	$-8, %rax
-	movl	8(%rax), %ecx
-	addl	4(%rax), %ecx
-	je	.L25
-# %bb.8:
-	movl	(%rax), %r11d
-	movl	-1(%rsi), %r15d
-	addq	$-5, %rsi
-	addq	$-9, %r15
-	addq	$8, %rsi
-	movq	%rsi, -120(%rbp)                # 8-byte Spill
-	movl	%ecx, -112(%rbp)                # 4-byte Spill
-	movl	%ecx, %ebx
-	shlq	$4, %r11
-	leaq	(%r11,%rax), %r12
-	addq	$32, %r12
-	xorl	%r13d, %r13d
-	jmp	.L10
-	.p2align	4
-.L9:                               #   in Loop: Header=BB55_10 Depth=1
-	addq	$1, %r13
-	addq	$16, %r12
-	cmpq	%r13, %rbx
-	je	.L24
-.L10:                              # =>This Inner Loop Header: Depth=1
-	movl	(%r12), %eax
-	cmpq	%rax, %r15
-	jne	.L9
-# %bb.11:                               #   in Loop: Header=BB55_10 Depth=1
-	movq	-8(%r12), %rdi
-	movq	-120(%rbp), %rsi                # 8-byte Reload
-	movq	%r15, %rdx
-	callq	bcmp@PLT
-	testl	%eax, %eax
-	jne	.L9
-# %bb.12:
-	movl	-112(%rbp), %ecx                # 4-byte Reload
-	jmp	.L25
-.L13:
-	cmpl	$4, %eax
-	jne	.L23
-# %bb.14:
-	movq	16(%r14), %rax
-	movq	%rax, -104(%rbp)                # 8-byte Spill
-	movq	12(%rax), %rax
-	andq	$-8, %rax
-	movl	(%rax), %r13d
-	movl	-1(%rsi), %r15d
-	addq	$-5, %rsi
-	addq	$-9, %r15
-	testq	%r13, %r13
-	movq	%rsi, -120(%rbp)                # 8-byte Spill
-	movq	%rax, -128(%rbp)                # 8-byte Spill
-	je	.L26
-# %bb.15:
-	leaq	8(%rsi), %r11
-	movq	%r11, -112(%rbp)                # 8-byte Spill
-	leaq	32(%rax), %r12
-	xorl	%ebx, %ebx
-	jmp	.L17
-	.p2align	4
-.L16:                              #   in Loop: Header=BB55_17 Depth=1
-	addq	$1, %rbx
-	addq	$16, %r12
-	cmpq	%rbx, %r13
-	je	.L27
-.L17:                              # =>This Inner Loop Header: Depth=1
-	movl	(%r12), %eax
-	cmpq	%rax, %r15
-	jne	.L16
-# %bb.18:                               #   in Loop: Header=BB55_17 Depth=1
-	movq	-8(%r12), %rdi
-	movq	-112(%rbp), %rsi                # 8-byte Reload
-	movq	%r15, %rdx
-	callq	bcmp@PLT
-	testl	%eax, %eax
-	jne	.L16
-# %bb.19:
-	cmpl	%r13d, %ebx
-	jae	.L27
-.L20:
-	addq	$16, %r14
-	movl	%ebx, %eax
-	leaq	(%r14,%rax,8), %rax
-	addq	$8, %rax
-	jmp	.L37
-.L23:
-	xorl	%eax, %eax
-	jmp	.L37
-.L21:
-	movq	16(%r14), %rax
-	movq	12(%rax), %r11
-	andq	$-8, %r11
-	leal	1(%rsi), %ecx
-	xorl	%eax, %eax
-	cmpl	%esi, (%r11)
-.L22:
-	leaq	16(%r14,%rcx,8), %r11
+	leaq	16(%rdi,%rcx,8), %r11
 	cmovaq	%r11, %rax
-	jmp	.L37
-.L24:
-	movl	-112(%rbp), %ecx                # 4-byte Reload
-	movl	%ecx, %r13d
-.L25:
-	cmpl	%ecx, %r13d
-	movl	%ecx, %r11d
-	cmovbl	%r13d, %r11d
-	addl	$1, %r11d
+	jmp	.L15
+.L7:
+	movq	%rdi, %r11
+.L10:
+	movq	16(%rdi), %rcx
+	movq	12(%rcx), %rcx
+	andq	$-8, %rcx
+	cmpl	%esi, (%rcx)
+	jbe	.L11
+# %bb.12:
+	testq	%rax, %rax
+	je	.L14
+# %bb.13:
+	movl	%esi, %ecx
+	movzbl	(%rax,%rcx), %esi
+.L14:
+	addl	$1, %esi
+	leaq	(%r11,%rsi,8), %rax
+	addq	$16, %rax
+	jmp	.L15
+.L11:
 	xorl	%eax, %eax
-	cmpl	%ecx, %r13d
-	leaq	(%r14,%r11,8), %r11
-	jmp	.L36
-.L26:
-	xorl	%ebx, %ebx
-	cmpl	%r13d, %ebx
-	jb	.L20
-.L27:
-	movq	-104(%rbp), %rcx                # 8-byte Reload
-	addq	$12, %rcx
-	movq	-128(%rbp), %rax                # 8-byte Reload
-	movl	4(%rax), %r14d
-	testq	%r14, %r14
-	je	.L34
-# %bb.28:
-	movq	%rcx, -104(%rbp)                # 8-byte Spill
-	addq	$8, -120(%rbp)                  # 8-byte Folded Spill
-	shlq	$4, %r13
-	leaq	(%rax,%r13), %rbx
-	addq	$32, %rbx
-	xorl	%r12d, %r12d
-	jmp	.L30
-	.p2align	4
-.L29:                              #   in Loop: Header=BB55_30 Depth=1
-	addq	$1, %r12
-	addq	$16, %rbx
-	cmpq	%r12, %r14
-	je	.L32
-.L30:                              # =>This Inner Loop Header: Depth=1
-	movl	(%rbx), %eax
-	cmpq	%rax, %r15
-	jne	.L29
-# %bb.31:                               #   in Loop: Header=BB55_30 Depth=1
-	movq	-8(%rbx), %rdi
-	movq	-120(%rbp), %rsi                # 8-byte Reload
-	movq	%r15, %rdx
-	callq	bcmp@PLT
-	testl	%eax, %eax
-	jne	.L29
-	jmp	.L33
-.L32:
-	movl	%r14d, %r12d
-.L33:
-	movq	-104(%rbp), %rcx                # 8-byte Reload
-	jmp	.L35
-.L34:
-	xorl	%r12d, %r12d
-.L35:
-	cmpl	%r14d, %r12d
-	movl	%r14d, %r11d
-	cmovbl	%r12d, %r11d
-	addl	$1, %r11d
-	xorl	%eax, %eax
-	cmpl	%r14d, %r12d
-	leaq	(%rcx,%r11,8), %r11
-.L36:
-	cmovbq	%r11, %rax
-.L37:
-	addq	$32, %rsp
-	popq	%rbx
-	popq	%r12
-	popq	%r13
-	popq	%r14
-	popq	%r15
+.L15:
 	popq	%rcx
 	popq	%rdx
 	popq	%rsi
 	popq	%rdi
-	popq	%r8
-	popq	%r9
-	popq	%r10
 	popq	%rbp
 	retq
 .Lfunc_end:
@@ -3069,9 +3275,9 @@ nomember:                               # @nomember
 	.size	nomember, .Lfunc_end-nomember
                                         # -- End function
 	.text
-	.p2align	4                               # -- Begin function field_slot
-	.type	field_slot,@function
-field_slot:                             # @field_slot
+	.p2align	4                               # -- Begin function member_slot_named
+	.type	member_slot_named,@function
+member_slot_named:                      # @member_slot_named
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
@@ -3087,78 +3293,190 @@ field_slot:                             # @field_slot
 	pushq	%r13
 	pushq	%r12
 	pushq	%rbx
-	subq	$16, %rsp
-	xorl	%eax, %eax
-	testq	%rdi, %rdi
-	je	.L15
-# %bb.1:
-	movabsq	$-562949953421313, %r11         # imm = 0xFFFDFFFFFFFFFFFF
-	leaq	3(%r11), %rcx
-	andq	%rdi, %rcx
-	jne	.L15
-# %bb.2:
-	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
-	andq	%rax, %rdi
-	cmpb	$4, (%rdi)
-	jne	.L3
-# %bb.4:
-	movq	%rsi, %rbx
-	movq	16(%rdi), %rax
-	addq	$16, %rdi
-	movq	12(%rax), %r13
-	andq	$-8, %r13
-	movl	(%r13), %r14d
-	cmpq	%r11, %rsi
-	ja	.L14
-# %bb.5:
-	testq	%r14, %r14
-	je	.L6
-# %bb.7:
-	movq	%rdi, -104(%rbp)                # 8-byte Spill
-	movl	-1(%rbx), %r15d
-	addq	$-5, %rbx
-	addq	$-9, %r15
-	addq	$8, %rbx
-	addq	$32, %r13
+	subq	$32, %rsp
+	movq	%rsi, -120(%rbp)                # 8-byte Spill
 	xorl	%r12d, %r12d
-	jmp	.L8
+	testq	%rdi, %rdi
+	je	.L34
+# %bb.1:
+	movq	%rdi, %r15
+	movabsq	$-562949953421310, %rax         # imm = 0xFFFE000000000002
+	andq	%rdi, %rax
+	jne	.L34
+# %bb.2:
+	movq	%rdx, %rbx
+	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
+	andq	%rax, %r15
+	movq	(%r15), %rax
+	cmpb	$3, %al
+	jne	.L12
+# %bb.3:
+	movq	16(%r15), %rax
+	addq	$16, %r15
+	andq	$-8, %rax
+	movl	8(%rax), %ecx
+	addl	4(%rax), %ecx
+	je	.L4
+# %bb.5:
+	movl	(%rax), %r11d
+	movl	%ecx, -112(%rbp)                # 4-byte Spill
+	movl	%ecx, %r12d
+	shlq	$4, %r11
+	leaq	(%r11,%rax), %r13
+	addq	$40, %r13
+	xorl	%r14d, %r14d
+	jmp	.L6
 	.p2align	4
-.L10:                              #   in Loop: Header=BB57_8 Depth=1
-	addq	$1, %r12
+.L8:                               #   in Loop: Header=BB60_6 Depth=1
+	addq	$1, %r14
 	addq	$16, %r13
-	cmpq	%r12, %r14
-	je	.L11
-.L8:                               # =>This Inner Loop Header: Depth=1
+	cmpq	%r14, %r12
+	je	.L9
+.L6:                               # =>This Inner Loop Header: Depth=1
 	movl	(%r13), %eax
-	cmpq	%rax, %r15
-	jne	.L10
-# %bb.9:                                #   in Loop: Header=BB57_8 Depth=1
+	cmpq	%rax, %rbx
+	jne	.L8
+# %bb.7:                                #   in Loop: Header=BB60_6 Depth=1
 	movq	-8(%r13), %rdi
-	movq	%rbx, %rsi
-	movq	%r15, %rdx
+	movq	-120(%rbp), %rsi                # 8-byte Reload
+	movq	%rbx, %rdx
 	callq	bcmp@PLT
 	testl	%eax, %eax
-	jne	.L10
-	jmp	.L12
-.L11:
-	movl	%r14d, %r12d
+	jne	.L8
+# %bb.10:
+	movl	-112(%rbp), %ecx                # 4-byte Reload
+	jmp	.L11
 .L12:
-	movq	-104(%rbp), %rdi                # 8-byte Reload
-	jmp	.L13
-.L6:
 	xorl	%r12d, %r12d
+	cmpb	$4, %al
+	je	.L13
+# %bb.14:
+	movsbl	%al, %eax
+	cmpl	$5, %eax
+	jne	.L34
+# %bb.15:
+	movq	24(%r15), %rax
+	andq	$-8, %rax
+	movq	%rax, -104(%rbp)                # 8-byte Spill
+	leaq	32(%r15), %rax
+	movq	%rax, -128(%rbp)                # 8-byte Spill
+	jmp	.L16
+.L9:
+	movl	-112(%rbp), %ecx                # 4-byte Reload
+	movl	%ecx, %r14d
+	jmp	.L11
+.L4:
+	xorl	%r14d, %r14d
+.L11:
+	cmpl	%ecx, %r14d
+	movl	%ecx, %eax
+	cmovbl	%r14d, %eax
+	addl	$1, %eax
+	xorl	%r12d, %r12d
+	cmpl	%ecx, %r14d
+	leaq	(%r15,%rax,8), %rax
+	jmp	.L33
 .L13:
-	cmpl	%r14d, %r12d
-	movl	%r14d, %ebx
-	cmovbl	%r12d, %ebx
-.L14:
-	leal	1(%rbx), %r11d
-	xorl	%eax, %eax
-	cmpl	%r14d, %ebx
-	leaq	(%rdi,%r11,8), %r11
-	cmovbq	%r11, %rax
-.L15:
-	addq	$16, %rsp
+	movq	%r15, -104(%rbp)                # 8-byte Spill
+	movq	$0, -128(%rbp)                  # 8-byte Folded Spill
+.L16:
+	movq	16(%r15), %r13
+	movq	12(%r13), %rax
+	andq	$-8, %rax
+	movl	(%rax), %r15d
+	testq	%r15, %r15
+	movq	%rax, -112(%rbp)                # 8-byte Spill
+	je	.L23
+# %bb.17:
+	leaq	40(%rax), %r14
+	xorl	%r12d, %r12d
+	jmp	.L18
+	.p2align	4
+.L20:                              #   in Loop: Header=BB60_18 Depth=1
+	addq	$1, %r12
+	addq	$16, %r14
+	cmpq	%r12, %r15
+	je	.L21
+.L18:                              # =>This Inner Loop Header: Depth=1
+	movl	(%r14), %eax
+	cmpq	%rax, %rbx
+	jne	.L20
+# %bb.19:                               #   in Loop: Header=BB60_18 Depth=1
+	movq	-8(%r14), %rdi
+	movq	-120(%rbp), %rsi                # 8-byte Reload
+	movq	%rbx, %rdx
+	callq	bcmp@PLT
+	testl	%eax, %eax
+	jne	.L20
+.L23:
+	cmpl	%r15d, %r12d
+	movl	%r15d, %eax
+	cmovbl	%r12d, %eax
+	cmpl	%r15d, %r12d
+	jae	.L21
+# %bb.24:
+	movq	-128(%rbp), %r11                # 8-byte Reload
+	testq	%r11, %r11
+	je	.L26
+# %bb.25:
+	movl	%eax, %eax
+	movzbl	(%r11,%rax), %eax
+.L26:
+	movl	%eax, %eax
+	movq	-104(%rbp), %r11                # 8-byte Reload
+	leaq	(%r11,%rax,8), %r12
+	addq	$24, %r12
+	jmp	.L34
+.L21:
+	addq	$12, %r13
+	movq	%r13, -104(%rbp)                # 8-byte Spill
+	movq	-112(%rbp), %rax                # 8-byte Reload
+	movl	4(%rax), %r13d
+	testq	%r13, %r13
+	je	.L22
+# %bb.27:
+	shlq	$4, %r15
+	leaq	(%r15,%rax), %r14
+	addq	$40, %r14
+	xorl	%r15d, %r15d
+	jmp	.L28
+	.p2align	4
+.L30:                              #   in Loop: Header=BB60_28 Depth=1
+	addq	$1, %r15
+	addq	$16, %r14
+	cmpq	%r15, %r13
+	je	.L31
+.L28:                              # =>This Inner Loop Header: Depth=1
+	movl	(%r14), %eax
+	cmpq	%rax, %rbx
+	jne	.L30
+# %bb.29:                               #   in Loop: Header=BB60_28 Depth=1
+	movq	-8(%r14), %rdi
+	movq	-120(%rbp), %rsi                # 8-byte Reload
+	movq	%rbx, %rdx
+	callq	bcmp@PLT
+	testl	%eax, %eax
+	jne	.L30
+	jmp	.L32
+.L31:
+	movl	%r13d, %r15d
+	jmp	.L32
+.L22:
+	xorl	%r15d, %r15d
+.L32:
+	cmpl	%r13d, %r15d
+	movl	%r13d, %eax
+	cmovbl	%r15d, %eax
+	addl	$1, %eax
+	xorl	%r12d, %r12d
+	cmpl	%r13d, %r15d
+	movq	-104(%rbp), %r11                # 8-byte Reload
+	leaq	(%r11,%rax,8), %rax
+.L33:
+	cmovbq	%rax, %r12
+.L34:
+	movq	%r12, %rax
+	addq	$32, %rsp
 	popq	%rbx
 	popq	%r12
 	popq	%r13
@@ -3173,9 +3491,85 @@ field_slot:                             # @field_slot
 	popq	%r10
 	popq	%rbp
 	retq
-.L3:
+.Lfunc_end:
+	.size	member_slot_named, .Lfunc_end-member_slot_named
+                                        # -- End function
+	.p2align	4                               # -- Begin function field_slot
+	.type	field_slot,@function
+field_slot:                             # @field_slot
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
+	movq	%rdx, %rcx
+	movq	%rsi, %rax
+	shrq	$49, %rax
+	cmpl	$32766, %eax                    # imm = 0x7FFE
+	jbe	.L1
+# %bb.2:
 	xorl	%eax, %eax
-	jmp	.L15
+	testq	%rdi, %rdi
+	je	.L13
+# %bb.3:
+	movabsq	$-562949953421313, %r11         # imm = 0xFFFDFFFFFFFFFFFF
+	addq	$3, %r11
+	andq	%rdi, %r11
+	jne	.L13
+# %bb.4:
+	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
+	andq	%rax, %rdi
+	movq	(%rdi), %r11
+	xorl	%eax, %eax
+	cmpb	$4, %r11b
+	je	.L5
+# %bb.6:
+	movsbl	%r11b, %r11d
+	cmpl	$5, %r11d
+	jne	.L13
+# %bb.7:
+	movq	24(%rdi), %r11
+	andq	$-8, %r11
+	movq	%rdi, %rax
+	addq	$32, %rax
+	jmp	.L8
+.L1:
+	movl	-1(%rsi), %edx
+	addq	$3, %rsi
+	addq	$-9, %rdx
+	callq	field_slot_named
+	jmp	.L13
+.L5:
+	movq	%rdi, %r11
+.L8:
+	movq	16(%rdi), %rdx
+	movq	12(%rdx), %rdx
+	andq	$-8, %rdx
+	cmpl	%esi, (%rdx)
+	jbe	.L9
+# %bb.10:
+	movq	%r11, (%rcx)
+	testq	%rax, %rax
+	je	.L12
+# %bb.11:
+	movl	%esi, %ecx
+	movzbl	(%rax,%rcx), %esi
+.L12:
+	addl	$1, %esi
+	leaq	(%r11,%rsi,8), %rax
+	addq	$16, %rax
+	jmp	.L13
+.L9:
+	xorl	%eax, %eax
+.L13:
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%rbp
+	retq
 .Lfunc_end:
 	.size	field_slot, .Lfunc_end-field_slot
                                         # -- End function
@@ -3192,13 +3586,477 @@ notafield:                              # @notafield
 .Lfunc_end:
 	.size	notafield, .Lfunc_end-notafield
                                         # -- End function
+	.text
+	.p2align	4                               # -- Begin function field_slot_named
+	.type	field_slot_named,@function
+field_slot_named:                       # @field_slot_named
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%r10
+	pushq	%r9
+	pushq	%r8
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%r15
+	pushq	%r14
+	pushq	%r13
+	pushq	%r12
+	pushq	%rbx
+	subq	$32, %rsp
+	xorl	%r14d, %r14d
+	testq	%rdi, %rdi
+	je	.L18
+# %bb.1:
+	movabsq	$-562949953421310, %rax         # imm = 0xFFFE000000000002
+	andq	%rdi, %rax
+	jne	.L18
+# %bb.2:
+	movq	%rdx, %r15
+	movq	%rsi, %r12
+	movabsq	$562949953421304, %rax          # imm = 0x1FFFFFFFFFFF8
+	andq	%rax, %rdi
+	movq	(%rdi), %rax
+	xorl	%r14d, %r14d
+	cmpb	$4, %al
+	je	.L5
+# %bb.3:
+	movsbl	%al, %eax
+	cmpl	$5, %eax
+	jne	.L18
+# %bb.4:
+	movq	24(%rdi), %rax
+	andq	$-8, %rax
+	movq	%rax, -112(%rbp)                # 8-byte Spill
+	movq	%rdi, %rax
+	addq	$32, %rax
+	movq	%rax, -104(%rbp)                # 8-byte Spill
+	jmp	.L6
+.L5:
+	movq	%rdi, -112(%rbp)                # 8-byte Spill
+	movq	$0, -104(%rbp)                  # 8-byte Folded Spill
+.L6:
+	movq	16(%rdi), %rax
+	movq	12(%rax), %rbx
+	andq	$-8, %rbx
+	movl	(%rbx), %r13d
+	testq	%r13, %r13
+	je	.L12
+# %bb.7:
+	movq	%rcx, -120(%rbp)                # 8-byte Spill
+	addq	$40, %rbx
+	xorl	%r14d, %r14d
+	jmp	.L9
+	.p2align	4
+.L8:                               #   in Loop: Header=BB63_9 Depth=1
+	addq	$1, %r14
+	addq	$16, %rbx
+	cmpq	%r14, %r13
+	je	.L17
+.L9:                               # =>This Inner Loop Header: Depth=1
+	movl	(%rbx), %eax
+	cmpq	%rax, %r15
+	jne	.L8
+# %bb.10:                               #   in Loop: Header=BB63_9 Depth=1
+	movq	-8(%rbx), %rdi
+	movq	%r12, %rsi
+	movq	%r15, %rdx
+	callq	bcmp@PLT
+	testl	%eax, %eax
+	jne	.L8
+# %bb.11:
+	movq	-120(%rbp), %rcx                # 8-byte Reload
+.L12:
+	cmpl	%r13d, %r14d
+	cmovbl	%r14d, %r13d
+	jae	.L17
+# %bb.13:
+	movq	-112(%rbp), %r11                # 8-byte Reload
+	movq	%r11, (%rcx)
+	movq	-104(%rbp), %rcx                # 8-byte Reload
+	testq	%rcx, %rcx
+	je	.L15
+# %bb.14:
+	movl	%r13d, %eax
+	movzbl	(%rcx,%rax), %r13d
+.L15:
+	movl	%r13d, %eax
+	leaq	(%r11,%rax,8), %r14
+	addq	$24, %r14
+	jmp	.L18
+.L17:
+	xorl	%r14d, %r14d
+.L18:
+	movq	%r14, %rax
+	addq	$32, %rsp
+	popq	%rbx
+	popq	%r12
+	popq	%r13
+	popq	%r14
+	popq	%r15
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%r8
+	popq	%r9
+	popq	%r10
+	popq	%rbp
+	retq
+.Lfunc_end:
+	.size	field_slot_named, .Lfunc_end-field_slot_named
+                                        # -- End function
+	.p2align	4                               # -- Begin function typed_member_slow
+	.type	typed_member_slow,@function
+typed_member_slow:                      # @typed_member_slow
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%r8
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	movq	%rsi, %r8
+	movl	%edx, %esi
+	movl	%ecx, %edx
+	callq	typed_field_name
+	testq	%rax, %rax
+	je	.L1
+# %bb.2:
+	movq	(%rax), %rsi
+	movl	8(%rax), %edx
+	movq	%r8, %rdi
+	callq	member_slot_named
+.L3:
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%r8
+	popq	%rbp
+	retq
+.L1:
+	xorl	%eax, %eax
+	jmp	.L3
+.Lfunc_end:
+	.size	typed_member_slow, .Lfunc_end-typed_member_slow
+                                        # -- End function
+	.p2align	4                               # -- Begin function typed_field_name
+	.type	typed_field_name,@function
+typed_field_name:                       # @typed_field_name
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%rcx
+	movl	%esi, %eax
+	cmpq	%rax, 40(%rdi)
+	jbe	.L1
+# %bb.2:
+	movq	24(%rdi), %r11
+	movq	(%r11,%rax,8), %rax
+	movq	16(%rax), %r11
+	andq	$-8, %r11
+	movl	%edx, %ecx
+	shlq	$4, %rcx
+	xorl	%eax, %eax
+	cmpl	(%r11), %edx
+	leaq	32(%r11,%rcx), %r11
+	cmovbq	%r11, %rax
+.L3:
+	popq	%rcx
+	popq	%rbp
+	retq
+.L1:
+	xorl	%eax, %eax
+	jmp	.L3
+.Lfunc_end:
+	.size	typed_field_name, .Lfunc_end-typed_field_name
+                                        # -- End function
+	.p2align	4                               # -- Begin function typed_field_slow
+	.type	typed_field_slow,@function
+typed_field_slow:                       # @typed_field_slow
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%r9
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%rax
+	movq	%rsi, %r9
+	movl	%edx, %esi
+	movl	%ecx, %edx
+	callq	typed_field_name
+	testq	%rax, %rax
+	je	.L1
+# %bb.2:
+	movq	(%rax), %rsi
+	movl	8(%rax), %edx
+	movq	%r9, %rdi
+	movq	%r8, %rcx
+	callq	field_slot_named
+.L3:
+	addq	$8, %rsp
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%r9
+	popq	%rbp
+	retq
+.L1:
+	xorl	%eax, %eax
+	jmp	.L3
+.Lfunc_end:
+	.size	typed_field_slow, .Lfunc_end-typed_field_slow
+                                        # -- End function
+	.section	.text.unlikely.,"ax",@progbits
+	.p2align	5                               # -- Begin function notatype
+	.type	notatype,@function
+notatype:                               # @notatype
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	leaq	.L.str.6(%rip), %rcx
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	notatype, .Lfunc_end-notatype
+                                        # -- End function
+	.p2align	5                               # -- Begin function notaninstance
+	.type	notaninstance,@function
+notaninstance:                          # @notaninstance
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	leaq	.L.str.7(%rip), %rcx
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	notaninstance, .Lfunc_end-notaninstance
+                                        # -- End function
+	.text
+	.p2align	4                               # -- Begin function view_template
+	.type	view_template,@function
+view_template:                          # @view_template
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%r10
+	pushq	%r9
+	pushq	%r8
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%r15
+	pushq	%r14
+	pushq	%r13
+	pushq	%r12
+	pushq	%rbx
+	subq	$80, %rsp
+	movq	%rsi, %r13
+	movq	%rdi, %r12
+	movq	$0, (%rdx)
+	movq	24(%rdi), %r15
+	testq	%r15, %r15
+	je	.L4
+# %bb.1:
+	movq	%r15, %rbx
+	.p2align	4
+.L2:                               # =>This Inner Loop Header: Depth=1
+	cmpq	%r13, (%rbx)
+	je	.L15
+# %bb.3:                                #   in Loop: Header=BB69_2 Depth=1
+	movq	8(%rbx), %rbx
+	testq	%rbx, %rbx
+	jne	.L2
+.L4:
+	movq	%rdx, -168(%rbp)                # 8-byte Spill
+	movl	(%r13), %r14d
+	leaq	16(%r14), %rdi
+	callq	malloc@PLT
+	testq	%rax, %rax
+	je	.L17
+# %bb.5:
+	movq	%rax, %rbx
+	movq	%r15, -152(%rbp)                # 8-byte Spill
+	testq	%r14, %r14
+	je	.L14
+# %bb.6:
+	leaq	32(%r13), %r11
+	movq	%r11, -104(%rbp)                # 8-byte Spill
+	movl	(%r12), %r15d
+	leaq	40(%r12), %r11
+	movq	%r11, -160(%rbp)                # 8-byte Spill
+	xorl	%r11d, %r11d
+	movq	%r12, -136(%rbp)                # 8-byte Spill
+	movq	%r13, -128(%rbp)                # 8-byte Spill
+	movq	%r14, -120(%rbp)                # 8-byte Spill
+.L7:                               # =>This Loop Header: Depth=1
+                                        #     Child Loop BB69_10 Depth 2
+	movq	%r11, -144(%rbp)                # 8-byte Spill
+	shlq	$4, %r11
+	movq	%r11, -112(%rbp)                # 8-byte Spill
+	testq	%r15, %r15
+	je	.L16
+# %bb.8:                                #   in Loop: Header=BB69_7 Depth=1
+	movq	-104(%rbp), %rax                # 8-byte Reload
+	movq	-112(%rbp), %r11                # 8-byte Reload
+	movq	(%rax,%r11), %rcx
+	movq	%rcx, -176(%rbp)                # 8-byte Spill
+	movl	8(%rax,%r11), %r14d
+	movq	-160(%rbp), %r12                # 8-byte Reload
+	xorl	%r13d, %r13d
+	jmp	.L10
+	.p2align	4
+.L9:                               #   in Loop: Header=BB69_10 Depth=2
+	addq	$1, %r13
+	addq	$16, %r12
+	cmpq	%r13, %r15
+	je	.L16
+.L10:                              #   Parent Loop BB69_7 Depth=1
+                                        # =>  This Inner Loop Header: Depth=2
+	cmpl	(%r12), %r14d
+	jne	.L9
+# %bb.11:                               #   in Loop: Header=BB69_10 Depth=2
+	movq	-8(%r12), %rdi
+	movq	-176(%rbp), %rsi                # 8-byte Reload
+	movq	%r14, %rdx
+	callq	bcmp@PLT
+	testl	%eax, %eax
+	jne	.L9
+# %bb.12:                               #   in Loop: Header=BB69_7 Depth=1
+	cmpl	%r13d, %r15d
+	jbe	.L16
+# %bb.13:                               #   in Loop: Header=BB69_7 Depth=1
+	movq	-144(%rbp), %r11                # 8-byte Reload
+	movb	%r13b, 16(%rbx,%r11)
+	addq	$1, %r11
+	movq	-120(%rbp), %r14                # 8-byte Reload
+	cmpq	%r14, %r11
+	movq	-136(%rbp), %r12                # 8-byte Reload
+	movq	-128(%rbp), %r13                # 8-byte Reload
+	jne	.L7
+.L14:
+	movq	%r13, (%rbx)
+	movq	-152(%rbp), %rax                # 8-byte Reload
+	movq	%rax, 8(%rbx)
+	movq	%rbx, 24(%r12)
+.L15:
+	addq	$16, %rbx
+	jmp	.L18
+.L16:
+	movq	-104(%rbp), %r14                # 8-byte Reload
+	addq	-112(%rbp), %r14                # 8-byte Folded Reload
+	movq	%rbx, %rdi
+	callq	free@PLT
+	movq	-168(%rbp), %rax                # 8-byte Reload
+	movq	%r14, (%rax)
+.L17:
+	xorl	%ebx, %ebx
+.L18:
+	movq	%rbx, %rax
+	addq	$80, %rsp
+	popq	%rbx
+	popq	%r12
+	popq	%r13
+	popq	%r14
+	popq	%r15
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%r8
+	popq	%r9
+	popq	%r10
+	popq	%rbp
+	retq
+.Lfunc_end:
+	.size	view_template, .Lfunc_end-view_template
+                                        # -- End function
+	.section	.text.unlikely.,"ax",@progbits
+	.p2align	5                               # -- Begin function outofmemory
+	.type	outofmemory,@function
+outofmemory:                            # @outofmemory
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	leaq	.L.str.8(%rip), %rcx
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	outofmemory, .Lfunc_end-outofmemory
+                                        # -- End function
+	.text
+	.p2align	4                               # -- Begin function cannotview_format
+	.type	cannotview_format,@function
+cannotview_format:                      # @cannotview_format
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	pushq	%r10
+	pushq	%r9
+	pushq	%r8
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%rax
+	pushq	%rbx
+	pushq	%rax
+	movq	%rdx, %r11
+	movq	%rsi, %r10
+	movl	12(%rdi), %ecx
+	movq	16(%rdi), %r8
+	movl	12(%rsi), %r9d
+	movl	8(%rdx), %ebx
+	subq	$8, %rsp
+	leaq	cannotview_msg(%rip), %rdi
+	leaq	.L.str.9(%rip), %rdx
+	movl	$256, %esi                      # imm = 0x100
+	xorl	%eax, %eax
+	pushq	(%r11)
+	pushq	%rbx
+	pushq	16(%r10)
+	callq	snprintf@PLT
+	addq	$40, %rsp
+	popq	%rbx
+	popq	%rax
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%r8
+	popq	%r9
+	popq	%r10
+	popq	%rbp
+	retq
+.Lfunc_end:
+	.size	cannotview_format, .Lfunc_end-cannotview_format
+                                        # -- End function
+	.section	.text.unlikely.,"ax",@progbits
+	.p2align	5                               # -- Begin function cannotview
+	.type	cannotview,@function
+cannotview:                             # @cannotview
+# %bb.0:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	leaq	cannotview_msg(%rip), %rcx
+	popq	%rbp
+	jmp	panic                           # TAILCALL
+.Lfunc_end:
+	.size	cannotview, .Lfunc_end-cannotview
+                                        # -- End function
 	.p2align	5                               # -- Begin function notafunction
 	.type	notafunction,@function
 notafunction:                           # @notafunction
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.6(%rip), %rcx
+	leaq	.L.str.10(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3210,23 +4068,11 @@ stackoverflow:                          # @stackoverflow
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.7(%rip), %rcx
+	leaq	.L.str.11(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
 	.size	stackoverflow, .Lfunc_end-stackoverflow
-                                        # -- End function
-	.p2align	5                               # -- Begin function notaninstance
-	.type	notaninstance,@function
-notaninstance:                          # @notaninstance
-# %bb.0:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	leaq	.L.str.8(%rip), %rcx
-	popq	%rbp
-	jmp	panic                           # TAILCALL
-.Lfunc_end:
-	.size	notaninstance, .Lfunc_end-notaninstance
                                         # -- End function
 	.text
 	.p2align	4                               # -- Begin function thunk_alloc_instance
@@ -3261,20 +4107,6 @@ thunk_alloc_instance:                   # @thunk_alloc_instance
 .Lfunc_end:
 	.size	thunk_alloc_instance, .Lfunc_end-thunk_alloc_instance
                                         # -- End function
-	.section	.text.unlikely.,"ax",@progbits
-	.p2align	5                               # -- Begin function outofmemory
-	.type	outofmemory,@function
-outofmemory:                            # @outofmemory
-# %bb.0:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	leaq	.L.str.9(%rip), %rcx
-	popq	%rbp
-	jmp	panic                           # TAILCALL
-.Lfunc_end:
-	.size	outofmemory, .Lfunc_end-outofmemory
-                                        # -- End function
-	.text
 	.p2align	4                               # -- Begin function capture_loc_resolve
 	.type	capture_loc_resolve,@function
 capture_loc_resolve:                    # @capture_loc_resolve
@@ -3327,7 +4159,7 @@ invalidlayout:                          # @invalidlayout
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.10(%rip), %rcx
+	leaq	.L.str.12(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3339,7 +4171,7 @@ notaoffset:                             # @notaoffset
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.11(%rip), %rcx
+	leaq	.L.str.13(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3385,7 +4217,7 @@ vm_op_arith_dc_fallback:                # @vm_op_arith_dc_fallback
 	movq	%rax, %xmm1
 .L8:
 	movzbl	-4(%r12), %eax
-	addl	$-23, %eax
+	addl	$-26, %eax
 	cmpl	$4, %eax
 	ja	.L14
 # %bb.9:
@@ -3465,7 +4297,7 @@ notanumber:                             # @notanumber
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.12(%rip), %rcx
+	leaq	.L.str.14(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3494,7 +4326,7 @@ vm_op_arith_dd_fallback:                # @vm_op_arith_dd_fallback
 	movq	%rdi, %xmm0
 .L4:
 	movzbl	-4(%r12), %edi
-	cmpl	$33, %edi
+	cmpl	$36, %edi
 	jne	.L6
 # %bb.5:
 	movq	%xmm0, %rsi
@@ -3522,7 +4354,7 @@ vm_op_arith_dd_fallback:                # @vm_op_arith_dd_fallback
 	addq	%r14, %rax
 	movq	%rax, %xmm1
 .L10:
-	addl	$-28, %edi
+	addl	$-31, %edi
 	cmpl	$4, %edi
 	ja	.L16
 # %bb.11:
@@ -3614,7 +4446,7 @@ unimplemented:                          # @unimplemented
 # %bb.0:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	leaq	.L.str.13(%rip), %rcx
+	leaq	.L.str.15(%rip), %rcx
 	popq	%rbp
 	jmp	panic                           # TAILCALL
 .Lfunc_end:
@@ -3649,7 +4481,7 @@ vm_op_setc_CmpNotF:                     # @vm_op_setc_CmpNotF
 	cmpw	$1, %di
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 .L3:
 	movzbl	(%r12), %eax
@@ -3703,7 +4535,7 @@ vm_op_setc_CmpEqDI:                     # @vm_op_setc_CmpEqDI
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L3:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L10
 .L9:
@@ -3780,7 +4612,7 @@ vm_op_setc_CmpNeDI:                     # @vm_op_setc_CmpNeDI
 	adcq	$6, %rax
 	movq	%rax, (%r13,%rsi,8)
 .L3:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L10
 .L7:
@@ -3866,7 +4698,7 @@ vm_op_setc_CmpEqDC:                     # @vm_op_setc_CmpEqDC
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L11:
@@ -3959,7 +4791,7 @@ vm_op_setc_CmpNeDC:                     # @vm_op_setc_CmpNeDC
 	adcq	$6, %rax
 	movq	%rax, (%r13,%rsi,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L9:
@@ -4039,7 +4871,7 @@ vm_op_setc_CmpLtDC:                     # @vm_op_setc_CmpLtDC
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L11:
@@ -4137,7 +4969,7 @@ vm_op_setc_CmpLeDC:                     # @vm_op_setc_CmpLeDC
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 .L12:
 	movzbl	(%r12), %eax
@@ -4211,7 +5043,7 @@ vm_op_setc_CmpGtDC:                     # @vm_op_setc_CmpGtDC
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L11:
@@ -4309,7 +5141,7 @@ vm_op_setc_CmpGeDC:                     # @vm_op_setc_CmpGeDC
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 .L12:
 	movzbl	(%r12), %eax
@@ -4383,7 +5215,7 @@ vm_op_setc_CmpEqDD:                     # @vm_op_setc_CmpEqDD
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L11:
@@ -4475,7 +5307,7 @@ vm_op_setc_CmpNeDD:                     # @vm_op_setc_CmpNeDD
 	adcq	$6, %rax
 	movq	%rax, (%r13,%rsi,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L9:
@@ -4554,7 +5386,7 @@ vm_op_setc_CmpLtDD:                     # @vm_op_setc_CmpLtDD
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L11:
@@ -4651,7 +5483,7 @@ vm_op_setc_CmpLeDD:                     # @vm_op_setc_CmpLeDD
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 .L12:
 	movzbl	(%r12), %eax
@@ -4724,7 +5556,7 @@ vm_op_setc_CmpGtDD:                     # @vm_op_setc_CmpGtDD
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 	jmp	.L12
 .L11:
@@ -4821,7 +5653,7 @@ vm_op_setc_CmpGeDD:                     # @vm_op_setc_CmpGeDD
 	adcq	$6, %rsi
 	movq	%rsi, (%r13,%rax,8)
 .L4:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 .L12:
 	movzbl	(%r12), %eax
@@ -4860,7 +5692,7 @@ vm_op_compare_setc_fallback:            # @vm_op_compare_setc_fallback
 	movzbl	%dl, %r10d
 	movzbl	%dh, %eax
 	movq	%r13, %rsi
-	cmpl	$44, %r10d
+	cmpl	$47, %r10d
 	ja	.L2
 # %bb.1:
 	movq	16(%r15), %rsi
@@ -4870,7 +5702,7 @@ vm_op_compare_setc_fallback:            # @vm_op_compare_setc_fallback
 	shrl	$16, %r8d
 	movq	(%rsi,%r8,8), %rsi
 	movzbl	%dl, %edx
-	addl	$-39, %edx
+	addl	$-42, %edx
 	cmpl	$7, %edx
 	ja	.L6
 # %bb.3:
@@ -4892,7 +5724,7 @@ vm_op_compare_setc_fallback:            # @vm_op_compare_setc_fallback
 	testb	%al, %al
 	je	.L9
 .L8:
-	movzbl	56(%r15), %eax
+	movzbl	64(%r15), %eax
 	leaq	(%r12,%rax,4), %r12
 .L9:
 	movzbl	(%r12), %eax
@@ -5095,7 +5927,7 @@ cmp_f64:                                # @cmp_f64
 	pushq	%rbp
 	movq	%rsp, %rbp
 	pushq	%rdi
-	addl	$-39, %edi
+	addl	$-42, %edi
 	leaq	.LJTI0(%rip), %rax
 	movslq	(%rax,%rdi,4), %r11
 	addq	%rax, %r11
@@ -5168,7 +6000,7 @@ vm_op_compare_dc_fallback:              # @vm_op_compare_dc_fallback
 	movl	%r9d, %esi
 	movq	(%rax,%rsi,8), %rsi
 	movzbl	-8(%r10), %ebx
-	leal	-39(%rbx), %eax
+	leal	-42(%rbx), %eax
 	cmpl	$7, %eax
 	ja	.L6
 # %bb.1:
@@ -5277,7 +6109,7 @@ vm_op_compare_dd_fallback:              # @vm_op_compare_dd_fallback
 	movl	%r9d, %eax
 	movq	(%r13,%rax,8), %rsi
 	movzbl	-8(%r10), %ebx
-	leal	-39(%rbx), %eax
+	leal	-42(%rbx), %eax
 	cmpl	$7, %eax
 	ja	.L6
 # %bb.1:
@@ -5377,6 +6209,9 @@ dispatch:
 	.quad	vm_op_LoadFree
 	.quad	vm_op_LoadField
 	.quad	vm_op_SetField
+	.quad	vm_op_LoadInd
+	.quad	vm_op_SetInd
+	.quad	vm_op_View
 	.quad	vm_op_Move
 	.quad	vm_op_Apply
 	.quad	vm_op_Invoke
@@ -5417,7 +6252,7 @@ dispatch:
 	.quad	vm_op_CmpLeDD
 	.quad	vm_op_CmpGtDD
 	.quad	vm_op_CmpGeDD
-	.size	dispatch, 408
+	.size	dispatch, 432
 
 	.type	.L.str,@object                  # @.str
 	.section	.rodata.str1.1,"aMS",@progbits,1
@@ -5447,43 +6282,56 @@ dispatch:
 
 	.type	.L.str.6,@object                # @.str.6
 .L.str.6:
-	.asciz	"not a function"
-	.size	.L.str.6, 15
+	.asciz	"not a type"
+	.size	.L.str.6, 11
 
 	.type	.L.str.7,@object                # @.str.7
 .L.str.7:
-	.asciz	"stack overflow"
-	.size	.L.str.7, 15
+	.asciz	"not an instance"
+	.size	.L.str.7, 16
 
 	.type	.L.str.8,@object                # @.str.8
 .L.str.8:
-	.asciz	"not an instance"
-	.size	.L.str.8, 16
+	.asciz	"out of memory"
+	.size	.L.str.8, 14
 
+	.type	cannotview_msg,@object          # @cannotview_msg
+	.local	cannotview_msg
+	.comm	cannotview_msg,256,16
 	.type	.L.str.9,@object                # @.str.9
 .L.str.9:
-	.asciz	"out of memory"
-	.size	.L.str.9, 14
+	.asciz	"cannot view %.*s as %.*s: no field %.*s"
+	.size	.L.str.9, 40
 
 	.type	.L.str.10,@object               # @.str.10
 .L.str.10:
-	.asciz	"invalid layout"
+	.asciz	"not a function"
 	.size	.L.str.10, 15
 
 	.type	.L.str.11,@object               # @.str.11
 .L.str.11:
-	.asciz	"not a offset"
-	.size	.L.str.11, 13
+	.asciz	"stack overflow"
+	.size	.L.str.11, 15
 
 	.type	.L.str.12,@object               # @.str.12
 .L.str.12:
-	.asciz	"not a number"
-	.size	.L.str.12, 13
+	.asciz	"invalid layout"
+	.size	.L.str.12, 15
 
 	.type	.L.str.13,@object               # @.str.13
 .L.str.13:
+	.asciz	"not a offset"
+	.size	.L.str.13, 13
+
+	.type	.L.str.14,@object               # @.str.14
+.L.str.14:
+	.asciz	"not a number"
+	.size	.L.str.14, 13
+
+	.type	.L.str.15,@object               # @.str.15
+.L.str.15:
 	.asciz	"unimplemented"
-	.size	.L.str.13, 14
+	.size	.L.str.15, 14
 
 	.type	dispatch_setc,@object           # @dispatch_setc
 	.section	.data.rel.ro,"aw",@progbits
@@ -5520,6 +6368,9 @@ dispatch_setc:
 	.addrsig_sym vm_op_LoadFree
 	.addrsig_sym vm_op_LoadField
 	.addrsig_sym vm_op_SetField
+	.addrsig_sym vm_op_LoadInd
+	.addrsig_sym vm_op_SetInd
+	.addrsig_sym vm_op_View
 	.addrsig_sym vm_op_Move
 	.addrsig_sym vm_op_Apply
 	.addrsig_sym vm_op_Invoke
@@ -5576,3 +6427,4 @@ dispatch_setc:
 	.addrsig_sym vm_op_setc_CmpGtDD
 	.addrsig_sym vm_op_setc_CmpGeDD
 	.addrsig_sym dispatch
+	.addrsig_sym cannotview_msg

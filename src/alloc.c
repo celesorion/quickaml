@@ -171,6 +171,12 @@ static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
 
 static void gc_scan_object(struct heap *h, void *ref) {
   switch (obj_tag_of(ref)) {
+  case TAG_VIEW: {
+    struct view *v = ref;
+    shade_value(h, v->type);
+    shade_value(h, v->source);
+    break;
+  }
   case TAG_THUNK: {
     struct thunk *thunk = ref;
     for (size_t i = 0; i < thunk->nconst; i++)
