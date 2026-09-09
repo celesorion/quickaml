@@ -258,23 +258,6 @@ COLD_HELPER static val_t *field_slot(val_t recv, val_t name,
 // slot, so one compare decides.  The loader has checked the type against the
 // type table and k against the type, so a matching slot makes the field
 // valid.  Any other receiver is resolved by name, as loadfld would.
-INLINE val_t *typed_slot(val_t recv, val_t type, uint32_t k, uint64_t ft,
-                         struct object **holder) {
-  if (unlikely(val_is_empty(recv) || !val_is_ptr_macro(recv, ft)))
-    return nullptr;
-  struct object *obj = val_as_ptr(recv);
-  enum tag tag = obj_tag_of(obj);
-  if (!obj_is_typed(tag) || obj->fields[0] != type)
-    return nullptr;
-  if (tag == TAG_STRUCT) {
-    *holder = obj;
-    return &obj->fields[1 + k];
-  }
-  struct view *v = (struct view *)obj;
-  *holder = view_source(v);
-  return &(*holder)->fields[1 + v->idx[k]];
-}
-
 COLD_HELPER static const struct member_desc *
 typed_field_name(struct state *state, uint32_t tid, uint32_t k) {
   if (unlikely(tid >= state->numtype))
@@ -502,21 +485,40 @@ OP_DEFINITION(SetField) {
   DISPATCH();
 }
 
-OP_DEFINITION(LoadInd) {
+// Field k of an instance or of a view of the type, or null.
+static val_t *typed_field(val_t recv, val_t type, uint32_t k,
+                          struct object **holder) {
+  if (val_is_empty(recv) || !val_is_ptr(recv))
+    return nullptr;
+  struct object *obj = val_as_ptr(recv);
+  if (obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type) {
+    *holder = obj;
+    return &obj->fields[1 + k];
+  }
+  if (obj_tag_of(obj) == TAG_VIEW && obj->fields[0] == type) {
+    struct view *v = (struct view *)obj;
+    *holder = view_source(v);
+    return &(*holder)->fields[1 + v->idx[k]];
+  }
+  return nullptr;
+}
+
+// The fallbacks of the typed accesses take the case the fast path did not
+// expect, a view behind loadslot or an instance behind loadind, then the
+// name.  They re-read the exta word the handler has stepped over.
+THREADED void vm_op_load_typed_fallback(PARAMS) {
   ssz_t dst = ARG3A;
   ssz_t recv = ARG3B;
   ssz_t k = ARG3C;
-  NEXT_INSN(ext);
-  uint32_t tid = EXTRA_ARGU(ext);
+  uint32_t tid = g1A(ip[-1]);
   struct object *holder;
   val_t *slot =
-      typed_slot(bp[recv], val_from_type(fiber->types[tid]), k, ft, &holder);
+      typed_field(bp[recv], val_from_type(fiber->types[tid]), k, &holder);
 
-  if (unlikely(slot == nullptr)) {
+  if (slot == nullptr)
     slot = typed_member_slow(fiber->state, bp[recv], tid, k);
-    if (unlikely(slot == nullptr)) {
-      MUSTTAIL return nomember(ARGS);
-    }
+  if (unlikely(slot == nullptr)) {
+    MUSTTAIL return nomember(ARGS);
   }
 
   bp[dst] = *slot;
@@ -524,29 +526,107 @@ OP_DEFINITION(LoadInd) {
   DISPATCH();
 }
 
-OP_DEFINITION(SetInd) {
+THREADED void vm_op_set_typed_fallback(PARAMS) {
   ssz_t src = ARG3A;
   ssz_t recv = ARG3B;
   ssz_t k = ARG3C;
-  NEXT_INSN(ext);
-  uint32_t tid = EXTRA_ARGU(ext);
+  uint32_t tid = g1A(ip[-1]);
   struct object *holder;
   val_t *slot =
-      typed_slot(bp[recv], val_from_type(fiber->types[tid]), k, ft, &holder);
+      typed_field(bp[recv], val_from_type(fiber->types[tid]), k, &holder);
 
-  if (unlikely(slot == nullptr)) {
+  if (slot == nullptr)
     slot = typed_field_slow(fiber->state, bp[recv], tid, k, &holder);
-    if (unlikely(slot == nullptr)) {
-      if (typed_member_slow(fiber->state, bp[recv], tid, k) == nullptr) {
-        MUSTTAIL return nomember(ARGS);
-      }
-      MUSTTAIL return notafield(ARGS);
+  if (unlikely(slot == nullptr)) {
+    if (typed_member_slow(fiber->state, bp[recv], tid, k) == nullptr) {
+      MUSTTAIL return nomember(ARGS);
     }
+    MUSTTAIL return notafield(ARGS);
   }
 
   gc_store_field(fiber->state->heap, holder, slot, bp[src]);
 
   DISPATCH();
+}
+
+OP_DEFINITION(LoadSlot) {
+  ssz_t dst = ARG3A;
+  ssz_t recv = ARG3B;
+  ssz_t k = ARG3C;
+  NEXT_INSN(ext);
+  val_t type = val_from_type(fiber->types[EXTRA_ARGU(ext)]);
+  val_t self = bp[recv];
+
+  if (likely(val_is_object_macro(self, ft))) {
+    struct object *obj = val_as_object(self);
+    if (likely(obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type)) {
+      bp[dst] = obj->fields[1 + k];
+      DISPATCH();
+    }
+  }
+
+  MUSTTAIL return vm_op_load_typed_fallback(ARGS);
+}
+
+OP_DEFINITION(SetSlot) {
+  ssz_t src = ARG3A;
+  ssz_t recv = ARG3B;
+  ssz_t k = ARG3C;
+  NEXT_INSN(ext);
+  val_t type = val_from_type(fiber->types[EXTRA_ARGU(ext)]);
+  val_t self = bp[recv];
+
+  if (likely(val_is_object_macro(self, ft))) {
+    struct object *obj = val_as_object(self);
+    if (likely(obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type)) {
+      gc_store_field(fiber->state->heap, obj, &obj->fields[1 + k], bp[src]);
+      DISPATCH();
+    }
+  }
+
+  MUSTTAIL return vm_op_set_typed_fallback(ARGS);
+}
+
+OP_DEFINITION(LoadInd) {
+  ssz_t dst = ARG3A;
+  ssz_t recv = ARG3B;
+  ssz_t k = ARG3C;
+  NEXT_INSN(ext);
+  val_t type = val_from_type(fiber->types[EXTRA_ARGU(ext)]);
+  val_t self = bp[recv];
+
+  if (likely(val_is_object_macro(self, ft))) {
+    struct object *obj = val_as_object(self);
+    if (likely(obj_tag_of(obj) == TAG_VIEW && obj->fields[0] == type)) {
+      struct view *v = (struct view *)obj;
+      bp[dst] = view_source(v)->fields[1 + v->idx[k]];
+      DISPATCH();
+    }
+  }
+
+  MUSTTAIL return vm_op_load_typed_fallback(ARGS);
+}
+
+OP_DEFINITION(SetInd) {
+  ssz_t src = ARG3A;
+  ssz_t recv = ARG3B;
+  ssz_t k = ARG3C;
+  NEXT_INSN(ext);
+  val_t type = val_from_type(fiber->types[EXTRA_ARGU(ext)]);
+  val_t self = bp[recv];
+
+  if (likely(val_is_object_macro(self, ft))) {
+    struct object *obj = val_as_object(self);
+    if (likely(obj_tag_of(obj) == TAG_VIEW && obj->fields[0] == type)) {
+      struct view *v = (struct view *)obj;
+      struct object *source = view_source(v);
+      gc_store_field(fiber->state->heap, source,
+                     &source->fields[1 + v->idx[k]], bp[src]);
+      DISPATCH();
+    }
+  }
+
+  MUSTTAIL return vm_op_set_typed_fallback(ARGS);
 }
 
 OP_DEFINITION(View) {

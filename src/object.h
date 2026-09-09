@@ -216,6 +216,11 @@ INLINE bool val_is_ptr(val_t value) {
 #define val_is_ptr_macro(value, tag)                                           \
   (((value) & ((tag) | VAL_OTHER_TAG)) == 0)
 
+/* An untagged pointer to an object, in one test: nonzero, aligned and below
+ * bit 48, so 8 or above once 8 is taken off. */
+#define val_is_object_macro(value, tag)                                        \
+  ((((value) - 8) & ((tag) | (UINT64_C(1) << 48) | VAL_KIND_MASK)) == 0)
+
 #define val_is_number_macro(value, tag) ((value) & (tag))
 
 INLINE bool val_is_number(val_t value) {
@@ -284,6 +289,11 @@ INLINE val_t val_from_str(struct str *str) {
 INLINE void *val_as_ptr(val_t value) {
   assert(val_is_ptr(value));
   return (void *)(uintptr_t)(value & ~VAL_KIND_MASK);
+}
+
+INLINE struct object *val_as_object(val_t value) {
+  assert(val_is_object_macro(value, VAL_FLOAT_TAG));
+  return (struct object *)(uintptr_t)value;
 }
 
 /* The kind is known here, so subtracting it folds into the field offsets. */
@@ -369,10 +379,6 @@ INLINE enum tag obj_tag_of(const void *ref) {
 INLINE uint8_t obj_flags_of(const void *ref) {
   const struct object *obj = ref;
   return (uint8_t)(obj->hd >> 8);
-}
-
-INLINE bool obj_is_typed(enum tag tag) {
-  return tag == TAG_STRUCT || tag == TAG_VIEW;
 }
 
 #define OBJ_FLAG_GC_MASK (UINT64_C(0x03) << 8)
