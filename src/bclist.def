@@ -19,6 +19,7 @@
   _(Move      , "move"      )\
   _(Apply     , "apply"     )\
   _(Invoke    , "invoke"    )\
+  _(InvokeInd , "invokeind" )\
   _(Call      , "call"      )\
   _(Native    , "native"    )\
   _(Retu      , "retu"      )\

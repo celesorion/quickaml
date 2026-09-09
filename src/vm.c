@@ -252,6 +252,19 @@ find_field_slow_forward(struct fiber_segment *fiber, val_t recv,
   return find_field_slow(fiber, recv, tid, k, nullptr);
 }
 
+COLD_HELPER static val_t *find_method_slow(struct fiber_segment *fiber,
+                                           val_t recv, uint32_t tid,
+                                           uint32_t m) {
+  struct members ms;
+  if (!members_of(recv, &ms))
+    return nullptr;
+  const struct type_desc *desc = type_desc_of(fiber->types[tid]);
+  if (unlikely(m >= desc->nmethods))
+    return nullptr;
+  const struct member_desc *name = &desc->members[desc->nfields + m];
+  return find_member_by_name(&ms, name->name, name->len, false);
+}
+
 INLINE val_t *find_field_by_type(struct fiber_segment *fiber, val_t recv,
                                  uint32_t tid, uint32_t k,
                                  struct object **holder) {
@@ -695,6 +708,49 @@ OP_DEFINITION(Invoke) {
   // the member closure only has to be moved into place.
   bp[dst] = *slot;
   MUSTTAIL return vm_op_Apply(ARGS);
+}
+
+THREADED void vm_op_invoke_by_type_fallback(PARAMS) {
+  ssz_t dst = ARG3A;
+  ssz_t base = ARG3B;
+  ssz_t m = ARG3C;
+  uint32_t tid = g1A(ip[-2]);
+
+  if (unlikely(val_is_type_macro(bp[base], ft))) {
+    MUSTTAIL return notaninstance(ARGS);
+  }
+  val_t *slot = find_method_slow(fiber, bp[base], tid, m);
+
+  if (unlikely(slot == nullptr)) {
+    MUSTTAIL return nomember(ARGS);
+  }
+
+  bp[dst] = *slot;
+  MUSTTAIL return vm_op_Apply(ARGS);
+}
+
+OP_DEFINITION(InvokeInd) {
+  ssz_t dst = ARG3A;
+  ssz_t base = ARG3B;
+  ssz_t m = ARG3C;
+  NEXT_INSN(ext);
+  // The return sequence finds the call region in the word before the return
+  // address, so the apply word that follows stands in for this instruction.
+  ip++;
+  struct object *type = fiber->types[EXTRA_ARGU(ext)];
+  val_t recv = bp[base];
+
+  if (likely(val_is_object_macro(recv, ft))) {
+    struct object *obj = val_as_object(recv);
+    enum tag tag = obj_tag_of(obj);
+    if (likely((tag == TAG_STRUCT || tag == TAG_VIEW) &&
+               obj->fields[0] == val_from_type(type))) {
+      bp[dst] = type->fields[1 + m];
+      MUSTTAIL return vm_op_Apply(ARGS);
+    }
+  }
+
+  MUSTTAIL return vm_op_invoke_by_type_fallback(ARGS);
 }
 
 OP_DEFINITION(Call) {
