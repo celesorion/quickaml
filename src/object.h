@@ -86,7 +86,7 @@ struct member_desc {
 struct view_tmpl {
   const struct type_desc *target;
   struct view_tmpl *next;
-  uint8_t idx[];
+  uint8_t slots[];
 };
 
 struct type_desc {
@@ -169,7 +169,7 @@ struct opaque {
 };
 
 /* A struct instance seen as another type: field k of the view is slot
- * idx[k] of source, which is never itself a view.  The type value comes
+ * slots[k] of source, which is never itself a view.  The type value comes
  * first, in the slot where a struct instance keeps its own, so a typed field
  * access compares the same slot of either. */
 struct view {
@@ -177,7 +177,7 @@ struct view {
   void *gclist;
   val_t type;
   val_t source;
-  uint8_t idx[];
+  uint8_t slots[];
 };
 
 static_assert(offsetof(struct view, type) == offsetof(struct object, fields),
@@ -502,7 +502,7 @@ INLINE void pad_init(void *pad) {
 
 COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields);
 COLD_HELPER void view_init(struct view *v, struct object *type,
-                           struct object *source, const uint8_t *idx);
+                           struct object *source, const uint8_t *slots);
 COLD_HELPER void str_init(struct str *str, size_t len);
 COLD_HELPER void opaque_init(struct opaque *o, size_t n,
                              finalize_fn *finalize);

@@ -126,7 +126,6 @@ void notatype(PARAMS) {
   MUSTTAIL return panic(ARGS);
 }
 
-// The message of a refused view is formatted right before the panic prints it.
 static char cannotview_msg[256];
 
 THREADED
@@ -136,8 +135,9 @@ void cannotview(PARAMS) {
 }
 
 // The index of the member called `name` among `n` names, or `n`.
-static uint32_t member_index(const struct member_desc *names, uint32_t n,
-                             const char *name, size_t len) {
+static uint32_t find_member_pos_by_name(const struct member_desc *names,
+                                        uint32_t n, const char *name,
+                                        size_t len) {
   for (uint32_t i = 0; i < n; i++) {
     if (names[i].len == len && memcmp(names[i].name, name, len) == 0)
       return i;
@@ -145,184 +145,135 @@ static uint32_t member_index(const struct member_desc *names, uint32_t n,
   return n;
 }
 
-// What a member access of an instance or a view goes through: the object
-// holding the field slots, the type whose members are meant, and for a view
-// the table mapping the fields of that type to slots of the source.
-struct member_target {
-  struct object *holder;
+struct members {
   struct object *type;
-  const uint8_t *idx;
+  struct object *holder;
+  const uint8_t *slots;
 };
 
-static bool member_target(val_t recv, struct member_target *t) {
+INLINE bool members_of(val_t recv, struct members *m) {
   if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
     return false;
   struct object *obj = val_as_ptr(recv);
-  if (obj_tag_of(obj) == TAG_STRUCT) {
-    *t = (struct member_target){obj, val_as_type(obj->fields[0]), nullptr};
+  switch (obj_tag_of(obj)) {
+  case TAG_STRUCT:
+    *m = (struct members){val_as_type(obj->fields[0]), obj, nullptr};
     return true;
-  }
-  if (obj_tag_of(obj) == TAG_VIEW) {
+  case TAG_VIEW: {
     struct view *v = (struct view *)obj;
-    *t = (struct member_target){view_source(v), view_type(v), v->idx};
+    *m = (struct members){view_type(v), view_source(v), v->slots};
     return true;
   }
-  return false;
-}
-
-static val_t *target_field(const struct member_target *t, uint32_t i) {
-  return &t->holder->fields[1 + (t->idx == nullptr ? i : t->idx[i])];
-}
-
-// Resolve a named member to a slot: a type value has its methods and
-// functions, an instance its fields and the methods of its type value, a view
-// the fields and methods of the type it is seen as, the fields read through
-// its slot table.
-COLD_HELPER static val_t *member_slot_named(val_t recv, const char *name,
-                                            size_t len) {
-  if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
-    return nullptr;
-  struct object *obj = val_as_ptr(recv);
-  if (obj_tag_of(obj) == TAG_TYPE) {
-    const struct type_desc *desc = type_desc_of(obj);
-    uint32_t n = desc->nmethods + desc->nfunctions;
-    uint32_t i = member_index(desc->members + desc->nfields, n, name, len);
-    return i < n ? &obj->fields[1 + i] : nullptr;
+  case TAG_TYPE:
+    *m = (struct members){obj, nullptr, nullptr};
+    return true;
+  default:
+    return false;
   }
-  struct member_target t;
-  if (!member_target(recv, &t))
-    return nullptr;
-  const struct type_desc *desc = type_desc_of(t.type);
-  uint32_t i = member_index(desc->members, desc->nfields, name, len);
-  if (i < desc->nfields)
-    return target_field(&t, i);
-  i = member_index(desc->members + desc->nfields, desc->nmethods, name, len);
-  return i < desc->nmethods ? &t.type->fields[1 + i] : nullptr;
 }
 
-// Resolve a member to a slot: a position (an int constant) counts the fields
-// of a tuple or of a struct, a name (a string constant) is looked up in the
-// type description, see member_slot_named.
-COLD_HELPER static val_t *member_slot(val_t recv, val_t name) {
-  if (!val_is_int(name)) {
-    const struct str *str = val_as_str(name);
-    return member_slot_named(recv, str->bytes, str_len(str));
-  }
-  if (unlikely(val_is_empty(recv) || !val_is_ptr(recv)))
-    return nullptr;
-  struct object *obj = val_as_ptr(recv);
-  uint32_t i = (uint32_t)val_as_i32(name);
-  if (obj_tag_of(obj) == TAG_TUPLE)
-    return i < object_nfields(obj) ? &obj->fields[i] : nullptr;
-  struct member_target t;
-  if (!member_target(recv, &t))
-    return nullptr;
-  return i < type_desc_of(t.type)->nfields ? target_field(&t, i) : nullptr;
+INLINE val_t *field_at_unchecked(const struct members *m, uint32_t i) {
+  return &m->holder->fields[1 + (m->slots == nullptr ? i : m->slots[i])];
 }
 
-// The slot an assignment may write: a field of a struct or of a view, by
-// name or by position, with the object holding it for the write barrier.
-// Methods and tuple fields are read-only, so they are not found.
-COLD_HELPER static val_t *field_slot_named(val_t recv, const char *name,
-                                           size_t len,
-                                           struct object **holder) {
-  struct member_target t;
-  if (unlikely(!member_target(recv, &t)))
+INLINE val_t *field_at(const struct members *m, uint32_t i) {
+  if (m->holder == nullptr || i >= type_desc_of(m->type)->nfields)
     return nullptr;
-  const struct type_desc *desc = type_desc_of(t.type);
-  uint32_t i = member_index(desc->members, desc->nfields, name, len);
-  if (i >= desc->nfields)
-    return nullptr;
-  *holder = t.holder;
-  return target_field(&t, i);
+  return field_at_unchecked(m, i);
 }
 
-COLD_HELPER static val_t *field_slot(val_t recv, val_t name,
-                                     struct object **holder) {
-  if (!val_is_int(name)) {
-    const struct str *str = val_as_str(name);
-    return field_slot_named(recv, str->bytes, str_len(str), holder);
-  }
-  struct member_target t;
-  if (unlikely(!member_target(recv, &t)))
-    return nullptr;
-  uint32_t i = (uint32_t)val_as_i32(name);
-  if (i >= type_desc_of(t.type)->nfields)
-    return nullptr;
-  *holder = t.holder;
-  return target_field(&t, i);
-}
-
-// A typed access, loadind or setind, names field k of a type and expects an
-// instance or a view of that type: both keep the type value in their first
-// slot, so one compare decides.  The loader has checked the type against the
-// type table and k against the type, so a matching slot makes the field
-// valid.  Any other receiver is resolved by name, as loadfld would.
-COLD_HELPER static const struct member_desc *
-typed_field_name(struct state *state, uint32_t tid, uint32_t k) {
-  if (unlikely(tid >= state->numtype))
-    return nullptr;
-  const struct type_desc *desc = type_desc_of(state->types[tid]);
-  return k < desc->nfields ? &desc->members[k] : nullptr;
-}
-
-COLD_HELPER static val_t *typed_member_slow(struct state *state, val_t recv,
-                                            uint32_t tid, uint32_t k) {
-  const struct member_desc *name = typed_field_name(state, tid, k);
-  if (unlikely(name == nullptr))
-    return nullptr;
-  return member_slot_named(recv, name->name, name->len);
-}
-
-COLD_HELPER static val_t *typed_field_slow(struct state *state, val_t recv,
-                                           uint32_t tid, uint32_t k,
-                                           struct object **holder) {
-  const struct member_desc *name = typed_field_name(state, tid, k);
-  if (unlikely(name == nullptr))
-    return nullptr;
-  return field_slot_named(recv, name->name, name->len, holder);
-}
-
-// The slot table of views of `target` over instances of `source`, made on
-// first use and kept on the source description.  Null when the target has a
-// field the source lacks, named in *missing, or on out of memory, with
-// *missing null.  A source has at most 254 fields, as wrap counts them in a
-// byte, so every slot fits the table.
-COLD_HELPER static const uint8_t *
-view_template(struct type_desc *source, const struct type_desc *target,
-              const struct member_desc **missing) {
-  *missing = nullptr;
-  for (struct view_tmpl *t = source->views; t != nullptr; t = t->next) {
-    if (t->target == target)
-      return t->idx;
-  }
-  struct view_tmpl *t = malloc(sizeof *t + target->nfields);
-  if (t == nullptr)
-    return nullptr;
-  for (uint32_t k = 0; k < target->nfields; k++) {
-    const struct member_desc *name = &target->members[k];
+INLINE val_t *find_member_by_name(const struct members *m, const char *name,
+                                  size_t len, bool writing) {
+  const struct type_desc *desc = type_desc_of(m->type);
+  if (m->holder != nullptr) {
     uint32_t i =
-        member_index(source->members, source->nfields, name->name, name->len);
-    if (i == source->nfields) {
-      free(t);
-      *missing = name;
-      return nullptr;
-    }
-    t->idx[k] = (uint8_t)i;
+        find_member_pos_by_name(desc->members, desc->nfields, name, len);
+    if (i < desc->nfields)
+      return field_at_unchecked(m, i);
   }
-  t->target = target;
-  t->next = source->views;
-  source->views = t;
-  return t->idx;
+  if (writing)
+    return nullptr;
+  uint32_t n = desc->nmethods;
+  if (m->holder == nullptr)
+    n += desc->nfunctions;
+  uint32_t i =
+      find_member_pos_by_name(desc->members + desc->nfields, n, name, len);
+  return i < n ? &m->type->fields[1 + i] : nullptr;
 }
 
-COLD_HELPER static void cannotview_format(const struct type_desc *source,
-                                          const struct type_desc *target,
-                                          const struct member_desc *missing) {
-  snprintf(cannotview_msg, sizeof cannotview_msg,
-           "cannot view %.*s as %.*s: no field %.*s", (int)source->namelen,
-           source->name, (int)target->namelen, target->name,
-           (int)missing->len, missing->name);
+COLD_HELPER static val_t *find_member_by_selector(val_t recv, val_t selector) {
+  struct members m;
+  if (val_is_int(selector)) {
+    uint32_t i = (uint32_t)val_as_i32(selector);
+    if (!val_is_empty(recv) && val_is_ptr(recv) &&
+        obj_tag_of(val_as_ptr(recv)) == TAG_TUPLE) {
+      struct object *tuple = val_as_ptr(recv);
+      return i < object_nfields(tuple) ? &tuple->fields[i] : nullptr;
+    }
+    return members_of(recv, &m) ? field_at(&m, i) : nullptr;
+  }
+  if (!members_of(recv, &m))
+    return nullptr;
+  const struct str *str = val_as_str(selector);
+  return find_member_by_name(&m, str->bytes, str_len(str), false);
+}
+
+COLD_HELPER static val_t *find_field_by_selector(val_t recv, val_t selector,
+                                                 struct object **holder) {
+  struct members m;
+  if (!members_of(recv, &m))
+    return nullptr;
+  *holder = m.holder;
+  if (val_is_int(selector))
+    return field_at(&m, (uint32_t)val_as_i32(selector));
+  const struct str *str = val_as_str(selector);
+  return find_member_by_name(&m, str->bytes, str_len(str), true);
+}
+
+COLD_HELPER static val_t *find_field_slow(struct fiber_segment *fiber,
+                                                  val_t recv, uint32_t tid,
+                                                  uint32_t k,
+                                                  struct object **holder) {
+  struct members m;
+  if (!members_of(recv, &m))
+    return nullptr;
+  if (holder != nullptr)
+    *holder = m.holder;
+  const struct type_desc *desc = type_desc_of(fiber->types[tid]);
+  if (unlikely(k >= desc->nfields))
+    return nullptr;
+  const struct member_desc *name = &desc->members[k];
+  return find_member_by_name(&m, name->name, name->len, holder != nullptr);
+}
+
+[[gnu::cold]] COLD_HELPER static val_t *
+find_field_slow_forward(struct fiber_segment *fiber, val_t recv,
+                                uint32_t tid, uint32_t k) {
+  return find_field_slow(fiber, recv, tid, k, nullptr);
+}
+
+INLINE val_t *find_field_by_type(struct fiber_segment *fiber, val_t recv,
+                                 uint32_t tid, uint32_t k,
+                                 struct object **holder) {
+  val_t type = val_from_type(fiber->types[tid]);
+  if (likely(!val_is_empty(recv) && val_is_ptr(recv))) {
+    struct object *obj = val_as_ptr(recv);
+    if (obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type) {
+      if (holder != nullptr)
+        *holder = obj;
+      return &obj->fields[1 + k];
+    }
+    if (obj_tag_of(obj) == TAG_VIEW && obj->fields[0] == type) {
+      struct view *v = (struct view *)obj;
+      struct object *source = view_source(v);
+      if (holder != nullptr)
+        *holder = source;
+      return &source->fields[1 + v->slots[k]];
+    }
+  }
+  if (holder == nullptr)
+    return find_field_slow_forward(fiber, recv, tid, k);
+  return find_field_slow(fiber, recv, tid, k, holder);
 }
 
 INLINE bool cmp_notf(val_t lhs, uint16_t flag) {
@@ -453,10 +404,10 @@ OP_DEFINITION(LoadFree) {
   DISPATCH();
 }
 
-OP_DEFINITION(LoadField) {
+OP_DEFINITION(LoadMem) {
   ssz_t dst = ARG3A;
   ssz_t recv = ARG3B;
-  val_t *slot = member_slot(bp[recv], fiber->ctbl[ARG3C]);
+  val_t *slot = find_member_by_selector(bp[recv], fiber->ctbl[ARG3C]);
 
   if (unlikely(slot == nullptr)) {
     MUSTTAIL return nomember(ARGS);
@@ -467,14 +418,14 @@ OP_DEFINITION(LoadField) {
   DISPATCH();
 }
 
-OP_DEFINITION(SetField) {
+OP_DEFINITION(SetMem) {
   ssz_t src = ARG3A;
   ssz_t recv = ARG3B;
   struct object *holder;
-  val_t *slot = field_slot(bp[recv], fiber->ctbl[ARG3C], &holder);
+  val_t *slot = find_field_by_selector(bp[recv], fiber->ctbl[ARG3C], &holder);
 
   if (unlikely(slot == nullptr)) {
-    if (member_slot(bp[recv], fiber->ctbl[ARG3C]) == nullptr) {
+    if (find_member_by_selector(bp[recv], fiber->ctbl[ARG3C]) == nullptr) {
       MUSTTAIL return nomember(ARGS);
     }
     MUSTTAIL return notafield(ARGS);
@@ -485,38 +436,13 @@ OP_DEFINITION(SetField) {
   DISPATCH();
 }
 
-// Field k of an instance or of a view of the type, or null.
-static val_t *typed_field(val_t recv, val_t type, uint32_t k,
-                          struct object **holder) {
-  if (val_is_empty(recv) || !val_is_ptr(recv))
-    return nullptr;
-  struct object *obj = val_as_ptr(recv);
-  if (obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type) {
-    *holder = obj;
-    return &obj->fields[1 + k];
-  }
-  if (obj_tag_of(obj) == TAG_VIEW && obj->fields[0] == type) {
-    struct view *v = (struct view *)obj;
-    *holder = view_source(v);
-    return &(*holder)->fields[1 + v->idx[k]];
-  }
-  return nullptr;
-}
-
-// The fallbacks of the typed accesses take the case the fast path did not
-// expect, a view behind loadslot or an instance behind loadind, then the
-// name.  They re-read the exta word the handler has stepped over.
-THREADED void vm_op_load_typed_fallback(PARAMS) {
+THREADED void vm_op_load_by_type_fallback(PARAMS) {
   ssz_t dst = ARG3A;
   ssz_t recv = ARG3B;
   ssz_t k = ARG3C;
   uint32_t tid = g1A(ip[-1]);
-  struct object *holder;
-  val_t *slot =
-      typed_field(bp[recv], val_from_type(fiber->types[tid]), k, &holder);
+  val_t *slot = find_field_by_type(fiber, bp[recv], tid, k, nullptr);
 
-  if (slot == nullptr)
-    slot = typed_member_slow(fiber->state, bp[recv], tid, k);
   if (unlikely(slot == nullptr)) {
     MUSTTAIL return nomember(ARGS);
   }
@@ -526,19 +452,16 @@ THREADED void vm_op_load_typed_fallback(PARAMS) {
   DISPATCH();
 }
 
-THREADED void vm_op_set_typed_fallback(PARAMS) {
+THREADED void vm_op_set_by_type_fallback(PARAMS) {
   ssz_t src = ARG3A;
   ssz_t recv = ARG3B;
   ssz_t k = ARG3C;
   uint32_t tid = g1A(ip[-1]);
   struct object *holder;
-  val_t *slot =
-      typed_field(bp[recv], val_from_type(fiber->types[tid]), k, &holder);
+  val_t *slot = find_field_by_type(fiber, bp[recv], tid, k, &holder);
 
-  if (slot == nullptr)
-    slot = typed_field_slow(fiber->state, bp[recv], tid, k, &holder);
   if (unlikely(slot == nullptr)) {
-    if (typed_member_slow(fiber->state, bp[recv], tid, k) == nullptr) {
+    if (find_field_by_type(fiber, bp[recv], tid, k, nullptr) == nullptr) {
       MUSTTAIL return nomember(ARGS);
     }
     MUSTTAIL return notafield(ARGS);
@@ -565,7 +488,7 @@ OP_DEFINITION(LoadSlot) {
     }
   }
 
-  MUSTTAIL return vm_op_load_typed_fallback(ARGS);
+  MUSTTAIL return vm_op_load_by_type_fallback(ARGS);
 }
 
 OP_DEFINITION(SetSlot) {
@@ -584,7 +507,7 @@ OP_DEFINITION(SetSlot) {
     }
   }
 
-  MUSTTAIL return vm_op_set_typed_fallback(ARGS);
+  MUSTTAIL return vm_op_set_by_type_fallback(ARGS);
 }
 
 OP_DEFINITION(LoadInd) {
@@ -599,12 +522,12 @@ OP_DEFINITION(LoadInd) {
     struct object *obj = val_as_object(self);
     if (likely(obj_tag_of(obj) == TAG_VIEW && obj->fields[0] == type)) {
       struct view *v = (struct view *)obj;
-      bp[dst] = view_source(v)->fields[1 + v->idx[k]];
+      bp[dst] = view_source(v)->fields[1 + v->slots[k]];
       DISPATCH();
     }
   }
 
-  MUSTTAIL return vm_op_load_typed_fallback(ARGS);
+  MUSTTAIL return vm_op_load_by_type_fallback(ARGS);
 }
 
 OP_DEFINITION(SetInd) {
@@ -621,12 +544,49 @@ OP_DEFINITION(SetInd) {
       struct view *v = (struct view *)obj;
       struct object *source = view_source(v);
       gc_store_field(fiber->state->heap, source,
-                     &source->fields[1 + v->idx[k]], bp[src]);
+                     &source->fields[1 + v->slots[k]], bp[src]);
       DISPATCH();
     }
   }
 
-  MUSTTAIL return vm_op_set_typed_fallback(ARGS);
+  MUSTTAIL return vm_op_set_by_type_fallback(ARGS);
+}
+
+COLD_HELPER static const uint8_t *
+view_template(struct type_desc *source, const struct type_desc *target,
+              const struct member_desc **missing) {
+  *missing = nullptr;
+  for (struct view_tmpl *t = source->views; t != nullptr; t = t->next) {
+    if (t->target == target)
+      return t->slots;
+  }
+  struct view_tmpl *t = malloc(sizeof *t + target->nfields);
+  if (t == nullptr)
+    return nullptr;
+  for (uint32_t k = 0; k < target->nfields; k++) {
+    const struct member_desc *name = &target->members[k];
+    uint32_t i = find_member_pos_by_name(source->members, source->nfields,
+                                         name->name, name->len);
+    if (i == source->nfields) {
+      free(t);
+      *missing = name;
+      return nullptr;
+    }
+    t->slots[k] = (uint8_t)i;
+  }
+  t->target = target;
+  t->next = source->views;
+  source->views = t;
+  return t->slots;
+}
+
+COLD_HELPER static void cannotview_format(const struct type_desc *source,
+                                          const struct type_desc *target,
+                                          const struct member_desc *missing) {
+  snprintf(cannotview_msg, sizeof cannotview_msg,
+           "cannot view %.*s as %.*s: no field %.*s", (int)source->namelen,
+           source->name, (int)target->namelen, target->name,
+           (int)missing->len, missing->name);
 }
 
 OP_DEFINITION(View) {
@@ -659,8 +619,8 @@ OP_DEFINITION(View) {
   struct type_desc *sdesc = type_desc_of(val_as_type(source->fields[0]));
   const struct type_desc *desc = type_desc_of(type);
   const struct member_desc *missing;
-  const uint8_t *idx = view_template(sdesc, desc, &missing);
-  if (unlikely(idx == nullptr)) {
+  const uint8_t *slots = view_template(sdesc, desc, &missing);
+  if (unlikely(slots == nullptr)) {
     if (missing == nullptr) {
       MUSTTAIL return outofmemory(ARGS);
     }
@@ -673,7 +633,7 @@ OP_DEFINITION(View) {
   if (unlikely(v == nullptr)) {
     MUSTTAIL return outofmemory(ARGS);
   }
-  view_init(v, type, source, idx);
+  view_init(v, type, source, slots);
 
   gc_publish_new_object(state->heap, v);
   bp[dst] = val_from_ptr(v);
@@ -725,7 +685,7 @@ OP_DEFINITION(Invoke) {
   if (unlikely(val_is_type_macro(bp[base], ft))) {
     MUSTTAIL return notaninstance(ARGS);
   }
-  val_t *slot = member_slot(bp[base], fiber->ctbl[ARG3C]);
+  val_t *slot = find_member_by_selector(bp[base], fiber->ctbl[ARG3C]);
 
   if (unlikely(slot == nullptr)) {
     MUSTTAIL return nomember(ARGS);

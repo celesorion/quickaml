@@ -9,8 +9,8 @@
   _(LoadC     , "loadc"     )\
   _(LoadType  , "loadty"    )\
   _(LoadFree  , "loadfv"    )\
-  _(LoadField , "loadfld"   )\
-  _(SetField  , "setfld"    )\
+  _(LoadMem   , "loadmem"   )\
+  _(SetMem    , "setmem"    )\
   _(LoadSlot  , "loadslot"  )\
   _(SetSlot   , "setslot"   )\
   _(LoadInd   , "loadind"   )\

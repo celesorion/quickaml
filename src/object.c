@@ -17,13 +17,13 @@ COLD_HELPER void object_init(struct object *obj, enum tag tag, size_t nfields) {
 }
 
 COLD_HELPER void view_init(struct view *v, struct object *type,
-                           struct object *source, const uint8_t *idx) {
+                           struct object *source, const uint8_t *slots) {
   const struct type_desc *desc = type_desc_of(type);
   v->hd = obj_meta_pack((uint32_t)view_size(desc->nfields), TAG_VIEW, 0);
   v->gclist = nullptr;
   v->type = val_from_type(type);
   v->source = val_from_ptr(source);
-  memcpy(v->idx, idx, desc->nfields);
+  memcpy(v->slots, slots, desc->nfields);
 }
 
 COLD_HELPER void str_init(struct str *str, size_t len) {
@@ -195,10 +195,10 @@ static void print_list(struct printer *p, const val_t *fields, size_t n,
   }
 }
 
-/* A struct or view prints as its type name and `field = value` pairs; idx
+/* A struct or view prints as its type name and `field = value` pairs; slots
  * maps the fields of the type to slots of fields, or is null for identity. */
 static void print_struct(struct printer *p, const struct type_desc *desc,
-                         const val_t *fields, const uint8_t *idx, int depth) {
+                         const val_t *fields, const uint8_t *slots, int depth) {
   print_bytes(p, desc->name, desc->namelen);
   print_text(p, "{");
   for (size_t i = 0; i < desc->nfields; i++) {
@@ -206,7 +206,7 @@ static void print_struct(struct printer *p, const struct type_desc *desc,
       print_text(p, ", ");
     print_bytes(p, desc->members[i].name, desc->members[i].len);
     print_text(p, " = ");
-    print_value(p, fields[idx == nullptr ? i : idx[i]], depth + 1);
+    print_value(p, fields[slots == nullptr ? i : slots[i]], depth + 1);
   }
   print_text(p, "}");
 }
@@ -268,7 +268,7 @@ static void print_value(struct printer *p, val_t value, int depth) {
     break;
   case TAG_VIEW: {
     const struct view *v = (const struct view *)obj;
-    print_struct(p, type_desc_of(view_type(v)), fields, v->idx, depth);
+    print_struct(p, type_desc_of(view_type(v)), fields, v->slots, depth);
     break;
   }
   case TAG_TYPE: {
