@@ -134,14 +134,12 @@ void cannotview(PARAMS) {
   MUSTTAIL return panic(ARGS);
 }
 
-// The index of the member called `name` among `n` names, or `n`.
-static uint32_t find_member_pos_by_name(const struct member_desc *names,
-                                        uint32_t n, const char *name,
-                                        size_t len) {
-  for (uint32_t i = 0; i < n; i++) {
-    if (names[i].len == len && memcmp(names[i].name, name, len) == 0)
+// The index of the interned `name` among `n` names, or `n`.
+static uint32_t find_member_pos(struct str *const *names, uint32_t n,
+                                const struct str *name) {
+  for (uint32_t i = 0; i < n; i++)
+    if (names[i] == name)
       return i;
-  }
   return n;
 }
 
@@ -182,12 +180,11 @@ INLINE val_t *field_at(const struct members *m, uint32_t i) {
   return field_at_unchecked(m, i);
 }
 
-INLINE val_t *find_member_by_name(const struct members *m, const char *name,
-                                  size_t len, bool writing) {
+INLINE val_t *find_member_by_name(const struct members *m,
+                                  const struct str *name, bool writing) {
   const struct type_desc *desc = type_desc_of(m->type);
   if (m->holder != nullptr) {
-    uint32_t i =
-        find_member_pos_by_name(desc->members, desc->nfields, name, len);
+    uint32_t i = find_member_pos(desc->members, desc->nfields, name);
     if (i < desc->nfields)
       return field_at_unchecked(m, i);
   }
@@ -196,8 +193,7 @@ INLINE val_t *find_member_by_name(const struct members *m, const char *name,
   uint32_t n = desc->nmethods;
   if (m->holder == nullptr)
     n += desc->nfunctions;
-  uint32_t i =
-      find_member_pos_by_name(desc->members + desc->nfields, n, name, len);
+  uint32_t i = find_member_pos(desc->members + desc->nfields, n, name);
   return i < n ? &m->type->fields[1 + i] : nullptr;
 }
 
@@ -214,8 +210,7 @@ COLD_HELPER static val_t *find_member_by_selector(val_t recv, val_t selector) {
   }
   if (!members_of(recv, &m))
     return nullptr;
-  const struct str *str = val_as_str(selector);
-  return find_member_by_name(&m, str->bytes, str_len(str), false);
+  return find_member_by_name(&m, val_as_str(selector), false);
 }
 
 COLD_HELPER static val_t *find_field_by_selector(val_t recv, val_t selector,
@@ -226,8 +221,7 @@ COLD_HELPER static val_t *find_field_by_selector(val_t recv, val_t selector,
   *holder = m.holder;
   if (val_is_int(selector))
     return field_at(&m, (uint32_t)val_as_i32(selector));
-  const struct str *str = val_as_str(selector);
-  return find_member_by_name(&m, str->bytes, str_len(str), true);
+  return find_member_by_name(&m, val_as_str(selector), true);
 }
 
 COLD_HELPER static val_t *find_field_slow(struct fiber_segment *fiber,
@@ -242,8 +236,7 @@ COLD_HELPER static val_t *find_field_slow(struct fiber_segment *fiber,
   const struct type_desc *desc = type_desc_of(fiber->types[tid]);
   if (unlikely(k >= desc->nfields))
     return nullptr;
-  const struct member_desc *name = &desc->members[k];
-  return find_member_by_name(&m, name->name, name->len, holder != nullptr);
+  return find_member_by_name(&m, desc->members[k], holder != nullptr);
 }
 
 [[gnu::cold]] COLD_HELPER static val_t *
@@ -261,8 +254,7 @@ COLD_HELPER static val_t *find_method_slow(struct fiber_segment *fiber,
   const struct type_desc *desc = type_desc_of(fiber->types[tid]);
   if (unlikely(m >= desc->nmethods))
     return nullptr;
-  const struct member_desc *name = &desc->members[desc->nfields + m];
-  return find_member_by_name(&ms, name->name, name->len, false);
+  return find_member_by_name(&ms, desc->members[desc->nfields + m], false);
 }
 
 INLINE val_t *find_field_by_type(struct fiber_segment *fiber, val_t recv,
@@ -567,7 +559,7 @@ OP_DEFINITION(SetInd) {
 
 COLD_HELPER static const uint8_t *
 view_template(struct type_desc *source, const struct type_desc *target,
-              const struct member_desc **missing) {
+              const struct str **missing) {
   *missing = nullptr;
   for (struct view_tmpl *t = source->views; t != nullptr; t = t->next) {
     if (t->target == target)
@@ -577,12 +569,11 @@ view_template(struct type_desc *source, const struct type_desc *target,
   if (t == nullptr)
     return nullptr;
   for (uint32_t k = 0; k < target->nfields; k++) {
-    const struct member_desc *name = &target->members[k];
-    uint32_t i = find_member_pos_by_name(source->members, source->nfields,
-                                         name->name, name->len);
+    uint32_t i =
+        find_member_pos(source->members, source->nfields, target->members[k]);
     if (i == source->nfields) {
       free(t);
-      *missing = name;
+      *missing = target->members[k];
       return nullptr;
     }
     t->slots[k] = (uint8_t)i;
@@ -595,11 +586,11 @@ view_template(struct type_desc *source, const struct type_desc *target,
 
 COLD_HELPER static void cannotview_format(const struct type_desc *source,
                                           const struct type_desc *target,
-                                          const struct member_desc *missing) {
+                                          const struct str *missing) {
   snprintf(cannotview_msg, sizeof cannotview_msg,
            "cannot view %.*s as %.*s: no field %.*s", (int)source->namelen,
            source->name, (int)target->namelen, target->name,
-           (int)missing->len, missing->name);
+           (int)str_len(missing), missing->bytes);
 }
 
 OP_DEFINITION(View) {
@@ -631,7 +622,7 @@ OP_DEFINITION(View) {
 
   struct type_desc *sdesc = type_desc_of(val_as_type(source->fields[0]));
   const struct type_desc *desc = type_desc_of(type);
-  const struct member_desc *missing;
+  const struct str *missing;
   const uint8_t *slots = view_template(sdesc, desc, &missing);
   if (unlikely(slots == nullptr)) {
     if (missing == nullptr) {

@@ -2,6 +2,7 @@
 #include "bc.h"
 #include "trace.h"
 #include "vm.h"
+#include "hashtbl.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -94,6 +95,57 @@ COLD_HELPER void gc_store_field_slow(struct heap *h, val_t value) {
   shade_value(h, value);
 }
 
+/* ---------- string table ---------- */
+
+struct strview {
+  const char *s;
+  size_t n;
+};
+
+typedef struct str *strp;
+
+static inline bool str_is(const struct str *str, const char *s, size_t n) {
+  return str_len(str) == n && memcmp(str->bytes, s, n) == 0;
+}
+
+#define SP(k) (*(const strp *)(k))
+#define SV(k) ((const struct strview *)(k))
+#define STR_HASH(k) komihash(SP(k)->bytes, str_len(SP(k)), 0)
+#define STR_EQ(a, b) str_is(*(b), SP(a)->bytes, str_len(SP(a)))
+#define SV_HASH(k) komihash(SV(k)->s, SV(k)->n, 0)
+#define SV_EQ(a, b) str_is(*(b), SV(a)->s, SV(a)->n)
+
+HASHSET_NEW_KIND(strtab, strp, 8, DEFAULT_ALLOC, DEFAULT_COPY, DEFAULT_DEL,
+                 STR_EQ, DEFAULT_FREE, DEFAULT_GET, STR_HASH, DEFAULT_INIT,
+                 DEFAULT_MOVE)
+HASHTBL_NEW_LOOKUP_KIND(strtab, struct strview, sv, SV_EQ, DEFAULT_GET,
+                        SV_HASH)
+
+COLD_HELPER struct str *heap_intern_str(struct heap *h, const char *s,
+                                        size_t n) {
+  if (n == 0)
+    s = "";
+  struct strview key = {s, n};
+  strtab_iter_t it = strtab_find_by_sv(h->strings, &key);
+  strp *found = strtab_iter_get(&it);
+  if (found != nullptr)
+    return *found;
+  strp str = heap_alloc_preload(h, str_size(n));
+  if (str == nullptr)
+    return nullptr;
+  str_init(str, n);
+  memcpy(str->bytes, s, n);
+  gc_publish_new_object(h, str);
+  strtab_insert(&h->strings, &str);
+  return str;
+}
+
+static void gc_scan_strings(struct heap *h) {
+  strtab_iter_t it = strtab_iter(h->strings);
+  for (strp *e; (e = strtab_iter_get(&it)) != nullptr; strtab_iter_next(&it))
+    shade_value(h, val_from_str(*e));
+}
+
 /* ---------- root scanning ---------- */
 
 static void gc_scan_stack_roots(struct heap *h,
@@ -157,6 +209,7 @@ static void gc_scan_roots(struct fiber_segment *restrict fiber, struct heap *h,
   struct state *state = fiber->state;
   for (size_t i = 0; i < state->numfn; i++)
     gc_scan_thunk_constants(h, state->fns[i]);
+  gc_scan_strings(h);
 
   gc_scan_stack_roots(h, fiber, bp);
 
@@ -419,6 +472,7 @@ bool heap_init(struct heap *restrict h,
   *h = (struct heap){
       .base = mem,
       .limit = mem + heap_size,
+      .strings = strtab_new(256),
       .free_list = nullptr,
       .sweep_cursor = nullptr,
       .gray = nullptr,
@@ -441,6 +495,7 @@ void heap_deinit(struct heap *restrict h) {
   for (uint8_t *p = h->base; p < h->limit; p += object_align(obj_size(p)))
     if (obj_tag_of(p) == TAG_OPAQUE)
       opaque_finalize((struct opaque *)p);
+  strtab_destroy(h->strings);
   free(h->base);
   h->base = nullptr;
   h->limit = nullptr;

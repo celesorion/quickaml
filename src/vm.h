@@ -169,7 +169,7 @@ struct object *vm_type_alloc(const char *name, uint32_t namelen,
                              const struct member_desc *members,
                              uint32_t nfields, uint32_t nmethods,
                              uint32_t nfunctions,
-                             struct thunk *const *thunks);
+                             struct thunk *const *thunks, struct heap *heap);
 void vm_type_free(struct object *type);
 struct thunk *vm_native_thunk(const char *name, uint32_t len);
 struct opaque *vm_opaque_alloc(struct fiber_segment *fiber, val_t *bp,
