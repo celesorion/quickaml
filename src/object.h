@@ -45,8 +45,8 @@ struct thunk {
 
 /* Object tags, shared with Tag in bytecode.rs.  Words objects come first,
  * every slot of theirs is a val_t; from TAG_VIEW on the collector knows each
- * exotic layout one by one.  A negative tag marks a block that is not an
- * object at all.  Values the encoding carries itself have no tag. */
+ * exotic layout one by one.  A tag from TAG_PAD up marks a block that is not
+ * an object at all.  Values the encoding carries itself have no tag. */
 enum tag {
   TAG_TUPLE = 0,
   TAG_ARRAY = 1,
@@ -57,8 +57,8 @@ enum tag {
   TAG_THUNK = 6,
   TAG_STR = 7,
   TAG_OPAQUE = 8,
-  TAG_FREE = -1, /* not an object */
-  TAG_PAD = -2,  /* not an object: a header-sized gap between blocks */
+  TAG_PAD = 0xfe,  /* not an object: a header-sized gap between blocks */
+  TAG_FREE = 0xff, /* not an object */
 };
 
 INLINE bool obj_is_words(enum tag tag) { return (uint8_t)tag < TAG_VIEW; }
@@ -94,6 +94,7 @@ struct type_desc {
   uint32_t nmethods;
   uint32_t nfunctions;
   uint32_t namelen;
+  uint32_t index;
   const char *name;
   struct view_tmpl *views;
   struct member_desc members[];
@@ -373,7 +374,7 @@ INLINE size_t obj_size(const void *ref) {
 
 INLINE enum tag obj_tag_of(const void *ref) {
   const struct object *obj = ref;
-  return (enum tag)(int8_t)obj->hd;
+  return (enum tag)(uint8_t)obj->hd;
 }
 
 INLINE uint8_t obj_flags_of(const void *ref) {

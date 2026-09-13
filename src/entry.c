@@ -49,7 +49,8 @@ void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
 /* The type value, its description and the member names share one block:
  * the description follows the value's slots, the names the member table. */
-struct object *vm_type_alloc(const char *name, uint32_t namelen,
+struct object *vm_type_alloc(uint32_t index, const char *name,
+                             uint32_t namelen,
                              const struct member_desc *members,
                              uint32_t nfields, uint32_t nmethods,
                              uint32_t nfunctions,
@@ -82,6 +83,7 @@ struct object *vm_type_alloc(const char *name, uint32_t namelen,
   desc->nfields = nfields;
   desc->nmethods = nmethods;
   desc->nfunctions = nfunctions;
+  desc->index = index;
   desc->views = nullptr;
   char *text = (char *)&desc->members[nmembers];
   desc->name = text;

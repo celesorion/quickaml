@@ -182,14 +182,22 @@ INLINE val_t *field_at(const struct members *m, uint32_t i) {
   return field_at_unchecked(m, i);
 }
 
+struct member_pos {
+  uint32_t pos;
+  bool method;
+};
+
 INLINE val_t *find_member_by_name(const struct members *m, const char *name,
-                                  size_t len, bool writing) {
+                                  size_t len, bool writing,
+                                  struct member_pos *at) {
   const struct type_desc *desc = type_desc_of(m->type);
   if (m->holder != nullptr) {
     uint32_t i =
         find_member_pos_by_name(desc->members, desc->nfields, name, len);
-    if (i < desc->nfields)
+    if (i < desc->nfields) {
+      *at = (struct member_pos){i, false};
       return field_at_unchecked(m, i);
+    }
   }
   if (writing)
     return nullptr;
@@ -198,11 +206,16 @@ INLINE val_t *find_member_by_name(const struct members *m, const char *name,
     n += desc->nfunctions;
   uint32_t i =
       find_member_pos_by_name(desc->members + desc->nfields, n, name, len);
-  return i < n ? &m->type->fields[1 + i] : nullptr;
+  if (i >= n)
+    return nullptr;
+  *at = (struct member_pos){i, true};
+  return &m->type->fields[1 + i];
 }
 
-COLD_HELPER static val_t *find_member_by_selector(val_t recv, val_t selector) {
-  struct members m;
+COLD_HELPER static val_t *find_member_by_selector(val_t recv, val_t selector,
+                                                  struct members *m,
+                                                  struct member_pos *at) {
+  *m = (struct members){nullptr, nullptr, nullptr};
   if (val_is_int(selector)) {
     uint32_t i = (uint32_t)val_as_i32(selector);
     if (!val_is_empty(recv) && val_is_ptr(recv) &&
@@ -210,24 +223,27 @@ COLD_HELPER static val_t *find_member_by_selector(val_t recv, val_t selector) {
       struct object *tuple = val_as_ptr(recv);
       return i < object_nfields(tuple) ? &tuple->fields[i] : nullptr;
     }
-    return members_of(recv, &m) ? field_at(&m, i) : nullptr;
+    *at = (struct member_pos){i, false};
+    return members_of(recv, m) ? field_at(m, i) : nullptr;
   }
-  if (!members_of(recv, &m))
+  if (!members_of(recv, m))
     return nullptr;
   const struct str *str = val_as_str(selector);
-  return find_member_by_name(&m, str->bytes, str_len(str), false);
+  return find_member_by_name(m, str->bytes, str_len(str), false, at);
 }
 
 COLD_HELPER static val_t *find_field_by_selector(val_t recv, val_t selector,
-                                                 struct object **holder) {
-  struct members m;
-  if (!members_of(recv, &m))
+                                                 struct members *m,
+                                                 struct member_pos *at) {
+  if (!members_of(recv, m))
     return nullptr;
-  *holder = m.holder;
-  if (val_is_int(selector))
-    return field_at(&m, (uint32_t)val_as_i32(selector));
+  if (val_is_int(selector)) {
+    uint32_t i = (uint32_t)val_as_i32(selector);
+    *at = (struct member_pos){i, false};
+    return field_at(m, i);
+  }
   const struct str *str = val_as_str(selector);
-  return find_member_by_name(&m, str->bytes, str_len(str), true);
+  return find_member_by_name(m, str->bytes, str_len(str), true, at);
 }
 
 COLD_HELPER static val_t *find_field_slow(struct fiber_segment *fiber,
@@ -243,7 +259,9 @@ COLD_HELPER static val_t *find_field_slow(struct fiber_segment *fiber,
   if (unlikely(k >= desc->nfields))
     return nullptr;
   const struct member_desc *name = &desc->members[k];
-  return find_member_by_name(&m, name->name, name->len, holder != nullptr);
+  struct member_pos at;
+  return find_member_by_name(&m, name->name, name->len, holder != nullptr,
+                             &at);
 }
 
 [[gnu::cold]] COLD_HELPER static val_t *
@@ -262,7 +280,8 @@ COLD_HELPER static val_t *find_method_slow(struct fiber_segment *fiber,
   if (unlikely(m >= desc->nmethods))
     return nullptr;
   const struct member_desc *name = &desc->members[desc->nfields + m];
-  return find_member_by_name(&ms, name->name, name->len, false);
+  struct member_pos at;
+  return find_member_by_name(&ms, name->name, name->len, false, &at);
 }
 
 INLINE val_t *find_field_by_type(struct fiber_segment *fiber, val_t recv,
@@ -417,36 +436,120 @@ OP_DEFINITION(LoadFree) {
   DISPATCH();
 }
 
-OP_DEFINITION(LoadMem) {
+COLD_HELPER static void cache_member(bc_t *site, op_t cached,
+                                     struct object *type, uint32_t pos) {
+  uint32_t index = type_desc_of(type)->index;
+  if (pos > UINT8_MAX || index > UINT16_MAX)
+    return;
+  uint8_t *word = (uint8_t *)(site + 1);
+  word[1] = (uint8_t)pos;
+  word[2] = (uint8_t)index;
+  word[3] = (uint8_t)(index >> 8);
+  ((uint8_t *)site)[0] = (uint8_t)cached;
+}
+
+THREADED void vm_op_loadmem_miss(PARAMS) {
   ssz_t dst = ARG3A;
   ssz_t recv = ARG3B;
-  val_t *slot = find_member_by_selector(bp[recv], fiber->ctbl[ARG3C]);
+  struct members m;
+  struct member_pos at;
+  val_t *slot =
+      find_member_by_selector(bp[recv], fiber->ctbl[ARG3C], &m, &at);
 
   if (unlikely(slot == nullptr)) {
     MUSTTAIL return nomember(ARGS);
   }
 
   bp[dst] = *slot;
+  if (m.holder != nullptr && !at.method)
+    cache_member(ip - 2, LoadMemC, m.type, at.pos);
 
   DISPATCH();
 }
 
-OP_DEFINITION(SetMem) {
+OP_DEFINITION(LoadMem) {
+  ip++;
+  MUSTTAIL return vm_op_loadmem_miss(ARGS);
+}
+
+OP_DEFINITION(LoadMemC) {
+  ssz_t dst = ARG3A;
+  ssz_t recv = ARG3B;
+  NEXT_INSN(ext);
+  ssz_t k = EXTRA_ARG2A(ext);
+  val_t type = val_from_type(fiber->types[EXTRA_ARG2B(ext)]);
+  val_t self = bp[recv];
+
+  if (likely(val_is_object_macro(self, ft))) {
+    struct object *obj = val_as_object(self);
+    enum tag tag = obj_tag_of(obj);
+    if (likely((tag & (TAG_STRUCT & TAG_VIEW)) &&
+               obj->fields[0] == type)) {
+      if (!(tag & (TAG_STRUCT ^ TAG_VIEW))) {
+        bp[dst] = obj->fields[1 + k];
+      } else {
+        struct view *v = (struct view *)obj;
+        bp[dst] = view_source(v)->fields[1 + v->slots[k]];
+      }
+      DISPATCH();
+    }
+  }
+
+  MUSTTAIL return vm_op_loadmem_miss(ARGS);
+}
+
+THREADED void vm_op_setmem_miss(PARAMS) {
   ssz_t src = ARG3A;
   ssz_t recv = ARG3B;
-  struct object *holder;
-  val_t *slot = find_field_by_selector(bp[recv], fiber->ctbl[ARG3C], &holder);
+  struct members m;
+  struct member_pos at;
+  val_t *slot = find_field_by_selector(bp[recv], fiber->ctbl[ARG3C], &m, &at);
 
   if (unlikely(slot == nullptr)) {
-    if (find_member_by_selector(bp[recv], fiber->ctbl[ARG3C]) == nullptr) {
+    if (find_member_by_selector(bp[recv], fiber->ctbl[ARG3C], &m, &at) ==
+        nullptr) {
       MUSTTAIL return nomember(ARGS);
     }
     MUSTTAIL return notafield(ARGS);
   }
 
-  gc_store_field(fiber->state->heap, holder, slot, bp[src]);
+  gc_store_field(fiber->state->heap, m.holder, slot, bp[src]);
+  cache_member(ip - 2, SetMemC, m.type, at.pos);
 
   DISPATCH();
+}
+
+OP_DEFINITION(SetMem) {
+  ip++;
+  MUSTTAIL return vm_op_setmem_miss(ARGS);
+}
+
+OP_DEFINITION(SetMemC) {
+  ssz_t src = ARG3A;
+  ssz_t recv = ARG3B;
+  NEXT_INSN(ext);
+  ssz_t k = EXTRA_ARG2A(ext);
+  val_t type = val_from_type(fiber->types[EXTRA_ARG2B(ext)]);
+  val_t self = bp[recv];
+
+  if (likely(val_is_object_macro(self, ft))) {
+    struct object *obj = val_as_object(self);
+    enum tag tag = obj_tag_of(obj);
+    if (likely((tag & (TAG_STRUCT & TAG_VIEW)) &&
+               obj->fields[0] == type)) {
+      struct object *holder = obj;
+      val_t *slot = &obj->fields[1 + k];
+      if (tag & (TAG_STRUCT ^ TAG_VIEW)) {
+        struct view *v = (struct view *)obj;
+        holder = view_source(v);
+        slot = &holder->fields[1 + v->slots[k]];
+      }
+      gc_store_field(fiber->state->heap, holder, slot, bp[src]);
+      DISPATCH();
+    }
+  }
+
+  MUSTTAIL return vm_op_setmem_miss(ARGS);
 }
 
 THREADED void vm_op_load_by_type_fallback(PARAMS) {
@@ -495,8 +598,15 @@ OP_DEFINITION(LoadSlot) {
 
   if (likely(val_is_object_macro(self, ft))) {
     struct object *obj = val_as_object(self);
-    if (likely(obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type)) {
-      bp[dst] = obj->fields[1 + k];
+    enum tag tag = obj_tag_of(obj);
+    if (likely((tag & (TAG_STRUCT & TAG_VIEW)) &&
+               obj->fields[0] == type)) {
+      if (!(tag & (TAG_STRUCT ^ TAG_VIEW))) {
+        bp[dst] = obj->fields[1 + k];
+      } else {
+        struct view *v = (struct view *)obj;
+        bp[dst] = view_source(v)->fields[1 + v->slots[k]];
+      }
       DISPATCH();
     }
   }
@@ -514,8 +624,17 @@ OP_DEFINITION(SetSlot) {
 
   if (likely(val_is_object_macro(self, ft))) {
     struct object *obj = val_as_object(self);
-    if (likely(obj_tag_of(obj) == TAG_STRUCT && obj->fields[0] == type)) {
-      gc_store_field(fiber->state->heap, obj, &obj->fields[1 + k], bp[src]);
+    enum tag tag = obj_tag_of(obj);
+    if (likely((tag & (TAG_STRUCT & TAG_VIEW)) &&
+               obj->fields[0] == type)) {
+      struct object *holder = obj;
+      val_t *slot = &obj->fields[1 + k];
+      if (tag & (TAG_STRUCT ^ TAG_VIEW)) {
+        struct view *v = (struct view *)obj;
+        holder = view_source(v);
+        slot = &holder->fields[1 + v->slots[k]];
+      }
+      gc_store_field(fiber->state->heap, holder, slot, bp[src]);
       DISPATCH();
     }
   }
@@ -691,23 +810,56 @@ OP_DEFINITION(Apply) {
   DISPATCH();
 }
 
-OP_DEFINITION(Invoke) {
+THREADED void vm_op_invoke_miss(PARAMS) {
   ssz_t dst = ARG3A;
   ssz_t base = ARG3B;
+  struct members m;
+  struct member_pos at;
 
   if (unlikely(val_is_type_macro(bp[base], ft))) {
     MUSTTAIL return notaninstance(ARGS);
   }
-  val_t *slot = find_member_by_selector(bp[base], fiber->ctbl[ARG3C]);
+  val_t *slot =
+      find_member_by_selector(bp[base], fiber->ctbl[ARG3C], &m, &at);
 
   if (unlikely(slot == nullptr)) {
     MUSTTAIL return nomember(ARGS);
   }
 
+  if (m.holder != nullptr && at.method)
+    cache_member(ip - 3, InvokeC, m.type, at.pos);
+
   // The call region starts at dst exactly like an ordinary application, so
   // the member closure only has to be moved into place.
   bp[dst] = *slot;
   MUSTTAIL return vm_op_Apply(ARGS);
+}
+
+OP_DEFINITION(Invoke) {
+  ip += 2;
+  MUSTTAIL return vm_op_invoke_miss(ARGS);
+}
+
+OP_DEFINITION(InvokeC) {
+  ssz_t dst = ARG3A;
+  ssz_t base = ARG3B;
+  NEXT_INSN(ext);
+  ip++;
+  ssz_t m = EXTRA_ARG2A(ext);
+  struct object *type = fiber->types[EXTRA_ARG2B(ext)];
+  val_t recv = bp[base];
+
+  if (likely(val_is_object_macro(recv, ft))) {
+    struct object *obj = val_as_object(recv);
+    enum tag tag = obj_tag_of(obj);
+    if (likely((tag & (TAG_STRUCT & TAG_VIEW)) &&
+               obj->fields[0] == val_from_type(type))) {
+      bp[dst] = type->fields[1 + m];
+      MUSTTAIL return vm_op_Apply(ARGS);
+    }
+  }
+
+  MUSTTAIL return vm_op_invoke_miss(ARGS);
 }
 
 THREADED void vm_op_invoke_by_type_fallback(PARAMS) {
@@ -743,7 +895,7 @@ OP_DEFINITION(InvokeInd) {
   if (likely(val_is_object_macro(recv, ft))) {
     struct object *obj = val_as_object(recv);
     enum tag tag = obj_tag_of(obj);
-    if (likely((tag == TAG_STRUCT || tag == TAG_VIEW) &&
+    if (likely((tag & (TAG_STRUCT & TAG_VIEW)) &&
                obj->fields[0] == val_from_type(type))) {
       bp[dst] = type->fields[1 + m];
       MUSTTAIL return vm_op_Apply(ARGS);

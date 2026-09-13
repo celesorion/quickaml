@@ -10,7 +10,9 @@
   _(LoadType  , "loadty"    )\
   _(LoadFree  , "loadfv"    )\
   _(LoadMem   , "loadmem"   )\
+  _(LoadMemC  , "loadmem.c" )\
   _(SetMem    , "setmem"    )\
+  _(SetMemC   , "setmem.c"  )\
   _(LoadSlot  , "loadslot"  )\
   _(SetSlot   , "setslot"   )\
   _(LoadInd   , "loadind"   )\
@@ -19,6 +21,7 @@
   _(Move      , "move"      )\
   _(Apply     , "apply"     )\
   _(Invoke    , "invoke"    )\
+  _(InvokeC   , "invoke.c"  )\
   _(InvokeInd , "invokeind" )\
   _(Call      , "call"      )\
   _(Native    , "native"    )\

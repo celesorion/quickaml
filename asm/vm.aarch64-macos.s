@@ -183,125 +183,43 @@ _vm_op_LoadFree:                        ; @vm_op_LoadFree
 	.p2align	5                               ; -- Begin function vm_op_LoadMem
 _vm_op_LoadMem:                         ; @vm_op_LoadMem
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	mov	x9, x1
-	mov	x10, x0
-	and	w8, w0, #0xff
-	ldr	x0, [x21, w8, uxtw #3]
-	ldr	x8, [x23, #16]
-	lsr	w11, w10, #8
-	ldr	x1, [x8, w11, uxtw #3]
-	bl	_find_member_by_selector
-	cbz	x0, .L2
-; %bb.1:
-	ldr	x8, [x0]
-	str	x8, [x21, w9, uxtw #3]
-	ldrb	w8, [x20]
-	ldr	x2, [x24, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
 	add	x20, x20, #4
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	br	x2
-.L2:
-	mov	x0, x10
-	mov	x1, x9
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	_nomember
+	b	_vm_op_loadmem_miss
                                         ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_SetMem
-_vm_op_SetMem:                          ; @vm_op_SetMem
+	.p2align	5                               ; -- Begin function vm_op_LoadMemC
+_vm_op_LoadMemC:                        ; @vm_op_LoadMemC
 ; %bb.0:
-	sub	sp, sp, #32
-	stp	x29, x30, [sp, #16]             ; 16-byte Folded Spill
-	add	x29, sp, #16
-	mov	x9, x1
-	mov	x10, x0
-	and	w8, w0, #0xff
-	ldr	x11, [x21, w8, uxtw #3]
-	ldr	x8, [x23, #16]
-	lsr	w12, w0, #8
-	ldr	x12, [x8, w12, uxtw #3]
-	add	x2, sp, #8
-	mov	x0, x11
-	mov	x1, x12
-	bl	_find_field_by_selector
-	cbz	x0, .L4
+	and	x8, x0, #0xff
+	ldr	x8, [x21, x8, lsl #3]
+	sub	x9, x8, #8
+	mov	x10, #7                         ; =0x7
+	movk	x10, #1, lsl #48
+	orr	x10, x22, x10
+	tst	x9, x10
+	b.ne	.L6
 ; %bb.1:
-	mov	x8, x0
-	ldr	x10, [x23]
-	ldr	x0, [x10]
-	ldr	x10, [sp, #8]
-	ldr	x1, [x21, w9, uxtw #3]
-	str	x1, [x8]
-	ldr	w8, [x0, #40]
-	cmp	w8, #1
-	b.ne	.L3
+	ldr	w10, [x8]
+	tbz	w10, #2, .L6
 ; %bb.2:
-	ldr	x8, [x10]
-	and	x8, x8, #0x300
-	cmp	x8, #512
-	b.eq	.L7
-.L3:
-	ldrb	w8, [x20]
-	ldr	x2, [x24, x8, lsl #3]
-	ldrb	w1, [x20, #1]
-	ldrh	w0, [x20, #2]
-	add	x20, x20, #4
-	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
-	add	sp, sp, #32
-	br	x2
-.L4:
-	mov	x0, x11
-	mov	x1, x12
-	bl	_find_member_by_selector
-	cbnz	x0, .L6
-; %bb.5:
-	mov	x0, x10
-	mov	x1, x9
-	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
-	add	sp, sp, #32
-	b	_nomember
-.L6:
-	mov	x0, x10
-	mov	x1, x9
-	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
-	add	sp, sp, #32
-	b	_notafield
-.L7:
-	bl	_gc_store_field_slow
-	b	.L3
-                                        ; -- End function
-	.p2align	5                               ; -- Begin function vm_op_LoadSlot
-_vm_op_LoadSlot:                        ; @vm_op_LoadSlot
-; %bb.0:
-	and	w9, w0, #0xff
-	mov	x8, x20
-	ldr	w10, [x8], #4
-	ldr	x9, [x21, w9, uxtw #3]
-	sub	x11, x9, #8
-	mov	x12, #7                         ; =0x7
-	movk	x12, #1, lsl #48
-	orr	x12, x22, x12
-	tst	x11, x12
-	b.ne	.L4
-; %bb.1:
-	ldrb	w11, [x9]
-	cmp	x11, #4
-	b.ne	.L4
-; %bb.2:
-	ldr	x11, [x23, #24]
-	lsr	x10, x10, #8
-	ldr	x10, [x11, x10, lsl #3]
-	orr	x10, x10, #0x4
-	ldr	x11, [x9, #16]!
-	cmp	x11, x10
-	b.ne	.L4
+	ldr	x9, [x23, #24]
+	ldrh	w11, [x20, #2]
+	ldr	x9, [x9, x11, lsl #3]
+	orr	x9, x9, #0x4
+	ldr	x11, [x8, #16]
+	cmp	x11, x9
+	b.ne	.L6
 ; %bb.3:
-	lsr	w8, w0, #8
-	add	w8, w8, #1
-	ldr	x8, [x9, w8, uxtw #3]
+	ldrb	w9, [x20, #1]
+	tbz	w10, #0, .L5
+; %bb.4:
+	ldr	x10, [x8, #24]
+	add	x8, x8, x9
+	and	x10, x10, #0xfffffffffffffff8
+	ldrb	w9, [x8, #32]
+	mov	x8, x10
+.L5:
+	add	x8, x8, x9, lsl #3
+	ldr	x8, [x8, #24]
 	str	x8, [x21, w1, uxtw #3]
 	ldrb	w8, [x20, #4]
 	ldr	x2, [x24, x8, lsl #3]
@@ -309,7 +227,134 @@ _vm_op_LoadSlot:                        ; @vm_op_LoadSlot
 	ldrh	w0, [x20, #6]
 	add	x20, x20, #8
 	br	x2
-.L4:
+.L6:
+	add	x20, x20, #4
+	b	_vm_op_loadmem_miss
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_SetMem
+_vm_op_SetMem:                          ; @vm_op_SetMem
+; %bb.0:
+	add	x20, x20, #4
+	b	_vm_op_setmem_miss
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_SetMemC
+_vm_op_SetMemC:                         ; @vm_op_SetMemC
+; %bb.0:
+	and	x8, x0, #0xff
+	ldr	x8, [x21, x8, lsl #3]
+	sub	x9, x8, #8
+	mov	x10, #7                         ; =0x7
+	movk	x10, #1, lsl #48
+	orr	x10, x22, x10
+	tst	x9, x10
+	b.ne	.L9
+; %bb.1:
+	ldr	w9, [x8]
+	tbz	w9, #2, .L9
+; %bb.2:
+	ldr	x10, [x23, #24]
+	ldrh	w11, [x20, #2]
+	ldr	x10, [x10, x11, lsl #3]
+	orr	x11, x10, #0x4
+	mov	x10, x8
+	ldr	x12, [x10, #16]!
+	cmp	x12, x11
+	b.ne	.L9
+; %bb.3:
+	ldrb	w11, [x20, #1]
+	tbnz	w9, #0, .L5
+; %bb.4:
+	add	x9, x10, x11, lsl #3
+	add	x9, x9, #8
+	b	.L6
+.L5:
+	ldr	x9, [x8, #24]
+	add	x8, x8, x11
+	and	x10, x9, #0xfffffffffffffff8
+	ldrb	w8, [x8, #32]
+	add	x8, x10, x8, lsl #3
+	add	x9, x8, #24
+	mov	x8, x10
+.L6:
+	ldr	x10, [x23]
+	ldr	x0, [x10]
+	ldr	x1, [x21, w1, uxtw #3]
+	str	x1, [x9]
+	ldr	w9, [x0, #40]
+	cmp	w9, #1
+	b.ne	.L8
+; %bb.7:
+	ldr	x8, [x8]
+	and	x8, x8, #0x300
+	cmp	x8, #512
+	b.eq	.L10
+.L8:
+	ldrb	w8, [x20, #4]
+	ldr	x2, [x24, x8, lsl #3]
+	ldrb	w1, [x20, #5]
+	ldrh	w0, [x20, #6]
+	add	x20, x20, #8
+	br	x2
+.L9:
+	add	x20, x20, #4
+	b	_vm_op_setmem_miss
+.L10:
+	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
+	mov	x29, sp
+	bl	_gc_store_field_slow
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	b	.L8
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_LoadSlot
+_vm_op_LoadSlot:                        ; @vm_op_LoadSlot
+; %bb.0:
+	and	w9, w0, #0xff
+	mov	x8, x20
+	ldr	w11, [x8], #4
+	ldr	x9, [x21, w9, uxtw #3]
+	sub	x10, x9, #8
+	mov	x12, #7                         ; =0x7
+	movk	x12, #1, lsl #48
+	orr	x12, x22, x12
+	tst	x10, x12
+	b.ne	.L7
+; %bb.1:
+	ldr	w10, [x9]
+	tbz	w10, #2, .L7
+; %bb.2:
+	ldr	x12, [x23, #24]
+	lsr	x11, x11, #8
+	ldr	x11, [x12, x11, lsl #3]
+	orr	x12, x11, #0x4
+	mov	x11, x9
+	ldr	x13, [x11, #16]!
+	cmp	x13, x12
+	b.ne	.L7
+; %bb.3:
+	mov	w8, w0
+	lsr	x8, x8, #8
+	tbnz	w10, #0, .L5
+; %bb.4:
+	add	w8, w8, #1
+	add	x8, x11, w8, uxtw #3
+	b	.L6
+.L5:
+	ldr	x10, [x9, #24]
+	and	x10, x10, #0xfffffffffffffff8
+	add	x8, x9, x8
+	ldrb	w8, [x8, #32]
+	add	x8, x10, x8, lsl #3
+	add	x8, x8, #24
+.L6:
+	ldr	x8, [x8]
+	str	x8, [x21, w1, uxtw #3]
+	ldrb	w8, [x20, #4]
+	ldr	x2, [x24, x8, lsl #3]
+	ldrb	w1, [x20, #5]
+	ldrh	w0, [x20, #6]
+	add	x20, x20, #8
+	br	x2
+.L7:
 	mov	x20, x8
 	b	_vm_op_load_by_type_fallback
                                         ; -- End function
@@ -325,48 +370,63 @@ _vm_op_SetSlot:                         ; @vm_op_SetSlot
 	movk	x12, #1, lsl #48
 	orr	x12, x22, x12
 	tst	x10, x12
-	b.ne	.L5
+	b.ne	.L9
 ; %bb.1:
-	ldr	x10, [x9]
-	and	x12, x10, #0xff
-	cmp	x12, #4
-	b.ne	.L5
+	ldr	w10, [x9]
+	tbz	w10, #2, .L9
 ; %bb.2:
 	ldr	x12, [x23, #24]
 	lsr	x11, x11, #8
 	ldr	x11, [x12, x11, lsl #3]
-	orr	x11, x11, #0x4
-	ldr	x12, [x9, #16]!
-	cmp	x12, x11
-	b.ne	.L5
+	orr	x12, x11, #0x4
+	mov	x11, x9
+	ldr	x13, [x11, #16]!
+	cmp	x13, x12
+	b.ne	.L9
 ; %bb.3:
-	lsr	w8, w0, #8
-	ldr	x11, [x23]
-	ldr	x0, [x11]
+	mov	w8, w0
+	lsr	x8, x8, #8
+	tbnz	w10, #0, .L5
+; %bb.4:
 	add	w8, w8, #1
+	add	x8, x11, w8, uxtw #3
+	b	.L6
+.L5:
+	ldr	x10, [x9, #24]
+	add	x8, x9, x8
+	and	x9, x10, #0xfffffffffffffff8
+	ldrb	w8, [x8, #32]
+	add	x8, x9, x8, lsl #3
+	add	x8, x8, #24
+.L6:
+	ldr	x10, [x23]
+	ldr	x0, [x10]
 	ldr	x1, [x21, w1, uxtw #3]
-	str	x1, [x9, w8, uxtw #3]
+	str	x1, [x8]
 	ldr	w8, [x0, #40]
-	and	x9, x10, #0x300
-	cmp	x9, #512
-	ccmp	w8, #1, #0, eq
-	b.eq	.L6
-.L4:
+	cmp	w8, #1
+	b.ne	.L8
+; %bb.7:
+	ldr	x8, [x9]
+	and	x8, x8, #0x300
+	cmp	x8, #512
+	b.eq	.L10
+.L8:
 	ldrb	w8, [x20, #4]
 	ldr	x2, [x24, x8, lsl #3]
 	ldrb	w1, [x20, #5]
 	ldrh	w0, [x20, #6]
 	add	x20, x20, #8
 	br	x2
-.L5:
+.L9:
 	mov	x20, x8
 	b	_vm_op_set_by_type_fallback
-.L6:
+.L10:
 	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
 	mov	x29, sp
 	bl	_gc_store_field_slow
 	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	.L4
+	b	.L8
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_LoadInd
 _vm_op_LoadInd:                         ; @vm_op_LoadInd
@@ -658,39 +718,41 @@ _vm_op_Apply:                           ; @vm_op_Apply
 	.p2align	5                               ; -- Begin function vm_op_Invoke
 _vm_op_Invoke:                          ; @vm_op_Invoke
 ; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	mov	x29, sp
-	mov	x9, x1
-	mov	x10, x0
-	and	w8, w0, #0xff
-	ldr	x0, [x21, w8, uxtw #3]
-	add	x8, x22, #7
-	and	x8, x0, x8
-	cmp	x8, #4
-	b.eq	.L3
+	add	x20, x20, #8
+	b	_vm_op_invoke_miss
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_InvokeC
+_vm_op_InvokeC:                         ; @vm_op_InvokeC
+; %bb.0:
+	and	x8, x0, #0xff
+	ldr	x8, [x21, x8, lsl #3]
+	sub	x9, x8, #8
+	mov	x10, #7                         ; =0x7
+	movk	x10, #1, lsl #48
+	orr	x10, x22, x10
+	tst	x9, x10
+	b.ne	.L4
 ; %bb.1:
-	ldr	x8, [x23, #16]
-	lsr	w11, w10, #8
-	ldr	x1, [x8, w11, uxtw #3]
-	bl	_find_member_by_selector
-	cbz	x0, .L4
+	ldrb	w9, [x8]
+	tbz	w9, #2, .L4
 ; %bb.2:
-	ldr	x8, [x0]
-	str	x8, [x21, w9, uxtw #3]
-	mov	x0, x10
-	mov	x1, x9
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	ldr	x9, [x23, #24]
+	ldrh	w10, [x20, #2]
+	ldr	x9, [x9, x10, lsl #3]
+	ldr	x8, [x8, #16]
+	orr	x10, x9, #0x4
+	cmp	x8, x10
+	b.ne	.L4
+; %bb.3:
+	ldrb	w8, [x20, #1]
+	add	x8, x9, x8, lsl #3
+	ldr	x8, [x8, #24]
+	str	x8, [x21, w1, uxtw #3]
+	add	x20, x20, #8
 	b	_vm_op_Apply
-.L3:
-	mov	x0, x10
-	mov	x1, x9
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	_notaninstance
 .L4:
-	mov	x0, x10
-	mov	x1, x9
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	b	_nomember
+	add	x20, x20, #8
+	b	_vm_op_invoke_miss
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_InvokeInd
 _vm_op_InvokeInd:                       ; @vm_op_InvokeInd
@@ -705,10 +767,8 @@ _vm_op_InvokeInd:                       ; @vm_op_InvokeInd
 	tst	x10, x11
 	b.ne	.L4
 ; %bb.1:
-	ldr	x10, [x8]
-	and	x10, x10, #0xfe
-	cmp	x10, #4
-	b.ne	.L4
+	ldrb	w10, [x8]
+	tbz	w10, #2, .L4
 ; %bb.2:
 	ldr	x10, [x23, #24]
 	lsr	x9, x9, #8
@@ -950,7 +1010,7 @@ _vm_op_Clos:                            ; @vm_op_Clos
 	mov	x1, x21
 	bl	_capture_loc_resolve
 	tbz	w0, #0, .L7
-; %bb.4:                                ;   in Loop: Header=BB26_3 Depth=1
+; %bb.4:                                ;   in Loop: Header=BB29_3 Depth=1
 	ldr	x8, [sp, #8]
 	str	x8, [x15], #8
 	subs	x14, x14, #1
@@ -1688,7 +1748,7 @@ _vm_op_SetCond:                         ; @vm_op_SetCond
 ; %bb.0:
 	strb	wzr, [x23, #64]
 	ldrb	w8, [x20], #4
-	sub	w8, w8, #42
+	sub	w8, w8, #45
 	cmp	w8, #15
 	b.hs	.L2
 ; %bb.1:
@@ -1708,7 +1768,7 @@ _vm_op_SetCondJ:                        ; @vm_op_SetCondJ
 	mov	w8, #1                          ; =0x1
 	strb	w8, [x23, #64]
 	ldrb	w8, [x20], #4
-	sub	w8, w8, #42
+	sub	w8, w8, #45
 	cmp	w8, #15
 	b.hs	.L2
 ; %bb.1:
@@ -2411,212 +2471,297 @@ Lloh19:
 	b	_panic
 	.loh AdrpAdd	Lloh18, Lloh19
                                         ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_loadmem_miss
+_vm_op_loadmem_miss:                    ; @vm_op_loadmem_miss
+; %bb.0:
+	sub	sp, sp, #48
+	stp	x29, x30, [sp, #32]             ; 16-byte Folded Spill
+	add	x29, sp, #32
+	mov	x9, x1
+	mov	x10, x0
+	and	w8, w0, #0xff
+	ldr	x0, [x21, w8, uxtw #3]
+	ldr	x8, [x23, #16]
+	lsr	w11, w10, #8
+	ldr	x1, [x8, w11, uxtw #3]
+	add	x2, sp, #8
+	mov	x3, sp
+	bl	_find_member_by_selector
+	cbz	x0, .L5
+; %bb.1:
+	ldr	x8, [x0]
+	str	x8, [x21, w9, uxtw #3]
+	ldr	x8, [sp, #16]
+	cbz	x8, .L4
+; %bb.2:
+	ldrb	w8, [sp, #4]
+	tbnz	w8, #0, .L4
+; %bb.3:
+	sub	x0, x20, #8
+	ldr	x2, [sp, #8]
+	ldr	w3, [sp]
+	mov	w1, #10                         ; =0xa
+	bl	_cache_member
+.L4:
+	ldrb	w8, [x20]
+	ldr	x2, [x24, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	br	x2
+.L5:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	b	_nomember
+                                        ; -- End function
 	.p2align	2                               ; -- Begin function find_member_by_selector
 _find_member_by_selector:               ; @find_member_by_selector
 ; %bb.0:
-	str	x15, [sp, #-160]!               ; 8-byte Folded Spill
+	str	x15, [sp, #-144]!               ; 8-byte Folded Spill
 	stp	x14, x13, [sp, #16]             ; 16-byte Folded Spill
 	stp	x12, x11, [sp, #32]             ; 16-byte Folded Spill
 	stp	x10, x9, [sp, #48]              ; 16-byte Folded Spill
-	stp	x28, x27, [sp, #64]             ; 16-byte Folded Spill
-	stp	x26, x25, [sp, #80]             ; 16-byte Folded Spill
-	stp	x24, x23, [sp, #96]             ; 16-byte Folded Spill
-	stp	x22, x21, [sp, #112]            ; 16-byte Folded Spill
-	stp	x20, x19, [sp, #128]            ; 16-byte Folded Spill
-	stp	x29, x30, [sp, #144]            ; 16-byte Folded Spill
-	add	x29, sp, #144
-	mov	x19, x1
-	mov	x8, #-562949953421312           ; =0xfffe000000000000
-	cmp	x1, x8
-	b.lo	.L9
+	stp	x26, x25, [sp, #64]             ; 16-byte Folded Spill
+	stp	x24, x23, [sp, #80]             ; 16-byte Folded Spill
+	stp	x22, x21, [sp, #96]             ; 16-byte Folded Spill
+	stp	x20, x19, [sp, #112]            ; 16-byte Folded Spill
+	stp	x29, x30, [sp, #128]            ; 16-byte Folded Spill
+	add	x29, sp, #128
+	mov	x20, x3
+	mov	x19, x2
+	mov	x8, x0
+	stp	xzr, xzr, [x2]
+	str	xzr, [x2, #16]
+	mov	x16, #-562949953421312          ; =0xfffe000000000000
+	cmp	x1, x16
+	b.lo	.L4
 ; %bb.1:
-	mov	x20, #0                         ; =0x0
-	cbz	x0, .L39
+	cbz	x8, .L3
 ; %bb.2:
-	and	x8, x0, #0xfffffffffffffffe
-	and	x8, x8, #0xfffe000000000003
-	cbnz	x8, .L39
-; %bb.3:
-	and	x8, x0, #0x1fffffffffff8
-	ldr	x16, [x8]
-	tst	x16, #0xff
-	b.eq	.L35
-; %bb.4:
-	ldr	w16, [x8]
-	and	w17, w16, #0xff
-	cmp	w17, #4
-	b.eq	.L36
+	mov	x16, #2                         ; =0x2
+	movk	x16, #65534, lsl #48
+	tst	x8, x16
+	b.eq	.L23
+.L3:
+	mov	x0, #0                          ; =0x0
+	stp	w1, wzr, [x20]
+	b	.L45
+.L4:
+	mov	x0, #0                          ; =0x0
+	cbz	x8, .L45
 ; %bb.5:
-	sxtb	w16, w16
-	cmp	w16, #5
-	b.ne	.L38
+	and	x16, x8, #0xfffffffffffffffe
+	and	x16, x16, #0xfffe000000000003
+	cbnz	x16, .L45
 ; %bb.6:
-	ldr	x16, [x8, #24]
-	ands	x16, x16, #0xfffffffffffffff8
-	b.eq	.L38
-; %bb.7:
-	ldr	x17, [x8, #16]
-	ldur	x17, [x17, #12]
-	and	x17, x17, #0xfffffffffffffff8
-	ldr	w17, [x17]
-	cmp	w17, w19
-	b.ls	.L38
-; %bb.8:
-	add	x8, x8, #32
-	ldrb	w19, [x8, w19, uxtw]
-	mov	x8, x16
-	b	.L37
-.L9:
-	mov	x20, #0                         ; =0x0
-	cbz	x0, .L39
-; %bb.10:
-	and	x8, x0, #0xfffffffffffffffe
-	and	x8, x8, #0xfffe000000000003
-	cbnz	x8, .L39
-; %bb.11:
-	mov	x20, #0                         ; =0x0
-	and	x22, x0, #0x1fffffffffff8
-	ldr	w8, [x22]
-	and	w16, w8, #0xff
+	and	x8, x8, #0x1fffffffffff8
+	ldrb	w16, [x8]
 	cmp	w16, #3
 	b.eq	.L16
-; %bb.12:
-	sxtb	w8, w8
-	cmp	w8, #5
-	b.eq	.L15
-; %bb.13:
-	cmp	w8, #4
-	b.ne	.L39
-; %bb.14:
-	mov	x20, #0                         ; =0x0
-	ldr	x8, [x22, #16]
-	mov	x24, x22
-	sub	x22, x8, #4
-	b	.L17
-.L15:
-	ldp	x8, x16, [x22, #16]
-	add	x20, x22, #32
-	sub	x22, x8, #4
-	and	x24, x16, #0xfffffffffffffff8
-	b	.L17
-.L16:
-	mov	x24, x20
-.L17:
-	ldur	w8, [x19, #-1]
-	sub	x21, x8, #9
-	ldr	x8, [x22, #16]!
+; %bb.7:
+	cmp	w16, #5
+	b.eq	.L10
+; %bb.8:
+	cmp	w16, #4
+	b.ne	.L44
+; %bb.9:
+	ldr	x16, [x8, #16]
+	sub	x17, x16, #4
+	stp	x17, x8, [x19]
+	add	x21, x1, #3
+	ldur	w8, [x1, #-1]
+	sub	x22, x8, #9
+	ldur	x8, [x16, #12]
 	and	x23, x8, #0xfffffffffffffff8
-	cbz	x24, .L32
-; %bb.18:
-	ldr	w25, [x23]
-	cbz	w25, .L27
-; %bb.19:
+	b	.L11
+.L10:
+	ldp	x16, x17, [x8, #16]
+	sub	x0, x16, #4
+	add	x8, x8, #32
+	str	x8, [x19, #16]
+	add	x21, x1, #3
+	ldur	w8, [x1, #-1]
+	sub	x22, x8, #9
+	ldur	x8, [x16, #12]
+	and	x23, x8, #0xfffffffffffffff8
+	and	x8, x17, #0xfffffffffffffff8
+	stp	x0, x8, [x19]
+	cbz	x8, .L17
+.L11:
+	ldr	w24, [x23]
+	cbz	w24, .L28
+; %bb.12:
+	mov	x25, #0                         ; =0x0
+	add	x26, x23, #48
+	b	.L14
+.L13:                               ;   in Loop: Header=BB65_14 Depth=1
+	add	x25, x25, #1
+	add	x26, x26, #16
+	cmp	x24, x25
+	b.eq	.L33
+.L14:                               ; =>This Inner Loop Header: Depth=1
+	ldr	w8, [x26]
+	cmp	x22, x8
+	b.ne	.L13
+; %bb.15:                               ;   in Loop: Header=BB65_14 Depth=1
+	ldur	x0, [x26, #-8]
+	mov	x1, x21
+	mov	x2, x22
+	bl	_memcmp
+	cbnz	w0, .L13
+	b	.L29
+.L16:
+	add	x21, x1, #3
+	stp	xzr, xzr, [x19, #8]
+	str	x8, [x19]
+	ldur	w16, [x1, #-1]
+	sub	x22, x16, #9
+	ldr	x8, [x8, #16]
+	and	x23, x8, #0xfffffffffffffff8
+.L17:
+	ldp	w24, w8, [x23]
+	ldr	w16, [x23, #8]
+	add	w25, w16, w8
+	cbz	w25, .L34
+.L18:
 	mov	x26, #0                         ; =0x0
-	add	x27, x23, #40
-	b	.L21
-.L20:                               ;   in Loop: Header=BB61_21 Depth=1
-	add	x26, x26, #1
-	add	x27, x27, #16
-	cmp	x25, x26
-	b.eq	.L27
-.L21:                               ; =>This Inner Loop Header: Depth=1
-	ldr	w8, [x27]
-	cmp	x21, x8
-	b.ne	.L20
-; %bb.22:                               ;   in Loop: Header=BB61_21 Depth=1
-	ldur	x0, [x27, #-8]
-	add	x1, x19, #3
-	mov	x2, x21
-	bl	_memcmp
-	cbnz	w0, .L20
-; %bb.23:
-	cmp	w26, w25
-	csel	w8, w26, w25, lo
-	cmp	w25, w26
-	b.ls	.L27
-; %bb.24:
-	cbz	x20, .L26
-; %bb.25:
-	ldrb	w8, [x20, w8, uxtw]
-.L26:
-	add	w8, w8, #1
-	add	x8, x24, w8, uxtw #3
-	add	x20, x8, #16
-	b	.L39
-.L27:
-	ldr	w20, [x23, #4]
-	cbz	w20, .L33
-.L28:
-	mov	x24, #0                         ; =0x0
-	mov	w8, w25
-	mov	w25, w20
+	mov	w8, w24
+	mov	w24, w25
 	add	x8, x23, x8, lsl #4
-	add	x23, x8, #40
-	b	.L30
-.L29:                               ;   in Loop: Header=BB61_30 Depth=1
-	add	x24, x24, #1
+	add	x23, x8, #48
+	b	.L20
+.L19:                               ;   in Loop: Header=BB65_20 Depth=1
+	add	x26, x26, #1
 	add	x23, x23, #16
-	cmp	x25, x24
-	b.eq	.L38
-.L30:                               ; =>This Inner Loop Header: Depth=1
+	cmp	x24, x26
+	b.eq	.L44
+.L20:                               ; =>This Inner Loop Header: Depth=1
 	ldr	w8, [x23]
-	cmp	x21, x8
-	b.ne	.L29
-; %bb.31:                               ;   in Loop: Header=BB61_30 Depth=1
+	cmp	x22, x8
+	b.ne	.L19
+; %bb.21:                               ;   in Loop: Header=BB65_20 Depth=1
 	ldur	x0, [x23, #-8]
-	add	x1, x19, #3
-	mov	x2, x21
+	mov	x1, x21
+	mov	x2, x22
 	bl	_memcmp
-	cbnz	w0, .L29
-	b	.L34
+	cbnz	w0, .L19
+; %bb.22:
+	cmp	w26, w25
+	b.hs	.L44
+	b	.L35
+.L23:
+	and	x8, x8, #0x1fffffffffff8
+	ldr	x16, [x8]
+	tst	x16, #0xff
+	b.eq	.L38
+; %bb.24:
+	stp	w1, wzr, [x20]
+	ldrb	w16, [x8]
+	cmp	w16, #5
+	b.eq	.L40
+; %bb.25:
+	cmp	w16, #4
+	b.eq	.L39
+; %bb.26:
+	cmp	w16, #3
+	b.ne	.L44
+; %bb.27:
+	mov	x0, #0                          ; =0x0
+	stp	xzr, xzr, [x19, #8]
+	str	x8, [x19]
+	b	.L45
+.L28:
+	mov	w25, #0                         ; =0x0
+.L29:
+	cmp	w25, w24
+	csel	w8, w25, w24, lo
+	b.hs	.L33
+; %bb.30:
+	stp	w8, wzr, [x20]
+	ldp	x16, x17, [x19, #8]
+	cbz	x17, .L32
+; %bb.31:
+	ldrb	w8, [x17, w8, uxtw]
 .L32:
-	ldp	w16, w8, [x23, #4]
-	ldr	w25, [x23]
-	add	w20, w8, w16
-	cbnz	w20, .L28
+	add	w8, w8, #1
+	add	x8, x16, w8, uxtw #3
+	b	.L37
 .L33:
-	mov	w24, #0                         ; =0x0
+	ldr	w25, [x23, #4]
+	cbnz	w25, .L18
 .L34:
-	cmp	w24, w20
-	add	w8, w24, #1
-	add	x8, x22, w8, uxtw #3
-	csel	x20, xzr, x8, hs
-	b	.L39
+	mov	w26, #0                         ; =0x0
+	cmp	w26, w25
+	b.hs	.L44
 .L35:
-	mov	w17, w19
+	str	w26, [x20]
+	mov	w8, #1                          ; =0x1
+	strb	w8, [x20, #4]
+	sturh	wzr, [x20, #5]
+	strb	wzr, [x20, #7]
+	ldr	x8, [x19]
+	add	w16, w26, #1
+.L36:
+	add	x8, x8, w16, uxtw #3
+.L37:
+	add	x0, x8, #16
+	b	.L45
+.L38:
+	mov	w17, w1
 	lsr	x16, x16, #32
 	sub	x16, x16, #16
-	add	x8, x8, w19, uxtw #3
+	add	x8, x8, w1, uxtw #3
 	add	x8, x8, #16
 	cmp	x17, x16, lsr #3
-	csel	x20, x8, xzr, lo
-	b	.L39
-.L36:
+	csel	x0, x8, xzr, lo
+	b	.L45
+.L39:
 	ldr	x16, [x8, #16]
+	sub	x17, x16, #4
+	stp	x17, x8, [x19]
+	str	xzr, [x19, #16]
 	ldur	x16, [x16, #12]
 	and	x16, x16, #0xfffffffffffffff8
 	ldr	w16, [x16]
-	cmp	w16, w19
-	b.ls	.L38
-.L37:
-	add	w16, w19, #1
-	add	x8, x8, w16, uxtw #3
-	add	x20, x8, #16
-	b	.L39
-.L38:
-	mov	x20, #0                         ; =0x0
-.L39:
-	mov	x0, x20
-	ldp	x29, x30, [sp, #144]            ; 16-byte Folded Reload
-	ldp	x20, x19, [sp, #128]            ; 16-byte Folded Reload
-	ldp	x22, x21, [sp, #112]            ; 16-byte Folded Reload
-	ldp	x24, x23, [sp, #96]             ; 16-byte Folded Reload
-	ldp	x26, x25, [sp, #80]             ; 16-byte Folded Reload
-	ldp	x28, x27, [sp, #64]             ; 16-byte Folded Reload
+	cmp	w16, w1
+	b.ls	.L44
+	b	.L43
+.L40:
+	ldp	x16, x0, [x8, #16]
+	sub	x17, x16, #4
+	add	x8, x8, #32
+	ands	x16, x0, #0xfffffffffffffff8
+	str	x17, [x19]
+	stp	x16, x8, [x19, #8]
+	b.eq	.L44
+; %bb.41:
+	ldr	x17, [x17, #16]
+	and	x17, x17, #0xfffffffffffffff8
+	ldr	w17, [x17]
+	cmp	w17, w1
+	b.ls	.L44
+; %bb.42:
+	ldrb	w1, [x8, w1, uxtw]
+	mov	x8, x16
+.L43:
+	add	w16, w1, #1
+	b	.L36
+.L44:
+	mov	x0, #0                          ; =0x0
+.L45:
+	ldp	x29, x30, [sp, #128]            ; 16-byte Folded Reload
+	ldp	x20, x19, [sp, #112]            ; 16-byte Folded Reload
+	ldp	x22, x21, [sp, #96]             ; 16-byte Folded Reload
+	ldp	x24, x23, [sp, #80]             ; 16-byte Folded Reload
+	ldp	x26, x25, [sp, #64]             ; 16-byte Folded Reload
 	ldp	x10, x9, [sp, #48]              ; 16-byte Folded Reload
 	ldp	x12, x11, [sp, #32]             ; 16-byte Folded Reload
 	ldp	x14, x13, [sp, #16]             ; 16-byte Folded Reload
-	ldr	x15, [sp], #160                 ; 8-byte Folded Reload
+	ldr	x15, [sp], #144                 ; 8-byte Folded Reload
 	ret
                                         ; -- End function
 	.p2align	5                               ; -- Begin function nomember
@@ -2629,9 +2774,108 @@ Lloh21:
 	b	_panic
 	.loh AdrpAdd	Lloh20, Lloh21
                                         ; -- End function
+	.p2align	2                               ; -- Begin function cache_member
+_cache_member:                          ; @cache_member
+; %bb.0:
+	cmp	w3, #255
+	b.hi	.L3
+; %bb.1:
+	ldr	x8, [x2, #16]
+	and	x8, x8, #0xfffffffffffffff8
+	ldr	w8, [x8, #16]
+	lsr	w16, w8, #16
+	cbnz	w16, .L3
+; %bb.2:
+	strb	w3, [x0, #5]
+	strb	w8, [x0, #6]
+	lsr	w8, w8, #8
+	strb	w8, [x0, #7]
+	strb	w1, [x0]
+.L3:
+	ret
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_setmem_miss
+_vm_op_setmem_miss:                     ; @vm_op_setmem_miss
+; %bb.0:
+	sub	sp, sp, #48
+	stp	x29, x30, [sp, #32]             ; 16-byte Folded Spill
+	add	x29, sp, #32
+	mov	x9, x1
+	mov	x10, x0
+	and	w8, w0, #0xff
+	ldr	x11, [x21, w8, uxtw #3]
+	ldr	x8, [x23, #16]
+	lsr	w12, w0, #8
+	ldr	x12, [x8, w12, uxtw #3]
+	add	x2, sp, #8
+	mov	x3, sp
+	mov	x0, x11
+	mov	x1, x12
+	bl	_find_field_by_selector
+	cbz	x0, .L4
+; %bb.1:
+	mov	x8, x0
+	ldr	x10, [x23]
+	ldr	x0, [x10]
+	ldr	x10, [sp, #16]
+	ldr	x1, [x21, w9, uxtw #3]
+	str	x1, [x8]
+	ldr	w8, [x0, #40]
+	cmp	w8, #1
+	b.ne	.L3
+; %bb.2:
+	ldr	x8, [x10]
+	and	x8, x8, #0x300
+	cmp	x8, #512
+	b.eq	.L7
+.L3:
+	sub	x0, x20, #8
+	ldr	x2, [sp, #8]
+	ldr	w3, [sp]
+	mov	w1, #12                         ; =0xc
+	bl	_cache_member
+	ldrb	w8, [x20]
+	ldr	x2, [x24, x8, lsl #3]
+	ldrb	w1, [x20, #1]
+	ldrh	w0, [x20, #2]
+	add	x20, x20, #4
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	br	x2
+.L4:
+	add	x2, sp, #8
+	mov	x3, sp
+	mov	x0, x11
+	mov	x1, x12
+	bl	_find_member_by_selector
+	cbnz	x0, .L6
+; %bb.5:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	b	_nomember
+.L6:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	b	_notafield
+.L7:
+	bl	_gc_store_field_slow
+	b	.L3
+                                        ; -- End function
 	.p2align	2                               ; -- Begin function find_field_by_selector
 _find_field_by_selector:                ; @find_field_by_selector
 ; %bb.0:
+	mov	x8, x0
+	mov	x0, #0                          ; =0x0
+	cbz	x8, .L28
+; %bb.1:
+	and	x16, x8, #0xfffffffffffffffe
+	and	x16, x16, #0xfffe000000000003
+	cbnz	x16, .L28
+; %bb.2:
 	str	x15, [sp, #-144]!               ; 8-byte Folded Spill
 	stp	x14, x13, [sp, #16]             ; 16-byte Folded Spill
 	stp	x12, x11, [sp, #32]             ; 16-byte Folded Spill
@@ -2642,88 +2886,95 @@ _find_field_by_selector:                ; @find_field_by_selector
 	stp	x20, x19, [sp, #112]            ; 16-byte Folded Spill
 	stp	x29, x30, [sp, #128]            ; 16-byte Folded Spill
 	add	x29, sp, #128
-	mov	x19, #0                         ; =0x0
-	cbz	x0, .L27
-; %bb.1:
-	and	x8, x0, #0xfffffffffffffffe
-	and	x8, x8, #0xfffe000000000003
-	cbnz	x8, .L27
-; %bb.2:
-	and	x8, x0, #0x1fffffffffff8
-	ldr	w16, [x8]
-	and	w17, w16, #0xff
-	cmp	w17, #3
-	b.eq	.L19
-; %bb.3:
+	mov	x21, x3
+	mov	x19, x2
 	mov	x20, x1
-	mov	x19, #0                         ; =0x0
-	sxtb	w16, w16
-	cmp	w16, #4
+	and	x16, x8, #0x1fffffffffff8
+	ldrb	w8, [x16]
+	cmp	w8, #3
+	b.eq	.L7
+; %bb.3:
+	cmp	w8, #4
 	b.eq	.L6
 ; %bb.4:
-	cmp	w16, #5
-	b.ne	.L27
+	cmp	w8, #5
+	b.ne	.L26
 ; %bb.5:
-	ldr	x16, [x8, #24]
-	and	x22, x16, #0xfffffffffffffff8
-	add	x19, x8, #32
-	b	.L7
+	ldp	x8, x17, [x16, #16]
+	sub	x8, x8, #4
+	add	x16, x16, #32
+	ands	x17, x17, #0xfffffffffffffff8
+	stp	x8, x17, [x19]
+	str	x16, [x19, #16]
+	cset	w17, eq
+	b	.L8
 .L6:
-	mov	x22, x8
+	ldr	x8, [x16, #16]
+	sub	x8, x8, #4
+	stp	x8, x16, [x19]
+	str	xzr, [x19, #16]
+	mov	x16, #-562949953421312          ; =0xfffe000000000000
+	cmp	x20, x16
+	b.hs	.L9
+	b	.L15
 .L7:
-	ldr	x8, [x8, #16]
-	str	x22, [x2]
+	stp	xzr, xzr, [x19, #8]
+	mov	w17, #1                         ; =0x1
+	mov	x8, x16
+	str	x16, [x19]
+.L8:
 	mov	x16, #-562949953421313          ; =0xfffdffffffffffff
 	cmp	x20, x16
-	b.ls	.L13
-; %bb.8:
-	cbz	x22, .L26
-; %bb.9:
-	ldur	x8, [x8, #12]
-	and	x8, x8, #0xfffffffffffffff8
-	ldr	w8, [x8]
-	cmp	w8, w20
-	b.ls	.L26
+	b.ls	.L14
+.L9:
+	stp	w20, wzr, [x21]
+	ldr	x8, [x19, #8]
+	cbz	x8, .L26
 ; %bb.10:
-	cbz	x19, .L12
+	ldr	x16, [x19]
+	ldr	x16, [x16, #16]
+	and	x16, x16, #0xfffffffffffffff8
+	ldr	w16, [x16]
+	cmp	w16, w20
+	b.ls	.L26
 ; %bb.11:
-	ldrb	w20, [x19, w20, uxtw]
-.L12:
-	add	w8, w20, #1
-	b	.L25
+	ldr	x16, [x19, #16]
+	cbz	x16, .L13
+; %bb.12:
+	ldrb	w20, [x16, w20, uxtw]
 .L13:
-	cbz	x22, .L26
-; %bb.14:
-	ldur	x8, [x8, #12]
+	add	w16, w20, #1
+	add	x8, x8, w16, uxtw #3
+	b	.L25
+.L14:
+	tbnz	w17, #0, .L26
+.L15:
+	ldr	x8, [x8, #16]
 	and	x8, x8, #0xfffffffffffffff8
 	ldr	w23, [x8]
 	cbz	w23, .L20
-; %bb.15:
+; %bb.16:
 	mov	x24, #0                         ; =0x0
 	ldur	w16, [x20, #-1]
-	sub	x21, x16, #9
-	add	x25, x8, #40
-	b	.L17
-.L16:                               ;   in Loop: Header=BB63_17 Depth=1
+	sub	x22, x16, #9
+	add	x25, x8, #48
+	b	.L18
+.L17:                               ;   in Loop: Header=BB69_18 Depth=1
 	add	x24, x24, #1
 	add	x25, x25, #16
 	cmp	x23, x24
 	b.eq	.L26
-.L17:                               ; =>This Inner Loop Header: Depth=1
+.L18:                               ; =>This Inner Loop Header: Depth=1
 	ldr	w8, [x25]
-	cmp	x21, x8
-	b.ne	.L16
-; %bb.18:                               ;   in Loop: Header=BB63_17 Depth=1
+	cmp	x22, x8
+	b.ne	.L17
+; %bb.19:                               ;   in Loop: Header=BB69_18 Depth=1
 	ldur	x0, [x25, #-8]
 	add	x1, x20, #3
-	mov	x2, x21
+	mov	x2, x22
 	bl	_memcmp
-	cbnz	w0, .L16
+	cbnz	w0, .L17
 	b	.L21
-.L19:
-	mov	x19, #0                         ; =0x0
-	str	xzr, [x2]
-	b	.L27
 .L20:
 	mov	w24, #0                         ; =0x0
 .L21:
@@ -2731,19 +2982,20 @@ _find_field_by_selector:                ; @find_field_by_selector
 	csel	w8, w24, w23, lo
 	b.hs	.L26
 ; %bb.22:
-	cbz	x19, .L24
+	stp	w8, wzr, [x21]
+	ldp	x16, x17, [x19, #8]
+	cbz	x17, .L24
 ; %bb.23:
-	ldrb	w8, [x19, w8, uxtw]
+	ldrb	w8, [x17, w8, uxtw]
 .L24:
 	add	w8, w8, #1
+	add	x8, x16, w8, uxtw #3
 .L25:
-	add	x8, x22, w8, uxtw #3
-	add	x19, x8, #16
+	add	x0, x8, #16
 	b	.L27
 .L26:
-	mov	x19, #0                         ; =0x0
+	mov	x0, #0                          ; =0x0
 .L27:
-	mov	x0, x19
 	ldp	x29, x30, [sp, #128]            ; 16-byte Folded Reload
 	ldp	x20, x19, [sp, #112]            ; 16-byte Folded Reload
 	ldp	x22, x21, [sp, #96]             ; 16-byte Folded Reload
@@ -2753,6 +3005,7 @@ _find_field_by_selector:                ; @find_field_by_selector
 	ldp	x12, x11, [sp, #32]             ; 16-byte Folded Reload
 	ldp	x14, x13, [sp, #16]             ; 16-byte Folded Reload
 	ldr	x15, [sp], #144                 ; 8-byte Folded Reload
+.L28:
 	ret
                                         ; -- End function
 	.p2align	5                               ; -- Begin function notafield
@@ -2786,12 +3039,10 @@ _vm_op_load_by_type_fallback:           ; @vm_op_load_by_type_fallback
 	ldr	x9, [x9, x2, lsl #3]
 	orr	x10, x9, #0x4
 	and	x9, x8, #0x1fffffffffff8
-	ldr	w11, [x9]
-	and	w12, w11, #0xff
-	cmp	w12, #5
+	ldrb	w11, [x9]
+	cmp	w11, #5
 	b.eq	.L5
 ; %bb.2:
-	sxtb	w11, w11
 	cmp	w11, #4
 	b.ne	.L8
 ; %bb.3:
@@ -2866,12 +3117,10 @@ _find_field_slow:                       ; @find_field_slow
 	mov	x20, x4
 	mov	x19, #0                         ; =0x0
 	and	x23, x1, #0x1fffffffffff8
-	ldr	w8, [x23]
-	and	w16, w8, #0xff
-	cmp	w16, #3
+	ldrb	w8, [x23]
+	cmp	w8, #3
 	b.eq	.L18
 ; %bb.3:
-	sxtb	w8, w8
 	cmp	w8, #5
 	b.eq	.L6
 ; %bb.4:
@@ -2902,8 +3151,8 @@ _find_field_slow:                       ; @find_field_slow
 	b.hs	.L25
 ; %bb.9:
 	add	x8, x8, w3, uxtw #4
-	ldr	x21, [x8, #32]
-	ldr	w22, [x8, #40]
+	ldr	x21, [x8, #40]
+	ldr	w22, [x8, #48]
 	ldr	x8, [x23, #16]!
 	and	x25, x8, #0xfffffffffffffff8
 	cbz	x24, .L15
@@ -2912,9 +3161,9 @@ _find_field_slow:                       ; @find_field_slow
 	cbz	w26, .L19
 ; %bb.11:
 	mov	x27, #0                         ; =0x0
-	add	x28, x25, #40
+	add	x28, x25, #48
 	b	.L13
-.L12:                               ;   in Loop: Header=BB67_13 Depth=1
+.L12:                               ;   in Loop: Header=BB73_13 Depth=1
 	add	x27, x27, #1
 	add	x28, x28, #16
 	cmp	x26, x27
@@ -2923,7 +3172,7 @@ _find_field_slow:                       ; @find_field_slow
 	ldr	w8, [x28]
 	cmp	w22, w8
 	b.ne	.L12
-; %bb.14:                               ;   in Loop: Header=BB67_13 Depth=1
+; %bb.14:                               ;   in Loop: Header=BB73_13 Depth=1
 	ldur	x0, [x28, #-8]
 	mov	x1, x21
 	mov	x2, x22
@@ -2972,9 +3221,9 @@ _find_field_slow:                       ; @find_field_slow
 	mov	w8, w26
 	mov	w24, w19
 	add	x8, x25, x8, lsl #4
-	add	x25, x8, #40
+	add	x25, x8, #48
 	b	.L29
-.L28:                               ;   in Loop: Header=BB67_29 Depth=1
+.L28:                               ;   in Loop: Header=BB73_29 Depth=1
 	add	x20, x20, #1
 	add	x25, x25, #16
 	cmp	x24, x20
@@ -2983,7 +3232,7 @@ _find_field_slow:                       ; @find_field_slow
 	ldr	w8, [x25]
 	cmp	w22, w8
 	b.ne	.L28
-; %bb.30:                               ;   in Loop: Header=BB67_29 Depth=1
+; %bb.30:                               ;   in Loop: Header=BB73_29 Depth=1
 	ldur	x0, [x25, #-8]
 	mov	x1, x21
 	mov	x2, x22
@@ -3031,12 +3280,10 @@ _vm_op_set_by_type_fallback:            ; @vm_op_set_by_type_fallback
 	ldr	x8, [x8, x11, lsl #3]
 	orr	x14, x8, #0x4
 	and	x13, x12, #0x1fffffffffff8
-	ldr	w8, [x13]
-	and	w15, w8, #0xff
-	cmp	w15, #5
+	ldrb	w8, [x13]
+	cmp	w8, #5
 	b.eq	.L5
 ; %bb.2:
-	sxtb	w8, w8
 	cmp	w8, #4
 	b.ne	.L7
 ; %bb.3:
@@ -3107,12 +3354,10 @@ _vm_op_set_by_type_fallback:            ; @vm_op_set_by_type_fallback
 	b	.L16
 .L13:
 	and	x8, x12, #0x1fffffffffff8
-	ldr	w15, [x8]
-	and	w16, w15, #0xff
-	cmp	w16, #5
+	ldrb	w15, [x8]
+	cmp	w15, #5
 	b.eq	.L15
 ; %bb.14:
-	sxtb	w15, w15
 	cmp	w15, #4
 	b.ne	.L16
 .L15:
@@ -3182,7 +3427,7 @@ _view_template:                         ; @view_template
 	mov	x21, x1
 	mov	x20, x0
 	str	xzr, [x2]
-	ldr	x25, [x0, #24]
+	ldr	x25, [x0, #32]
 	cbz	x25, .L4
 ; %bb.1:
 	mov	x8, x25
@@ -3190,7 +3435,7 @@ _view_template:                         ; @view_template
 	ldr	x16, [x8]
 	cmp	x16, x21
 	b.eq	.L15
-; %bb.3:                                ;   in Loop: Header=BB71_2 Depth=1
+; %bb.3:                                ;   in Loop: Header=BB77_2 Depth=1
 	ldr	x8, [x8, #8]
 	cbnz	x8, .L2
 .L4:
@@ -3204,44 +3449,44 @@ _view_template:                         ; @view_template
 	cbz	w23, .L14
 ; %bb.6:
 	mov	x8, #0                          ; =0x0
-	add	x16, x21, #32
+	add	x16, x21, #40
 	mov	x17, x20
-	ldr	w28, [x17], #40
+	ldr	w28, [x17], #48
 	str	x17, [sp, #40]                  ; 8-byte Folded Spill
 	add	x17, x22, #16
 	stp	x17, x16, [sp, #8]              ; 16-byte Folded Spill
 	str	x23, [sp, #24]                  ; 8-byte Folded Spill
 .L7:                                ; =>This Loop Header: Depth=1
-                                        ;     Child Loop BB71_10 Depth 2
+                                        ;     Child Loop BB77_10 Depth 2
 	str	x8, [sp, #32]                   ; 8-byte Folded Spill
 	add	x19, x16, x8, lsl #4
 	cbz	w28, .L16
-; %bb.8:                                ;   in Loop: Header=BB71_7 Depth=1
+; %bb.8:                                ;   in Loop: Header=BB77_7 Depth=1
 	mov	x27, #0                         ; =0x0
 	ldr	x23, [x19]
 	ldr	w24, [x19, #8]
 	ldr	x26, [sp, #40]                  ; 8-byte Folded Reload
 	b	.L10
-.L9:                                ;   in Loop: Header=BB71_10 Depth=2
+.L9:                                ;   in Loop: Header=BB77_10 Depth=2
 	add	x27, x27, #1
 	add	x26, x26, #16
 	cmp	x28, x27
 	b.eq	.L16
-.L10:                               ;   Parent Loop BB71_7 Depth=1
+.L10:                               ;   Parent Loop BB77_7 Depth=1
                                         ; =>  This Inner Loop Header: Depth=2
 	ldr	w8, [x26]
 	cmp	w24, w8
 	b.ne	.L9
-; %bb.11:                               ;   in Loop: Header=BB71_10 Depth=2
+; %bb.11:                               ;   in Loop: Header=BB77_10 Depth=2
 	ldur	x0, [x26, #-8]
 	mov	x1, x23
 	mov	x2, x24
 	bl	_memcmp
 	cbnz	w0, .L9
-; %bb.12:                               ;   in Loop: Header=BB71_7 Depth=1
+; %bb.12:                               ;   in Loop: Header=BB77_7 Depth=1
 	cmp	w28, w27
 	b.ls	.L16
-; %bb.13:                               ;   in Loop: Header=BB71_7 Depth=1
+; %bb.13:                               ;   in Loop: Header=BB77_7 Depth=1
 	ldp	x23, x8, [sp, #24]              ; 16-byte Folded Reload
 	ldp	x17, x16, [sp, #8]              ; 16-byte Folded Reload
 	strb	w27, [x17, x8]
@@ -3251,7 +3496,7 @@ _view_template:                         ; @view_template
 .L14:
 	stp	x21, x25, [x22]
 	add	x0, x22, #16
-	str	x22, [x20, #24]
+	str	x22, [x20, #32]
 	b	.L17
 .L15:
 	add	x0, x8, #16
@@ -3295,8 +3540,8 @@ _cannotview_format:                     ; @cannotview_format
 	stp	x10, x9, [sp, #96]              ; 16-byte Folded Spill
 	stp	x29, x30, [sp, #112]            ; 16-byte Folded Spill
 	add	x29, sp, #112
-	ldr	x8, [x0, #16]
-	ldr	x16, [x1, #16]
+	ldr	x8, [x0, #24]
+	ldr	x16, [x1, #24]
 	ldr	x17, [x2]
 	ldr	w3, [x0, #12]
 	ldr	w0, [x1, #12]
@@ -3354,6 +3599,65 @@ Lloh39:
 	add	x25, x25, l_.str.11@PAGEOFF
 	b	_panic
 	.loh AdrpAdd	Lloh38, Lloh39
+                                        ; -- End function
+	.p2align	5                               ; -- Begin function vm_op_invoke_miss
+_vm_op_invoke_miss:                     ; @vm_op_invoke_miss
+; %bb.0:
+	sub	sp, sp, #48
+	stp	x29, x30, [sp, #32]             ; 16-byte Folded Spill
+	add	x29, sp, #32
+	mov	x9, x1
+	mov	x10, x0
+	and	w8, w0, #0xff
+	ldr	x0, [x21, w8, uxtw #3]
+	add	x8, x22, #7
+	and	x8, x0, x8
+	cmp	x8, #4
+	b.eq	.L6
+; %bb.1:
+	ldr	x8, [x23, #16]
+	lsr	w11, w10, #8
+	ldr	x1, [x8, w11, uxtw #3]
+	add	x2, sp, #8
+	mov	x3, sp
+	bl	_find_member_by_selector
+	cbz	x0, .L7
+; %bb.2:
+	ldr	x8, [sp, #16]
+	cbz	x8, .L5
+; %bb.3:
+	ldrb	w8, [sp, #4]
+	cmp	w8, #1
+	b.ne	.L5
+; %bb.4:
+	sub	x8, x20, #12
+	ldr	x2, [sp, #8]
+	ldr	w3, [sp]
+	mov	x11, x0
+	mov	x0, x8
+	mov	w1, #21                         ; =0x15
+	bl	_cache_member
+	mov	x0, x11
+.L5:
+	ldr	x8, [x0]
+	str	x8, [x21, w9, uxtw #3]
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	b	_vm_op_Apply
+.L6:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	b	_notaninstance
+.L7:
+	mov	x0, x10
+	mov	x1, x9
+	ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+	add	sp, sp, #48
+	b	_nomember
                                         ; -- End function
 	.p2align	5                               ; -- Begin function vm_op_invoke_by_type_fallback
 _vm_op_invoke_by_type_fallback:         ; @vm_op_invoke_by_type_fallback
@@ -3416,12 +3720,10 @@ _find_method_slow:                      ; @find_method_slow
 ; %bb.2:
 	mov	x19, #0                         ; =0x0
 	and	x22, x1, #0x1fffffffffff8
-	ldr	w8, [x22]
-	and	w16, w8, #0xff
-	cmp	w16, #3
+	ldrb	w8, [x22]
+	cmp	w8, #3
 	b.eq	.L7
 ; %bb.3:
-	sxtb	w8, w8
 	cmp	w8, #5
 	b.eq	.L6
 ; %bb.4:
@@ -3453,8 +3755,8 @@ _find_method_slow:                      ; @find_method_slow
 	ldr	w16, [x8]
 	add	w16, w16, w3
 	add	x8, x8, w16, uxtw #4
-	ldr	x20, [x8, #32]
-	ldr	w21, [x8, #40]
+	ldr	x20, [x8, #40]
+	ldr	w21, [x8, #48]
 	ldr	x8, [x22, #16]!
 	and	x24, x8, #0xfffffffffffffff8
 	cbz	x23, .L25
@@ -3463,9 +3765,9 @@ _find_method_slow:                      ; @find_method_slow
 	cbz	w25, .L19
 ; %bb.11:
 	mov	x26, #0                         ; =0x0
-	add	x27, x24, #40
+	add	x27, x24, #48
 	b	.L13
-.L12:                               ;   in Loop: Header=BB78_13 Depth=1
+.L12:                               ;   in Loop: Header=BB85_13 Depth=1
 	add	x26, x26, #1
 	add	x27, x27, #16
 	cmp	x25, x26
@@ -3474,7 +3776,7 @@ _find_method_slow:                      ; @find_method_slow
 	ldr	w8, [x27]
 	cmp	w21, w8
 	b.ne	.L12
-; %bb.14:                               ;   in Loop: Header=BB78_13 Depth=1
+; %bb.14:                               ;   in Loop: Header=BB85_13 Depth=1
 	ldur	x0, [x27, #-8]
 	mov	x1, x20
 	mov	x2, x21
@@ -3502,9 +3804,9 @@ _find_method_slow:                      ; @find_method_slow
 	mov	w8, w25
 	mov	w25, w19
 	add	x8, x24, x8, lsl #4
-	add	x24, x8, #40
+	add	x24, x8, #48
 	b	.L22
-.L21:                               ;   in Loop: Header=BB78_22 Depth=1
+.L21:                               ;   in Loop: Header=BB85_22 Depth=1
 	add	x23, x23, #1
 	add	x24, x24, #16
 	cmp	x25, x23
@@ -3513,7 +3815,7 @@ _find_method_slow:                      ; @find_method_slow
 	ldr	w8, [x24]
 	cmp	w21, w8
 	b.ne	.L21
-; %bb.23:                               ;   in Loop: Header=BB78_22 Depth=1
+; %bb.23:                               ;   in Loop: Header=BB85_22 Depth=1
 	ldur	x0, [x24, #-8]
 	mov	x1, x20
 	mov	x2, x21
@@ -3663,16 +3965,16 @@ _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
 	fmov	d1, x8
 .L8:
 	ldurb	w8, [x20, #-4]
-	cmp	w8, #30
+	cmp	w8, #33
 	b.le	.L13
 ; %bb.9:
-	cmp	w8, #31
+	cmp	w8, #34
 	b.eq	.L16
 ; %bb.10:
-	cmp	w8, #32
+	cmp	w8, #35
 	b.eq	.L18
 ; %bb.11:
-	cmp	w8, #33
+	cmp	w8, #36
 	b.ne	.L20
 ; %bb.12:
 	fdiv	d2, d0, d1
@@ -3680,10 +3982,10 @@ _vm_op_arith_dc_fallback:               ; @vm_op_arith_dc_fallback
 	fmsub	d0, d2, d1, d0
 	b	.L19
 .L13:
-	cmp	w8, #29
+	cmp	w8, #32
 	b.eq	.L17
 ; %bb.14:
-	cmp	w8, #30
+	cmp	w8, #33
 	b.ne	.L20
 ; %bb.15:
 	fsub	d0, d0, d1
@@ -3737,7 +4039,7 @@ _vm_op_arith_dd_fallback:               ; @vm_op_arith_dd_fallback
 	fmov	d0, x8
 .L4:
 	ldurb	w8, [x20, #-4]
-	cmp	w8, #39
+	cmp	w8, #42
 	b.ne	.L6
 ; %bb.5:
 	fmov	x8, d0
@@ -3751,16 +4053,16 @@ _vm_op_arith_dd_fallback:               ; @vm_op_arith_dd_fallback
 	b.ne	.L12
 ; %bb.7:
 	scvtf	d1, w9
-	cmp	w8, #35
+	cmp	w8, #38
 	b.le	.L14
 .L8:
-	cmp	w8, #36
+	cmp	w8, #39
 	b.eq	.L17
 ; %bb.9:
-	cmp	w8, #37
+	cmp	w8, #40
 	b.eq	.L19
 ; %bb.10:
-	cmp	w8, #38
+	cmp	w8, #41
 	b.ne	.L22
 ; %bb.11:
 	fdiv	d2, d0, d1
@@ -3772,13 +4074,13 @@ _vm_op_arith_dd_fallback:               ; @vm_op_arith_dd_fallback
 ; %bb.13:
 	add	x9, x9, x22
 	fmov	d1, x9
-	cmp	w8, #35
+	cmp	w8, #38
 	b.gt	.L8
 .L14:
-	cmp	w8, #34
+	cmp	w8, #37
 	b.eq	.L18
 ; %bb.15:
-	cmp	w8, #35
+	cmp	w8, #38
 	b.ne	.L22
 ; %bb.16:
 	fsub	d0, d0, d1
@@ -4615,7 +4917,7 @@ _vm_op_compare_setc_fallback:           ; @vm_op_compare_setc_fallback
 	ubfx	x12, x11, #8, #8
 	ldr	x0, [x21, x12, lsl #3]
 	mov	x12, x21
-	cmp	w10, #50
+	cmp	w10, #53
 	b.hi	.L2
 ; %bb.1:
 	ldr	x12, [x23, #16]
@@ -4623,20 +4925,20 @@ _vm_op_compare_setc_fallback:           ; @vm_op_compare_setc_fallback
 	lsr	x13, x11, #16
 	ldr	x1, [x12, x13, lsl #3]
 	and	w11, w11, #0xff
-	cmp	w11, #50
+	cmp	w11, #53
 	b.gt	.L5
 ; %bb.3:
-	cmp	w11, #45
+	cmp	w11, #48
 	b.eq	.L7
 ; %bb.4:
-	cmp	w11, #46
+	cmp	w11, #49
 	b.eq	.L8
 	b	.L11
 .L5:
-	cmp	w11, #52
+	cmp	w11, #55
 	b.eq	.L8
 ; %bb.6:
-	cmp	w11, #51
+	cmp	w11, #54
 	b.ne	.L11
 .L7:
 	cmp	w8, #0
@@ -4802,49 +5104,49 @@ _val_to_f64_pair:                       ; @val_to_f64_pair
 	.p2align	2                               ; -- Begin function cmp_f64
 _cmp_f64:                               ; @cmp_f64
 ; %bb.0:
-	cmp	w0, #50
+	cmp	w0, #53
 	b.gt	.L5
 ; %bb.1:
-	cmp	w0, #47
+	cmp	w0, #50
 	b.gt	.L9
 ; %bb.2:
-	cmp	w0, #45
+	cmp	w0, #48
 	b.eq	.L15
 ; %bb.3:
-	cmp	w0, #46
+	cmp	w0, #49
 	b.eq	.L8
 .L4:
 	fcmp	d0, d1
 	cset	w0, mi
 	ret
 .L5:
-	cmp	w0, #53
+	cmp	w0, #56
 	b.gt	.L12
 ; %bb.6:
-	cmp	w0, #51
+	cmp	w0, #54
 	b.eq	.L15
 ; %bb.7:
-	cmp	w0, #52
+	cmp	w0, #55
 	b.ne	.L4
 .L8:
 	fcmp	d0, d1
 	cset	w0, ne
 	ret
 .L9:
-	cmp	w0, #48
+	cmp	w0, #51
 	b.eq	.L16
 ; %bb.10:
-	cmp	w0, #49
+	cmp	w0, #52
 	b.eq	.L14
 .L11:
 	fcmp	d0, d1
 	cset	w0, ge
 	ret
 .L12:
-	cmp	w0, #54
+	cmp	w0, #57
 	b.eq	.L16
 ; %bb.13:
-	cmp	w0, #55
+	cmp	w0, #58
 	b.ne	.L11
 .L14:
 	fcmp	d0, d1
@@ -4872,20 +5174,20 @@ _vm_op_compare_dc_fallback:             ; @vm_op_compare_dc_fallback
 	ldr	x10, [x23, #16]
 	ldr	x1, [x10, w12, uxtw #3]
 	ldurb	w10, [x20, #-8]
-	cmp	w10, #50
+	cmp	w10, #53
 	b.gt	.L3
 ; %bb.1:
-	cmp	w10, #45
+	cmp	w10, #48
 	b.eq	.L5
 ; %bb.2:
-	cmp	w10, #46
+	cmp	w10, #49
 	b.eq	.L6
 	b	.L7
 .L3:
-	cmp	w10, #52
+	cmp	w10, #55
 	b.eq	.L6
 ; %bb.4:
-	cmp	w10, #51
+	cmp	w10, #54
 	b.ne	.L7
 .L5:
 	mov	x2, x22
@@ -4945,20 +5247,20 @@ _vm_op_compare_dd_fallback:             ; @vm_op_compare_dd_fallback
 	ldr	x0, [x21, w1, uxtw #3]
 	ldr	x1, [x21, w12, uxtw #3]
 	ldurb	w10, [x9, #-8]
-	cmp	w10, #50
+	cmp	w10, #53
 	b.gt	.L3
 ; %bb.1:
-	cmp	w10, #45
+	cmp	w10, #48
 	b.eq	.L5
 ; %bb.2:
-	cmp	w10, #46
+	cmp	w10, #49
 	b.eq	.L6
 	b	.L7
 .L3:
-	cmp	w10, #52
+	cmp	w10, #55
 	b.eq	.L6
 ; %bb.4:
-	cmp	w10, #51
+	cmp	w10, #54
 	b.ne	.L7
 .L5:
 	mov	x2, x22
@@ -5017,7 +5319,9 @@ _dispatch:
 	.quad	_vm_op_LoadType
 	.quad	_vm_op_LoadFree
 	.quad	_vm_op_LoadMem
+	.quad	_vm_op_LoadMemC
 	.quad	_vm_op_SetMem
+	.quad	_vm_op_SetMemC
 	.quad	_vm_op_LoadSlot
 	.quad	_vm_op_SetSlot
 	.quad	_vm_op_LoadInd
@@ -5026,6 +5330,7 @@ _dispatch:
 	.quad	_vm_op_Move
 	.quad	_vm_op_Apply
 	.quad	_vm_op_Invoke
+	.quad	_vm_op_InvokeC
 	.quad	_vm_op_InvokeInd
 	.quad	_vm_op_Call
 	.quad	_vm_op_Native

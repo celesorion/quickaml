@@ -107,6 +107,8 @@
 #define NEXT_INSN(x) bc_t x = *ip++
 #define EXTRA_ARG(x) g1sA(x)
 #define EXTRA_ARGU(x) g1A(x)
+#define EXTRA_ARG2A(x) g2A(x)
+#define EXTRA_ARG2B(x) g2B(x)
 #define INSN(x) insn(x)
 #define ARG3A a3a
 #define ARG3B g3B_of_2B(a2b)
@@ -133,6 +135,8 @@
 #define NEXT_INSN(x) bc_t *x = ip++
 #define EXTRA_ARG(x) gp1sA(x)
 #define EXTRA_ARGU(x) gp1A(x)
+#define EXTRA_ARG2A(x) gp2A(x)
+#define EXTRA_ARG2B(x) gp2B(x)
 #define INSN(x) insnP(x)
 #define ARG3A a3a
 #define ARG3B g3B_of_2B(a2b)
@@ -165,7 +169,8 @@ status_t vm_exec_with(struct heap *heap, struct thunk *entry,
                       struct thunk **fns, struct object **types,
                       size_t numfn, size_t numtype, size_t stack_slots,
                       val_t *result, struct gc_stats *stats_out);
-struct object *vm_type_alloc(const char *name, uint32_t namelen,
+struct object *vm_type_alloc(uint32_t index, const char *name,
+                             uint32_t namelen,
                              const struct member_desc *members,
                              uint32_t nfields, uint32_t nmethods,
                              uint32_t nfunctions,
