@@ -47,30 +47,26 @@ struct thunk *vm_thunk_alloc(const bc_t *ops, size_t nops, const val_t *ctbl,
 
 void vm_thunk_free(struct thunk *thunk) { free(thunk); }
 
-/* The type value, its description and the member names share one block:
- * the description follows the value's slots, the names the member table. */
+/* The type value, its description and its name share one block: the
+ * description follows the value's slots, the name the member table. */
 struct object *vm_type_alloc(uint32_t index, const char *name,
                              uint32_t namelen,
                              const struct member_desc *members,
                              uint32_t nfields, uint32_t nmethods,
                              uint32_t nfunctions,
-                             struct thunk *const *thunks) {
+                             struct thunk *const *thunks, struct heap *heap) {
   size_t nmembers = (size_t)nfields + nmethods + nfunctions;
   size_t nthunks = (size_t)nmethods + nfunctions;
   if ((namelen != 0 && name == nullptr) ||
-      (nmembers != 0 && members == nullptr))
+      (nmembers != 0 && members == nullptr) || heap == nullptr)
     return nullptr;
-
-  size_t names = namelen + 1;
-  for (size_t i = 0; i < nmembers; i++) {
+  for (size_t i = 0; i < nmembers; i++)
     if (members[i].len != 0 && members[i].name == nullptr)
       return nullptr;
-    names += members[i].len + 1;
-  }
 
   size_t value_size = object_size(1 + nthunks);
   struct object *type = malloc(value_size + sizeof(struct type_desc) +
-                               nmembers * sizeof(*members) + names);
+                               nmembers * sizeof(struct str *) + namelen);
   if (type == nullptr)
     return nullptr;
 
@@ -90,15 +86,12 @@ struct object *vm_type_alloc(uint32_t index, const char *name,
   desc->namelen = namelen;
   if (namelen != 0)
     memcpy(text, name, namelen);
-  text[namelen] = '\0';
-  text += namelen + 1;
   for (size_t i = 0; i < nmembers; i++) {
-    desc->members[i] = members[i];
-    desc->members[i].name = text;
-    if (members[i].len != 0)
-      memcpy(text, members[i].name, members[i].len);
-    text[members[i].len] = '\0';
-    text += members[i].len + 1;
+    desc->members[i] = heap_intern_str(heap, members[i].name, members[i].len);
+    if (desc->members[i] == nullptr) {
+      free(type);
+      return nullptr;
+    }
   }
   return type;
 }
@@ -164,15 +157,7 @@ struct str *vm_alloc_str(const char *data, uint32_t len,
                          struct heap *restrict heap) {
   if ((len != 0 && data == nullptr) || heap == nullptr)
     return nullptr;
-
-  struct str *s = heap_alloc_preload(heap, str_size(len));
-  if (s == nullptr)
-    return nullptr;
-  str_init(s, len);
-  if (len != 0)
-    memcpy(s->bytes, data, len);
-  gc_publish_new_object(heap, s);
-  return s;
+  return heap_intern_str(heap, data, len);
 }
 
 bool vm_const_from_str(const char *data, uint32_t len,

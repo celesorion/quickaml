@@ -75,12 +75,18 @@ static const char *file_fd(val_t handle, int **fd) {
 NATIVE(file_open) {
   if (!val_is_str(args[0]))
     return "file path is not a string";
+  struct str *str = val_as_str(args[0]);
+  char path[PATH_MAX];
+  if (str_len(str) >= sizeof path)
+    return "file path too long";
+  memcpy(path, str->bytes, str_len(str));
+  path[str_len(str)] = '\0';
   struct opaque *file =
       vm_opaque_alloc(fiber, args, sizeof(int), file_finalize);
   if (file == nullptr)
     return "out of memory";
   int *fd = (int *)file->data;
-  *fd = open(val_as_str(args[0])->bytes, O_RDWR | O_CREAT, 0666);
+  *fd = open(path, O_RDWR | O_CREAT, 0666);
   if (*fd < 0)
     return "file open failed";
   *out = val_from_ptr(file);

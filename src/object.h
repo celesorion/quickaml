@@ -97,7 +97,7 @@ struct type_desc {
   uint32_t index;
   const char *name;
   struct view_tmpl *views;
-  struct member_desc members[];
+  struct str *members[];
 };
 
 /*
@@ -459,11 +459,11 @@ INLINE size_t object_nfields(const void *ref) {
 }
 
 INLINE size_t str_len(const void *ref) {
-  return obj_size(ref) - sizeof(struct str) - 1;
+  return obj_size(ref) - sizeof(struct str);
 }
 
 INLINE size_t str_size(size_t len) {
-  return object_align(sizeof(struct str) + len + 1);
+  return object_align(sizeof(struct str) + len);
 }
 
 INLINE size_t opaque_size(size_t n, finalize_fn *finalize) {

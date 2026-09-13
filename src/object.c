@@ -27,8 +27,7 @@ COLD_HELPER void view_init(struct view *v, struct object *type,
 }
 
 COLD_HELPER void str_init(struct str *str, size_t len) {
-  str->hd = obj_meta_pack((uint32_t)(sizeof(struct str) + len + 1), TAG_STR, 0);
-  str->bytes[len] = '\0';
+  str->hd = obj_meta_pack((uint32_t)(sizeof(struct str) + len), TAG_STR, 0);
 }
 
 COLD_HELPER void opaque_init(struct opaque *o, size_t n,
@@ -204,7 +203,7 @@ static void print_struct(struct printer *p, const struct type_desc *desc,
   for (size_t i = 0; i < desc->nfields; i++) {
     if (i != 0)
       print_text(p, ", ");
-    print_bytes(p, desc->members[i].name, desc->members[i].len);
+    print_bytes(p, desc->members[i]->bytes, str_len(desc->members[i]));
     print_text(p, " = ");
     print_value(p, fields[slots == nullptr ? i : slots[i]], depth + 1);
   }

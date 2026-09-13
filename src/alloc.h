@@ -14,9 +14,12 @@ enum gc_phase {
   GC_SWEEP,
 };
 
+struct strtab;
+
 struct heap {
   uint8_t *base;
   uint8_t *limit;
+  struct strtab *strings;
 
   struct free_block *free_list;
   uint8_t *sweep_cursor;
@@ -34,6 +37,8 @@ struct heap {
 };
 
 COLD_HELPER void *heap_alloc_preload(struct heap *h, size_t n);
+COLD_HELPER struct str *heap_intern_str(struct heap *h, const char *s,
+                                        size_t n);
 COLD_HELPER void *alloc_object(size_t n, struct fiber_segment *restrict fiber,
                                val_t *restrict bp);
 bool heap_init(struct heap *restrict h,
